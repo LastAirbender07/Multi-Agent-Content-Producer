@@ -33,13 +33,7 @@ class ClaudeLLM(BaseLLM):
         self.temperature = temperature
         self.max_retries = max_retries
 
-        logger.info(
-            "claude_llm_initialized",
-            model=model,
-            base_url=base_url,
-            timeout=timeout,
-            max_tokens=max_tokens
-        )
+        # Initialization logging removed for cleaner output
 
         self.client = httpx.AsyncClient(
             timeout=timeout,
@@ -52,6 +46,7 @@ class ClaudeLLM(BaseLLM):
 
     async def generate(self, prompt: str, system_prompt: Optional[str] = None, **kwargs):
         start_time = time.time()
+        print(f"Generating response for prompt: {prompt[:50]}...")
 
         payload = {
             "model": self.model,
@@ -63,12 +58,7 @@ class ClaudeLLM(BaseLLM):
         if system_prompt:
             payload["system"] = system_prompt
 
-        logger.debug(
-            "llm_generate_request",
-            model=self.model,
-            prompt_length=len(prompt),
-            has_system_prompt=bool(system_prompt)
-        )
+        # Request logging removed for cleaner output
 
         try:
             response = await self.client.post(
@@ -89,13 +79,7 @@ class ClaudeLLM(BaseLLM):
 
             data = response.json()
 
-            logger.info(
-                "llm_generate_success",
-                model=data.get("model", self.model),
-                input_tokens=data.get("usage", {}).get("input_tokens"),
-                output_tokens=data.get("usage", {}).get("output_tokens"),
-                elapsed_time=elapsed_time
-            )
+            # Success logging removed for cleaner output
 
             return LLMResponse(
                 content=data["content"][0]["text"],
@@ -133,11 +117,7 @@ class ClaudeLLM(BaseLLM):
         schema_json = output_schema.model_json_schema()
         schema_name = output_schema.__name__
 
-        logger.debug(
-            "llm_generate_structured_request",
-            schema_name=schema_name,
-            max_retries=self.max_retries
-        )
+        # Structured request logging removed for cleaner output
 
         enhanced_prompt = f"""{prompt}
 
@@ -156,11 +136,7 @@ Return ONLY valid JSON matching:
 
                 validated = output_schema.model_validate(data)
 
-                logger.info(
-                    "llm_generate_structured_success",
-                    schema_name=schema_name,
-                    attempts=attempt + 1
-                )
+                # Success logging removed for cleaner output
 
                 return validated
 
@@ -182,6 +158,4 @@ Return ONLY valid JSON matching:
         raise LLMValidationError("Failed structured output")
 
     async def close(self):
-        logger.debug("claude_llm_closing")
         await self.client.aclose()
-        logger.info("claude_llm_closed")
