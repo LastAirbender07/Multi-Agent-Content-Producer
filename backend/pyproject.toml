@@ -1,0 +1,14 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.12.5",
+    "python-json-logger>=4.0.0",
+    "structlog>=25.5.0",
+]
+
+[tool.setuptools]
+packages = ["apps", "core", "configs", "infra", "scripts"]
