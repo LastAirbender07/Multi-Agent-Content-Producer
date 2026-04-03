@@ -1,18 +1,47 @@
-import os
+import asyncio
+from typing import Optional
+from infra.llm.base import BaseLLM
 from infra.llm.providers.claude import ClaudeLLM
+from configs.settings import get_settings
 
 
 class LLMFactory:
+    _instance: Optional[BaseLLM] = None
+    _lock = asyncio.Lock()
 
-    @staticmethod
-    def create():
-        provider = os.getenv("LLM_PROVIDER", "claude")
+    @classmethod
+    async def get_client(cls) -> BaseLLM:
+        """
+        Get singleton LLM client (thread-safe, reuses same instance).
 
-        if provider == "claude":
-            return ClaudeLLM(
-                api_key=os.getenv("HAI_PROXY_API_KEY"),
-                base_url=os.getenv("HAI_PROXY_URL", "http://localhost:6655/anthropic"),
-                model=os.getenv("LLM_MODEL", "anthropic--claude-4.5-sonnet")
-            )
+        Use this for most cases to avoid creating multiple HTTP clients.
+        Returns the same client instance across all calls.
+        """
+        if cls._instance is None:
+            async with cls._lock:
+                if cls._instance is None:  # Double-check locking
+                    settings = get_settings()
 
-        raise ValueError(f"Unsupported provider: {provider}")
+                    if settings.llm_provider == "claude":
+                        cls._instance = ClaudeLLM(
+                            api_key=settings.hai_proxy_api_key,
+                            base_url=settings.hai_proxy_url,
+                            model=settings.llm_model,
+                            timeout=settings.llm_timeout,
+                            max_tokens=settings.llm_max_tokens,
+                            temperature=settings.llm_temperature
+                        )
+                    else:
+                        raise ValueError(f"Unsupported provider: {settings.llm_provider}")
+
+        return cls._instance
+
+    @classmethod
+    async def close_client(cls):
+        """
+        Close singleton client (call on application shutdown).
+        Should be called when your app shuts down (e.g., FastAPI shutdown event).
+        """
+        if cls._instance:
+            await cls._instance.close()
+            cls._instance = None

@@ -33,8 +33,6 @@ class ClaudeLLM(BaseLLM):
         self.temperature = temperature
         self.max_retries = max_retries
 
-        # Initialization logging removed for cleaner output
-
         self.client = httpx.AsyncClient(
             timeout=timeout,
             headers={
@@ -58,8 +56,6 @@ class ClaudeLLM(BaseLLM):
         if system_prompt:
             payload["system"] = system_prompt
 
-        # Request logging removed for cleaner output
-
         try:
             response = await self.client.post(
                 f"{self.base_url}/v1/messages",
@@ -78,8 +74,6 @@ class ClaudeLLM(BaseLLM):
                 raise LLMError(response.text)
 
             data = response.json()
-
-            # Success logging removed for cleaner output
 
             return LLMResponse(
                 content=data["content"][0]["text"],
@@ -117,8 +111,6 @@ class ClaudeLLM(BaseLLM):
         schema_json = output_schema.model_json_schema()
         schema_name = output_schema.__name__
 
-        # Structured request logging removed for cleaner output
-
         enhanced_prompt = f"""{prompt}
 
 Return ONLY valid JSON matching:
@@ -135,8 +127,6 @@ Return ONLY valid JSON matching:
                 data = json.loads(content)
 
                 validated = output_schema.model_validate(data)
-
-                # Success logging removed for cleaner output
 
                 return validated
 

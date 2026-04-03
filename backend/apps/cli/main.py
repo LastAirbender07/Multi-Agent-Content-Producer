@@ -1,20 +1,19 @@
 import asyncio
 from infra.llm.factory import LLMFactory
-from infra.llm.bootstrap.env_setup import setup_hai_env
 from infra.logging import get_logger
 
 logger = get_logger(__name__)
 
 
 async def main():
-    setup_hai_env()
+    llm = await LLMFactory.get_client()
 
-    llm = LLMFactory.create()
-    response = await llm.generate("Say hello")
+    # Make a simple call
+    response = await llm.generate("Say hello in a creative way!")
 
-    logger.info(f"Response: {response.content}")
-    logger.info(f"Model: {response.model}\nUsage: {response.usage}")
+    logger.info(f"\n✅ Response: {response.content}\n")
+    logger.debug(f"🤖 Model: {response.model}\n📊 Usage: {response.usage}")
 
-    await llm.close()
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
