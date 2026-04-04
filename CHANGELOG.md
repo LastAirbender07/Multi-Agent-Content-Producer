@@ -7,7 +7,8 @@
 
 ## 2026-04-04
 
-- was working on Research tools
+- Added schemas for workflow state and news API interactions.
+- Implemented tests for NewsAPI functionality.
 
 ## 2026-04-03
 
