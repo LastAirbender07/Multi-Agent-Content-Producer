@@ -6,6 +6,150 @@
 
 ---
 
+## 2026-04-04 - Session 3: NewsAPI Tool Implementation (Phase 1)
+
+**Decision:** Implemented first research tool (NewsAPI) with async architecture, Pydantic validation.
+
+**Why:**
+- Avoid full dependency on Tavily (paid service)
+- Need multiple data sources for research orchestrator
+- Test individual tools before building orchestrator layer
+
+**Implementation:**
+```
+backend/core/tools/
+├── base.py                    # BaseTool abstract class
+├── News/
+│   ├── news_api.py           # Async NewsAPI implementation
+│   └── schema.py             # Pydantic input/output models
+└── schemas/
+    └── news_api_schema.py    # NewsAPISearchInput/Output, NewsArticle
+```
+
+**Key Patterns:**
+- ✅ Async execution with `asyncio.to_thread()` for blocking I/O
+- ✅ Pydantic validation for input/output
+- ✅ Structured error handling (never crashes, returns success/error)
+- ✅ Individual parameters (not dict) for better IDE support
+- ✅ Convenience functions for common use cases
+
+**Architecture Decisions:**
+- Reddit will use **LLM-powered dynamic subreddit generation** (not hardcoded)
+- Custom web scraping tools as Tavily alternatives
+- **Research Orchestrator Agent** to manage tool selection, retries, quality checks
+
+**Next:** Reddit tool with dynamic topic mapping, then custom web scrapers, then orchestrator
+
+**Status:** ✅ Complete (NewsAPI working, tested)
+
+**Docs:** `Docs/NEWS_API_IMPLEMENTATION_GUIDE.md`
+
+---
+
+## 2026-04-03 - Session 2: Hybrid Research Architecture (Tools + LLM)
+
+**Decision:** Use real data sources (APIs/scraping) + LLM synthesis instead of LLM-only research.
+
+**Why:**
+- LLM-only research = hallucinations, outdated info, no sources
+- Production needs: real data, verifiable URLs, recent information
+- User insight: "Research should use web search, scraper, news APIs"
+
+**Architecture:**
+```
+Research Node = Tools (gather data) + LLM (synthesize insights)
+
+Tools (parallel):
+├── Tavily Search → Web results (5 sources)
+├── Reddit Scraper → Community discussions (5 posts + comments)
+└── NewsAPI → Recent articles (10 articles)
+  ↓
+LLM Synthesis → Extract insights, contradictions, patterns
+  ↓
+Output: Structured research with real sources
+```
+
+**Tools Selected:**
+- **Tavily API** (web search, $1/1000, designed for AI)
+- **PRAW** (Reddit API, free, unlimited)
+- **NewsAPI** (news, 100/day free)
+
+**Key Pattern:**
+```python
+# Gather real data
+web, reddit, news = await asyncio.gather(
+    search_web(topic),
+    search_reddit(topic),
+    search_news(topic)
+)
+
+# LLM synthesizes
+research = await llm.generate_structured(
+    prompt=f"Analyze: {web} {reddit} {news}",
+    output_schema=ResearchOutput
+)
+```
+
+**Benefits:**
+- ✅ No hallucinations (real data)
+- ✅ Verifiable sources (URLs included)
+- ✅ Recent information (not training cutoff)
+- ✅ Multiple perspectives (web + community + news)
+
+**Cost:** Free tier sufficient for development (~30 content pieces/day)
+
+**Status:** ✅ Complete (guide written)
+
+**Docs:** `Docs/RESEARCH_TOOLS_GUIDE.md`
+
+---
+
+## 2026-04-03 - Session 2: REVISED Architecture with Prompt Management
+
+**Decision:** Redesigned agent system based on initial plan + centralized prompt management.
+
+**Why:**
+- Initial guide missed prompt management (hard to iterate on voice/style)
+- Needed alignment with original plan (strong POV content system)
+- Prompts in code = hard to version/test/collaborate
+
+**New Architecture:**
+```
+core/
+├── prompts/           # ⭐ NEW - Centralized prompt management
+│   ├── system_prompts.py    # Defines voice/style per agent
+│   ├── prompt_loader.py     # Load from files or code
+│   └── templates/*.txt      # Editable prompt templates
+├── nodes/             # LangGraph nodes (use prompts)
+├── graphs/            # Workflow orchestration
+└── schemas/           # State management
+```
+
+**Key Pattern:**
+```python
+# Separate voice (system) from task (user)
+system_prompt = get_system_prompt("angle")  # Defines style
+user_prompt = format_prompt(template, topic=x, research=y)  # Task
+result = llm.generate(user_prompt, system_prompt=system_prompt)
+```
+
+**Benefits:**
+- ✅ Easy prompt iteration (change file, not code)
+- ✅ Version control prompts (track what works)
+- ✅ A/B testing (swap prompts, measure quality)
+- ✅ Non-coders can edit .txt files
+
+**Critical Insight from Plan:**
+- Angle Agent = CRITICAL node (quality decided here)
+- System prompts encode "strong, opinionated" voice
+- Workflow: Research → Angle → Approval → Content → Visual
+
+**Status:** ✅ Complete (revised guide written)
+
+**Docs:** `Docs/REVISED_IMPLEMENTATION_GUIDE.md`
+
+---
+
 ## 2026-04-03 - Session 2: LangGraph Architecture Decision
 
 **Decision:** Use LangGraph primitives instead of custom BaseAgent class.
@@ -179,4 +323,4 @@ For in-depth analysis, see:
 
 ---
 
-_Last updated: 2026-04-03_
+_Last updated: 2026-04-04_

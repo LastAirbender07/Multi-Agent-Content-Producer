@@ -1,0 +1,25 @@
+Based on this research about "{topic}":
+
+{research_summary}
+
+Key data points:
+{key_points}
+
+Generate 5 unique content angles/perspectives.
+
+Each angle must:
+1. Take a STRONG stance (not neutral)
+2. Be specific and defensible
+3. Appeal to a target emotion:
+   - Curiosity ("The hidden truth...")
+   - Anger ("Why this is actually harmful...")
+   - Hope ("The opportunity nobody sees...")
+   - FOMO ("What early adopters understand...")
+4. Be shareable (make people tag friends)
+
+Format each angle as:
+- Angle statement (1-2 sentences)
+- Why it works (emotional hook)
+- Supporting evidence from research
+
+Think: What would Naval/Balaji/Patrick Collison say about this?

@@ -1,0 +1,40 @@
+Create Instagram carousel content:
+
+Topic: {topic}
+Selected Angle: {angle}
+Research Context: {research_summary}
+
+Generate:
+
+1. **Hook** (first line of caption)
+   - Grab attention immediately
+   - Use curiosity/conflict/contradiction
+   - Max 100 characters
+
+2. **7 Carousel Slides**
+   Slide 1 (Hook slide):
+   - Title: Attention-grabbing question or statement
+   - Content: Setup the problem/contradiction
+
+   Slides 2-6 (Build argument):
+   - Each slide: One clear point
+   - Use data/examples
+   - Progressive narrative
+
+   Slide 7 (Conclusion):
+   - Key takeaway
+   - Call to action (question/reflection)
+
+3. **Caption** (full text, max 2200 chars)
+   - Expand on hook
+   - Tell the story
+   - Include data/examples
+   - End with question for engagement
+
+4. **Hashtags** (20-30 relevant tags)
+   - Mix of popular and niche
+   - Relevant to topic
+
+**Tone**: Analytical, opinionated, data-driven, conversational
+
+**Style**: Think Lenny's Newsletter meets X threads meets Instagram education

@@ -1,0 +1,19 @@
+Research the following topic and provide a comprehensive analysis:
+
+Topic: {topic}
+
+Focus areas:
+1. Current state and recent developments (2024 - current year)
+2. Key statistics and data points
+3. Contradictions and controversies
+4. Hidden patterns or implications
+5. Different perspectives (mainstream vs contrarian)
+
+Prioritize:
+- Recent news/events
+- Credible sources
+- Quantifiable data
+- Expert opinions
+- User discussions (Reddit, Quora, X, LinkedIn)
+
+Return structured insights with sources.

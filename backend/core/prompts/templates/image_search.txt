@@ -1,0 +1,20 @@
+Find images for carousel content about: {topic}
+
+Angle: {angle}
+
+Requirements:
+- 7 images (one per slide)
+- High resolution (min 1080x1080)
+- Professional quality
+- Diverse representation
+- Support the narrative
+
+For each slide:
+{slide_context}
+
+Search queries should be:
+- Conceptual, not literal
+- Aesthetic, not cliché
+- Modern, not dated
+
+Return: List of search queries for Unsplash/Pexels API
