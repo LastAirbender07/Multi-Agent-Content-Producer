@@ -1,14 +1,27 @@
 import os
+import re
 import requests
 import asyncio
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any, Tuple
+from email.utils import parsedate_to_datetime
+import trafilatura
+from html import unescape
 from core.tools.base import BaseTool
 from core.tools.schemas.news_api_schema import (
+    GoogleNewsAPISearchInput,
     NewsAPISearchInput,
-    NewsAPISearchOutput,
+    NewsSearchOutput,
     NewsArticle,
+)
+from google_news_api import AsyncGoogleNewsClient
+from google_news_api.exceptions import (
+    ConfigurationError,
+    ValidationError,
+    HTTPError,
+    RateLimitError,
+    ParsingError
 )
 from infra.logging import get_logger
 
@@ -18,6 +31,219 @@ NEWSAPI_BASE_URL = "https://newsapi.org/v2"
 NEWSAPI_EVERYTHING_ENDPOINT = f"{NEWSAPI_BASE_URL}/everything"
 NEWSAPI_TOP_HEADLINES_ENDPOINT = f"{NEWSAPI_BASE_URL}/top-headlines"
 REQUEST_TIMEOUT_SECONDS = 10
+
+GOOGLE_NEWS_VALID_TOPICS = ["WORLD", "NATION", "BUSINESS", "TECHNOLOGY", "ENTERTAINMENT", "SPORTS", "SCIENCE", "HEALTH"]
+
+async def fetch_article_content(url: str, timeout: int = 10) -> Optional[str]:
+    """
+    Fetch and extract article content from URL using trafilatura.
+    Processed sequentially to avoid connection pool issues.
+    """
+    try:
+        def _fetch():
+            downloaded = trafilatura.fetch_url(url)
+            if not downloaded:
+                return None
+
+            content = trafilatura.extract(
+                downloaded,
+                include_comments=False,
+                include_tables=False,
+                no_fallback=False
+            )
+            return content
+
+        content = await asyncio.wait_for(asyncio.to_thread(_fetch), timeout=timeout)
+        return content.strip() if content else None
+
+    except asyncio.TimeoutError:
+        logger.debug(f"Timeout fetching article: {url}")
+        return None
+
+    except Exception as e:
+        logger.debug(f"Failed to fetch article from {url}: {str(e)}")
+        return None                                                                                 
+                                                                                                      
+                                                                                                      
+def clean_html(text: str) -> str:                                                                                                                           
+    if not text: return ""                                                                                   
+                                                                                                                                                                         
+    text = unescape(text)                                                                           
+    text = re.sub(r'<[^>]+>', '', text)                                                             
+    text = ' '.join(text.split())                                                                   
+                                                                                                      
+    return text.strip()
+
+class GoogleNewsAPI(BaseTool):
+    def __init__(
+        self, 
+        language: str = "en",
+        country: str = "us",
+        requests_per_minute: int = 60,
+        cache_ttl: int = 300
+    ):
+        super().__init__()
+        self.language = language
+        self.country = country
+        self.requests_per_minute = requests_per_minute
+        self.cache_ttl = cache_ttl
+        self.client = None
+
+    def _error_output(self, message: str) -> NewsSearchOutput:
+        return NewsSearchOutput(success=False, error=message, articles=[], total_results=0)
+    
+    async def convert_to_pydantic_article(self, article_dict: dict) -> NewsArticle:
+        """Convert article dict to NewsArticle, fetching full content from URL."""
+        published_at = parsedate_to_datetime(article_dict.get("published"))
+        summary = clean_html(article_dict.get("summary", ""))
+        content = summary
+
+        # Get Google News redirect URL
+        google_news_url = article_dict.get("link")
+        real_url = None
+
+        if google_news_url:
+            # Step 1: Decode Google News URL to get real article URL
+            try:
+                if self.client:
+                    real_url = await self.client.decode_url(str(google_news_url))
+                else:
+                    logger.warning("Client not initialized; cannot decode URL")
+
+                if real_url:
+                    logger.info(f"  → Decoded to: {real_url}")
+
+                    # Step 2: Fetch full content from real article URL
+                    full_content = await fetch_article_content(real_url)
+
+                    if full_content and len(full_content) > len(summary):
+                        content = full_content
+                        logger.info(f"  ✓ Fetched full content ({len(full_content)} chars)")
+                    else:
+                        logger.info(f"  ✗ Content fetch failed, using summary ({len(summary)} chars)")
+                else:
+                    logger.warning(f"  ✗ Could not decode URL: {google_news_url}")
+                    logger.info(f"  → Using summary ({len(summary)} chars)")
+
+            except Exception as e:
+                logger.warning(f"  ✗ Error decoding/fetching: {str(e)}", exc_info=True)
+
+        return NewsArticle(
+            title=article_dict.get("title"),
+            description=summary,
+            content=content,
+            url=real_url or google_news_url,
+            source_name=article_dict.get("source"),
+            author=None,
+            published_at=published_at,
+            url_to_image=None,
+            relevance_score=None
+        )
+
+
+
+    async def execute(
+        self,
+        query: Optional[str] = None,
+        topic: Optional[str] = None,
+        max_results: int = 10,
+        language: Optional[str] = None,
+        country: Optional[str] = None,
+        when: Optional[str] = None,
+        after: Optional[str] = None,
+        before: Optional[str] = None,
+    ) -> GoogleNewsAPISearchInput:
+        
+        try:
+            search_input = GoogleNewsAPISearchInput(
+                query=query,
+                topic=topic,
+                max_results=max_results,
+                language=language,
+                country=country,
+                when=when,
+                after=after,
+                before=before
+            )
+        except Exception as e:
+            return self._error_output(str(e))
+        
+        if not search_input.query and search_input.topic and search_input.topic.upper() not in GOOGLE_NEWS_VALID_TOPICS:
+            return self._error_output(f"Invalid topic '{search_input.topic}'. Valid topics are: {', '.join(GOOGLE_NEWS_VALID_TOPICS)}")
+        
+        try:
+            async with AsyncGoogleNewsClient(
+                language=search_input.language or self.language,
+                country=search_input.country or self.country,
+                requests_per_minute=self.requests_per_minute,
+                cache_ttl=self.cache_ttl
+            ) as client:
+                self.client = client
+
+                search_kwargs = {
+                    "when": search_input.when,
+                    "after": search_input.after,
+                    "before": search_input.before,
+                    "max_results": search_input.max_results
+                }
+
+                if search_input.query:
+                    raw_articles = await client.search(query=search_input.query, **search_kwargs)
+                elif search_input.topic:
+                    raw_articles = await client.search(topic=search_input.topic.upper(), **search_kwargs)
+                else:
+                    # Top stories if no query or topic provided
+                    raw_articles = await client.search(**search_kwargs)
+
+                # Process articles sequentially (reliable, no connection pool warnings)
+                articles = []
+                total = len(raw_articles)
+
+                logger.info(f"Processing {total} articles sequentially...")
+
+                for idx, article_dict in enumerate(raw_articles, 1):
+                    article_title = article_dict.get('title', 'Unknown')[:60]
+                    logger.info(f"[{idx}/{total}] Processing: {article_title}...")
+
+                    article = await self.convert_to_pydantic_article(article_dict)
+                    articles.append(article)
+
+                logger.info(f"✓ Successfully processed {len(articles)} articles")
+
+                metadata = {
+                    "query": search_input.dict(),
+                    "topic": search_input.topic,
+                    "response_time": None,
+                    "language": search_input.language,
+                    "country": search_input.country,
+                    "when": search_input.when,
+                    "after": search_input.after.isoformat() if search_input.after else None,
+                    "before": search_input.before.isoformat() if search_input.before else None,
+                    "cache_ttl": self.cache_ttl,
+                    "retrived_at": datetime.now().isoformat(),
+                    "retrieval_method": "GoogleNewsAPI",
+                }
+
+                return NewsSearchOutput(
+                    success=True,
+                    articles=articles,
+                    total_results=len(articles),
+                    metadata=metadata
+                )
+            
+        except RateLimitError as e:
+            return self._error_output(f"Rate limit exceeded: {str(e)}")
+        except HTTPError as e:
+            return self._error_output(f"HTTP error: {str(e)}")
+        except ValidationError as e:
+            return self._error_output(f"Validation error: {str(e)}")
+        except ParsingError as e:
+            return self._error_output(f"Parsing error: {str(e)}")
+        except ConfigurationError as e:
+            return self._error_output(f"Configuration error: {str(e)}")
+        except Exception as e:
+            return self._error_output(f"An unexpected error occurred: {str(e)}")
+
 
 
 class NewsAPI(BaseTool):
@@ -34,8 +260,8 @@ class NewsAPI(BaseTool):
             "User-Agent": "Multi-Agent-Content-Producer",
         }
 
-    def _error_output(self, message: str) -> NewsAPISearchOutput:
-        return NewsAPISearchOutput(success=False, error=message, articles=[], total_results=0)
+    def _error_output(self, message: str) -> NewsSearchOutput:
+        return NewsSearchOutput(success=False, error=message, articles=[], total_results=0)
 
     async def _request_newsapi(
         self, endpoint: str, params: Dict[str, Any]
@@ -100,7 +326,7 @@ class NewsAPI(BaseTool):
         days_back: int = 7,
         sources: Optional[List[str]] = None,
         domains: Optional[List[str]] = None,
-    ) -> NewsAPISearchOutput:
+    ) -> NewsSearchOutput:
         try:
             search_input = NewsAPISearchInput(
                 query=query,
@@ -138,7 +364,7 @@ class NewsAPI(BaseTool):
 
         articles = self._parse_articles(data)
 
-        return NewsAPISearchOutput(
+        return NewsSearchOutput(
             success=True,
             articles=articles,
             total_results=data.get("totalResults", len(articles)),
@@ -158,7 +384,7 @@ class NewsAPI(BaseTool):
         country: Optional[str] = None,
         category: Optional[str] = None,
         max_results: int = 20,
-    ) -> NewsAPISearchOutput:
+    ) -> NewsSearchOutput:
         params = {"pageSize": max_results}
         if country:
             params["country"] = country
@@ -171,7 +397,7 @@ class NewsAPI(BaseTool):
 
         articles = self._parse_articles(data)
 
-        return NewsAPISearchOutput(
+        return NewsSearchOutput(
             success=True,
             articles=articles,
             total_results=data.get("totalResults", len(articles)),

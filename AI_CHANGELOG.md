@@ -6,6 +6,75 @@
 
 ---
 
+## 2026-04-05 - Session 4: Google News API + Full Article Extraction
+
+**Decision:** Implemented Google News RSS tool with full article content extraction via sequential processing.
+
+**Why:**
+- Free unlimited alternative to NewsAPI (no rate limits)
+- Need full article content, not just summaries
+- Google News redirect URLs required special handling
+
+**Implementation:**
+```
+backend/core/tools/News/
+└── news_api.py
+    ├── GoogleNewsAPI class         # google-news-api library integration
+    ├── fetch_article_content()     # trafilatura for content extraction
+    └── Sequential processing       # Reliable, no connection pool issues
+```
+
+**Key Technical Decisions:**
+
+1. **Sequential Processing (not parallel)**
+   - Problem: trafilatura's urllib3 pool exhaustion with concurrent requests
+   - Solution: Process articles one-by-one (20-30s for 10 articles)
+   - Rationale: Reliability > Speed for research tools
+
+2. **Google News URL Decoding**
+   - Problem: Google wraps article URLs in redirects
+   - Solution: Use `client.decode_url()` from google-news-api library
+   - Benefit: Handles complex redirect chains automatically
+
+3. **Full Content Extraction Pipeline**
+   ```python
+   Google News URL
+     → Decode to real article URL (client.decode_url)
+     → Fetch full content (trafilatura)
+     → Fallback to summary if fetch fails
+   ```
+
+4. **Clean HTML Summaries**
+   - Regex-based HTML tag removal (simple, fast)
+   - No beautifulsoup overhead for summaries
+
+**Libraries Used:**
+- `google-news-api` - RSS feed parsing + URL decoding
+- `trafilatura` - Article content extraction (modern, maintained)
+- `beautifulsoup4` - Installed but not needed (URL decoding handled by library)
+
+**Architecture Pattern:**
+```python
+# Sequential processing with progress tracking
+for idx, article in enumerate(articles):
+    logger.info(f"[{idx}/{total}] Processing: {title}...")
+    real_url = await client.decode_url(google_news_url)
+    content = await fetch_article_content(real_url)
+```
+
+**Benefits:**
+- ✅ Free unlimited news access
+- ✅ Full article content (not just summaries)
+- ✅ Clean descriptions (HTML stripped)
+- ✅ No connection pool warnings
+- ✅ Predictable, reliable behavior
+
+**Status:** ✅ Complete (Google News API working with full content)
+
+**Docs:** `Docs/GOOGLE_NEWS_API_IMPLEMENTATION.md`
+
+---
+
 ## 2026-04-04 - Session 3: NewsAPI Tool Implementation (Phase 1)
 
 **Decision:** Implemented first research tool (NewsAPI) with async architecture, Pydantic validation.
@@ -323,4 +392,4 @@ For in-depth analysis, see:
 
 ---
 
-_Last updated: 2026-04-04_
+_Last updated: 2026-04-05_

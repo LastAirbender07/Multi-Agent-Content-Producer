@@ -2,6 +2,53 @@ from pydantic import BaseModel, Field, HttpUrl
 from typing import List, Optional
 from datetime import datetime
 
+
+class GoogleNewsAPISearchInput(BaseModel):
+    query: Optional[str] = Field(
+        default=None,
+        description="Search query for news articles (e.g., 'AI', 'technology', 'sports')",
+        min_length=2
+    )
+
+    topic: Optional[str] = Field(
+        default=None,
+        description="Optional topic to filter news articles (e.g., 'technology', 'sports', 'business')"
+    )
+
+    max_results: int = Field(
+        default=10,
+        ge=1,
+        le=50,
+        description="Maximum number of news articles to return (1-50)"
+    )
+
+    language: Optional[str] = Field(
+        default="en",
+        description="Language code to filter news articles (e.g., 'en' for English, 'fr' for French)",
+        pattern=r'^[a-z]{2}$'
+    )
+
+    country: Optional[str] = Field(
+        default=None,
+        description="Country code to filter news articles (e.g., 'us' for United States, 'gb' for United Kingdom)",
+        pattern=r'^[A-Z]{2}$'
+    )
+
+    when: Optional[str] = Field(
+        default=None,
+        description="Optional time filter for news articles (e.g., '1d' for last 24 hours, '7d' for last 7 days, '1m' for last month)"
+    )
+
+    after: Optional[datetime] = Field(
+        default=None,
+        description="Optional start date to filter news articles in DD-MM-YYYY format (e.g., '01-01-2024')"
+    )   
+
+    before: Optional[datetime] = Field(
+        default=None,
+        description="Optional end date to filter news articles in DD-MM-YYYY format (e.g., '31-01-2024')"
+    )
+
 class NewsAPISearchInput(BaseModel):
     query: str = Field(
         ...,
@@ -44,6 +91,7 @@ class NewsAPISearchInput(BaseModel):
         description="Optional list of domains to filter by (e.g., ['bbc.co.uk', 'cnn.com'])"
     )   
 
+
 class NewsArticle(BaseModel):
     title: str = Field(..., description="Title of the news article")
     description: Optional[str] = Field(None, description="Short description of the news article")
@@ -55,7 +103,7 @@ class NewsArticle(BaseModel):
     url_to_image: Optional[HttpUrl] = Field(None, description="URL to the image associated with the news article")
     relevance_score: Optional[float] = Field(None, description="Relevance score of the article based on the search query")
 
-class NewsAPISearchOutput(BaseModel):
+class NewsSearchOutput(BaseModel):
     success: bool = Field(..., description="Indicates if the search was successful")
     articles: List[NewsArticle] = Field(..., description="List of news articles matching the search criteria")
     total_results: int = Field(..., description="Total number of articles found for the search query")
