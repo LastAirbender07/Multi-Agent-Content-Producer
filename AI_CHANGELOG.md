@@ -6,6 +6,80 @@
 
 ---
 
+## 2026-04-06 - Session 5: Crawl4AI Web Scraper Implementation
+
+**Decision:** Implemented Crawl4AI scraper as the first general web scraping tool to complement Google News API.
+
+**Why:**
+- Need ability to scrape full content from arbitrary URLs (not just news)
+- Crawl4AI provides LLM-optimized markdown output
+- Free, no API keys, handles JavaScript rendering
+- First step toward multi-source research capability
+
+**Implementation:**
+```
+backend/core/tools/
+├── Crawl4ai/
+│   └── crawl4ai_scraper.py         # Main scraper tool
+└── schemas/
+    └── crawl4ai_scraper_schema.py  # Pydantic models
+```
+
+**Key Technical Challenges Solved:**
+
+1. **Schema Mismatch with Crawl4AI Output**
+   - Problem: Crawl4AI returns nested dicts, not simple lists
+     - `links: {'internal': [...], 'external': [...]}`
+     - `media: {'images': [...], 'videos': [...], 'audios': [...]}`
+     - `markdown: {'raw_markdown', 'fit_markdown', ...}`
+   - Solution: Created structured models (`LinkInfo`, `ImageInfo`) and helper methods
+     - `_extract_links()` - Parses nested link structure into separate internal/external lists
+     - `_extract_images()` - Extracts image data with metadata
+     - `_extract_markdown()` - Selects best markdown format (fit_markdown > raw_markdown)
+
+2. **Result Container Handling**
+   - Problem: Crawl4AI returns `CrawlResultContainer` (iterable), not plain list
+   - Solution: Check if result is iterable, extract first item
+   ```python
+   if hasattr(result, '__iter__') and not isinstance(result, str):
+       page_result = list(result)[0]
+   ```
+
+3. **Output Optimization**
+   - Limited links (50 per type) and images (30) to prevent overwhelming output
+   - Optional HTML inclusion (off by default to reduce size)
+   - Structured metadata extraction from Crawl4AI response
+
+**Code Structure Pattern:**
+```python
+class Crawl4AIScraper(BaseTool):
+    def __init__(self, verbose: bool = False)
+    def _error_output(message: str) → Output
+    def _extract_links(links_dict) → (internal, external)  # Helper
+    def _extract_images(media_dict) → List[ImageInfo]      # Helper
+    def _extract_markdown(markdown_dict) → str             # Helper
+    async def execute(...) → Crawl4AIScraperOutput        # Main
+```
+
+**Libraries Used:**
+- `crawl4ai` (v0.8.6) - Web scraping with JS rendering
+- `pydantic` - Input/output validation
+
+**Performance:**
+- Simple page (example.com): ~2.4s
+- Complex page (wikipedia.org): ~1.6s, 20K chars markdown, 70 links
+
+**Status:** ✅ Complete (Crawl4AI working, tested with multiple URLs)
+
+**Next:** SearXNG search tool to find URLs, then combine both in research orchestrator
+
+**Docs Created:**
+- `Docs/WEB_SEARCH_TOOLS_IMPLEMENTATION.md` - Full implementation guide
+- `Docs/QUICK_REFERENCE_CHEATSHEET.md` - Quick reference patterns
+- `Docs/ARCHITECTURE_VISUAL_GUIDE.md` - Visual architecture diagrams
+
+---
+
 ## 2026-04-05 - Session 4: Google News API + Full Article Extraction
 
 **Decision:** Implemented Google News RSS tool with full article content extraction via sequential processing.
