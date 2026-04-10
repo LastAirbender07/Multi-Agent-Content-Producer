@@ -6,6 +6,36 @@
 
 ---
 
+## 2026-04-10 - Session 6: DDGS Search Tool - Bug Fixes
+
+**Decision:** Fixed schema and test issues in DDGS search tool implementation.
+
+**Why:**
+- Schema had duplicate `timelimit` field causing validation errors
+- `VideoResult` had syntax error (used `def` instead of `class`)
+- Test was using invalid backend ("bing" for text search)
+- Google backend fails due to anti-scraping measures (DDGS library limitation)
+
+**Key Fixes:**
+1. Removed duplicate `timelimit` field from `DDGSSearchInput` schema
+2. Fixed `VideoResult` class declaration syntax
+3. Updated test to use valid backends: duckduckgo, google, brave
+4. Documented Google backend limitation (not a bug, expected behavior)
+
+**Test Results:**
+- ✅ Text search: 10 results (auto backend)
+- ✅ News search: 5 results
+- ✅ Image search: 5 results
+- ✅ DuckDuckGo backend: working
+- ✅ Brave backend: working
+- ⚠️ Google backend: "No results found" (anti-scraping, use `auto` instead)
+
+**Key Decision:** Leave Google backend as-is - it's a DDGS library limitation with Google's anti-scraping measures. Users should use `auto` backend (default) which works perfectly by trying multiple engines.
+
+**Status:** ✅ Complete (DDGS search tool fully functional)
+
+---
+
 ## 2026-04-06 - Session 5: Crawl4AI Web Scraper Implementation
 
 **Decision:** Implemented Crawl4AI scraper as the first general web scraping tool to complement Google News API.

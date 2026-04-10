@@ -7,6 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "bs4>=0.0.2",
     "crawl4ai>=0.8.6",
+    "ddgs>=9.13.0",
     "dotenv>=0.9.9",
     "google-news-api>=0.0.6",
     "httpx>=0.28.1",
