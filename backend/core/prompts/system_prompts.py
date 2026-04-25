@@ -88,11 +88,11 @@ Avoid:
 - Overly staged images"""
 
 
-def get_system_prompt(aganet_type: str) -> str:
+def get_system_prompt(agent_type: str) -> str:
     try:
-        return SystemPrompts[aganet_type.upper()].value
+        return SystemPrompts[agent_type.upper()].value
     except KeyError:
-        raise ValueError(f"Invalid aganet type: {aganet_type}")
+        raise ValueError(f"Invalid agent type: {agent_type}")
     
 def format_prompt(template: str, **kwargs) -> str:
     return template.format(**kwargs)

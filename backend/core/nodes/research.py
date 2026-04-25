@@ -11,7 +11,7 @@ async def research_node(state: ContentWorkflowState) -> dict:
     logger.info("resarch_node_start", topic=topic)
 
     try:
-        llm = LLMFactory.get_client()
+        llm = await LLMFactory.get_client()
         system_prompt = get_system_prompt("research")
         prompt_template = load_prompt("research", topic=topic)
 

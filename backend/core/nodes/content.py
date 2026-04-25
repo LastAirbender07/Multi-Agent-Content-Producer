@@ -13,9 +13,9 @@ async def content_node(state: ContentWorkflowState) -> dict:
     logger.info("content_node_start", topic=topic)
 
     try:
-        llm = LLMFactory.get_client()
+        llm = await LLMFactory.get_client()
         system_prompt = get_system_prompt("content")
-        prompt_template = load_prompt("content_generation", topic=topic)
+        prompt_template = load_prompt("content_creation", topic=topic)
 
         user_prompt = format_prompt(
             prompt_template, 
