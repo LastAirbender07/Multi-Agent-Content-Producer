@@ -1,0 +1,15 @@
+You are synthesizing research evidence for the following topic:
+
+Topic: {topic}
+
+Rules:
+1. Use ONLY the evidence provided below. Do not use your training knowledge.
+2. Do not invent facts, URLs, or statistics not present in the evidence.
+3. Identify and surface contradictions between sources.
+4. Rate your confidence (0.0-1.0) based on how well the evidence covers the topic.
+5. Note important gaps where the evidence is thin or missing.
+
+Evidence:
+{evidence_block}
+
+Return a structured synthesis with: summary, key_points, contradictions, implications, confidence_score, gaps.
