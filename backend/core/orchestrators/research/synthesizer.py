@@ -9,30 +9,30 @@ from infra.logging import get_logger
 logger = get_logger(__name__)
 
 def _build_evidence_block(state: ResearchGraphState) -> str:
-    """"Format top evidence items into a numbered block for the prompt"""
+    """Format top evidence items into a numbered block for the prompt"""
     lines = []
-    for idx, evidence in enumerate(state.evidence[:12], start=1):
+    for idx, evidence in enumerate(state.get("evidence", [])[:12], start=1):
         lines.append(f"[{idx}] {evidence.title}")
-        lines.append(f"Source: {evidence.source}")
+        lines.append(f"Source: {evidence.source_name or evidence.source_type}")
         lines.append(f"URL: {evidence.url}")
         if evidence.snippet:
-            lines.append(f"Snippet: {evidence.snippet}")
+            lines.append(f"Snippet: {evidence.snippet[:400]}")
         if evidence.extracted_content:
-            lines.append(f"Extracted Content: {evidence.extracted_content}")
+            lines.append(f"Extracted Content: {evidence.extracted_content[:600]}")
         lines.append("")
 
     return "\n".join(lines)
 
 async def synthesize_node(state: ResearchGraphState) -> dict:
-    request = state.request
+    request = state["request"]
 
-    if not state.evidence:
-        logger.warning("synthesize_node_no_evidence", run_id=state.run_id)
+    if not state.get("evidence"):
+        logger.warning("synthesize_node_no_evidence", run_id=state.get("run_id"))
         return {
-            "errors": state.errors + ["No evidence collected to synthesize."],
-            "messages": state.messages + ["Synthesis skipped: No evidence."],
+            "errors": state.get("errors", []) + ["No evidence collected to synthesize."],
+            "messages": state.get("messages", []) + ["Synthesis skipped: No evidence."],
         }
-    
+
     try:
         llm = get_langchain_llm()
         structured_llm = llm.with_structured_output(ResearchSynthesis)
@@ -43,24 +43,24 @@ async def synthesize_node(state: ResearchGraphState) -> dict:
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt)
         ]
-        synthesis: ResearchSynthesis = await structured_llm.invoke(messages)
+        synthesis: ResearchSynthesis = await structured_llm.ainvoke(messages)
         logger.info(
-            "synthesis_node_completed", 
-            run_id=state.run_id, 
-            confidence=synthesis.confidence_score, 
+            "synthesis_node_completed",
+            run_id=state.get("run_id"),
+            confidence=synthesis.confidence_score,
             key_points_count=len(synthesis.key_points),
         )
 
         return {
             "synthesis": synthesis,
-            "messages": state.messages + ["Synthesis completed. Confidence score: {:.2f}".format(synthesis.confidence_score)],
-            "errors": state.errors,
+            "messages": state.get("messages", []) + ["Synthesis completed. Confidence score: {:.2f}".format(synthesis.confidence_score)],
+            "errors": state.get("errors", []),
         }
-    
+
     except Exception as e:
-        logger.exception("synthesis_node_error", run_id=state.run_id, error=str(e))
+        logger.exception("synthesis_node_error", run_id=state.get("run_id"), error=str(e))
         return {
             "synthesis": None,
-            "messages": state.messages + ["Synthesis failed due to an error."],
-            "errors": state.errors + [f"Synthesis error: {str(e)}"],
+            "messages": state.get("messages", []) + ["Synthesis failed due to an error."],
+            "errors": state.get("errors", []) + [f"Synthesis error: {str(e)}"],
         }

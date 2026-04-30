@@ -39,6 +39,18 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     environment: str = "development"
 
+    # Research Orchestrator Settings
+    research_default_mode: str = "standard"
+    research_default_freshness: str = "recent"
+    research_max_tool_calls: int = 6
+    research_max_sources: int = 15
+    research_max_crawl_urls: int = 5
+    research_max_refinement_loops: int = 2
+    research_quality_min_sources: int = 3
+    research_quality_min_confidence: float = 0.5
+    research_output_dirs: str = "outputs"
+    research_allowed_tools: list[str] = ["news_api", "ddgs_text", "ddgs_news", "crawl4ai"]
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

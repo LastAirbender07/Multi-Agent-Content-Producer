@@ -7,7 +7,7 @@ from core.orchestration.contracts import (
     ResearchSynthesis,
     RoutePlan,
     SkippedTool,
-    TootlTrace
+    ToolTrace
 )
 
 class ResearchGraphState(TypedDict, total=False):
@@ -16,13 +16,14 @@ class ResearchGraphState(TypedDict, total=False):
     loop_count: int
     route_plan: RoutePlan
     raw_tool_outputs: dict[str, Any]
-    tool_traces: list[TootlTrace]
+    tool_traces: list[ToolTrace]
     skipped_tools: list[SkippedTool]
     evidence: list[Evidence]
     synthesis: ResearchSynthesis
     evaluation: EvaluationResult
     degraded_flags: list[str]
     errors: list[str]
+    messages: list[str]
     output_path: str
 
 class ContentWorkflowState(TypedDict, total=False):

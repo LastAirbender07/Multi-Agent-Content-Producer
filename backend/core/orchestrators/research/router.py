@@ -1,13 +1,15 @@
+from configs.settings import get_settings
+from core.orchestration.contracts import SkippedTool
 from core.orchestration.policies.routing import DeterministicResearchRoutingPolicy
 from core.schemas.workflow_state import ResearchGraphState
 from infra.logging import get_logger
 
 logger = get_logger(__name__)
 _policy = DeterministicResearchRoutingPolicy()
-_ALLOWED_TOOLS = {"ddgs_text", "news_api", "ddgs_news", "crawl4ai"}
+_ALLOWED_TOOLS = set(get_settings().research_allowed_tools)
 
 async def route_node(state: ResearchGraphState) -> dict:
-    request = state.request
+    request = state["request"]
     errors = list(state.get("errors", []))
     skipped_tools = list(state.get("skipped_tools", []))
 
@@ -17,15 +19,15 @@ async def route_node(state: ResearchGraphState) -> dict:
 
     if invalid_tools:
         for tool in invalid_tools:
-            skipped_tools.append({
-                "tool_name": tool,
-                "reason_type": "invalid_selection",
-                "reason_message": "Tool is not supported by this orchestrator.",
-                "provided_context": {
+            skipped_tools.append(SkippedTool(
+                tool_name=tool,
+                reason_type="invalid_selection",
+                reason_message=["Tool is not supported by this orchestrator."],
+                provided_context={
                     "selected_tools": request.selected_tools,
                     "allowed_tools": sorted(_ALLOWED_TOOLS),
                 },
-            })
+            ))
 
         if request.strict_tools:
             errors.append(f"Strict tool selection is enabled, but the following selected tools are invalid: {', '.join(invalid_tools)}.")
@@ -45,7 +47,7 @@ async def route_node(state: ResearchGraphState) -> dict:
             if tool not in merged:
                 merged.append(tool)
         final_tools = merged
-        rationale = list(base_plan.rationale) + ["Hybrid mode: merging valid caller-selected tools with the base plan tools."] if valid_tools else []
+        rationale = list(base_plan.rationale) + (["Hybrid mode: merging valid caller-selected tools with the base plan tools."] if valid_tools else [])
     else:
         final_tools = base_tools
         rationale = list(base_plan.rationale) + ["Auto mode: using the base plan tools determined by the routing policy."]
@@ -57,15 +59,15 @@ async def route_node(state: ResearchGraphState) -> dict:
             errors.append(message + " Strict tool selection is enabled, so this is treated as an error.")
             final_tools.remove("crawl4ai")
         else:
-            skipped_tools.append({
-                "tool_name": "crawl4ai",
-                "reason_type": "missing_context",
-                "reason_message": message + " Strict tool selection is disabled, so skipping this tool.",
-                "provided_context": {
+            skipped_tools.append(SkippedTool(
+                tool_name="crawl4ai",
+                reason_type="missing_context",
+                reason_message=[message + " Strict tool selection is disabled, so skipping this tool."],
+                provided_context={
                     "explicit_url_count": len(request.explicit_urls),
                     "explicit_urls": request.explicit_urls,
                 },
-            })
+            ))
             final_tools.remove("crawl4ai")
 
     plan = base_plan.model_copy(update={
@@ -75,8 +77,8 @@ async def route_node(state: ResearchGraphState) -> dict:
     })
 
     logger.info(
-        "route_node completed",
-        run_id=state.run_id,
+        "route_node_completed",
+        run_id=state.get("run_id"),
         selected_tools=plan.selected_tools,
         selection_mode=plan.selection_mode_used,
         rationale=plan.rationale,
@@ -86,5 +88,5 @@ async def route_node(state: ResearchGraphState) -> dict:
         "route_plan": plan,
         "skipped_tools": skipped_tools,
         "errors": errors,
-        "messages": state.get("messages", []) + [f"Rout plan: {plan.selected_tools} based on mode: {plan.selection_mode_used}"],
+        "messages": state.get("messages", []) + [f"Route plan: {plan.selected_tools} based on mode: {plan.selection_mode_used}"],
     }

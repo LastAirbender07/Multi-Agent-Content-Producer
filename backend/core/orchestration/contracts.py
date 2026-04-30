@@ -3,6 +3,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Literal, Optional
 from pydantic import BaseModel, Field
+from configs.settings import get_settings
 
 class RunStatus(str, Enum):
     PENDING = "pending"
@@ -12,10 +13,10 @@ class RunStatus(str, Enum):
     FAILED = "failed"
 
 class BudgetConfig(BaseModel):
-    max_tools_calls: int = Field(default=6, description="Maximum number of tool calls allowed for the run")
+    max_tool_calls: int = Field(default=6, description="Maximum number of tool calls allowed for the run")
     max_sources: int = Field(default=15, description="Maximum number of sources allowed for the run")
     max_crawl_urls: int = Field(default=5, description="Maximum number of URLs allowed for crawling")
-    max_refinement_loops: int = Field(default=1, description="Maximum number of refinement loops allowed")
+    max_refinement_loops: int = Field(default_factory=lambda: get_settings().research_max_refinement_loops, description="Maximum number of refinement loops allowed")
     timeout_seconds: int = Field(default=300, description="Maximum time allowed for the run in seconds")
 
 class ResearchRequest(BaseModel):
@@ -31,11 +32,11 @@ class ResearchRequest(BaseModel):
     include_debug_trace: bool = Field(default=True, description="Whether to include debug trace information in the research results")
     budget: BudgetConfig = Field(default_factory=BudgetConfig, description="Budget configuration for the research run")
 
-class TootlTrace(BaseModel):
+class ToolTrace(BaseModel):
     tool_name: str = Field(..., description="Name of the tool called")
     started_at: datetime = Field(..., description="Timestamp when the tool call started")
     finished_at: Optional[datetime] = Field(default=None, description="Timestamp when the tool call finished")
-    success: bool = Field(..., description="Whether the tool call was successful")
+    success: bool = Field(default=False, description="Whether the tool call was successful")
     error: Optional[str] = Field(default=None, description="Error message if the tool call failed")
 
 class RoutePlan(BaseModel):
@@ -77,7 +78,7 @@ class EvaluationResult(BaseModel):
     should_refine: bool = Field(default=False, description="Whether the research should be refined based on the evaluation results")
     reason: str = Field(..., description="Detailed reason for the evaluation result")
     source_count: int = Field(..., description="Number of sources evaluated")
-    coverage_scrore: float = Field(default=0.0, description="Score representing the coverage of the research topic by the collected evidence")
+    coverage_score: float = Field(default=0.0, description="Score representing the coverage of the research topic by the collected evidence")
     source_diversity_score: float = Field(default=0.0, description="Score representing the diversity of sources collected during the research")
 
 class ResearchResponse(BaseModel):
@@ -89,8 +90,8 @@ class ResearchResponse(BaseModel):
     evidence: list[Evidence] = Field(default_factory=list, description="List of evidence collected during the research run")
     synthesis: Optional[ResearchSynthesis] = Field(default=None, description="Optional synthesis of the research findings, if available")
     evaluation: Optional[EvaluationResult] = Field(default=None, description="Optional evaluation results of the research findings, if available")
-    tool_traces: list[TootlTrace] = Field(default_factory=list, description="List of tool traces recorded during the research run")
+    tool_traces: list[ToolTrace] = Field(default_factory=list, description="List of tool traces recorded during the research run")
     skipped_tools: list[SkippedTool] = Field(default_factory=list, description="List of tools that were skipped during the research run along with reasons")
     degraded_flags: list[str] = Field(default_factory=list, description="List of any degraded capabilities or fallback mechanisms that were triggered during the research run")
     errors: list[str] = Field(default_factory=list, description="List of any errors encountered during the research run")
-    output_path: str = Field(..., description="Path to the output data generated from the research run")
+    output_path: str = Field(default="", description="Path to the output data generated from the research run")
