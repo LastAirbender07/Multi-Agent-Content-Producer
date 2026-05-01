@@ -95,3 +95,39 @@ class ResearchResponse(BaseModel):
     degraded_flags: list[str] = Field(default_factory=list, description="List of any degraded capabilities or fallback mechanisms that were triggered during the research run")
     errors: list[str] = Field(default_factory=list, description="List of any errors encountered during the research run")
     output_path: str = Field(default="", description="Path to the output data generated from the research run")
+
+
+# ─── Angle Orchestrator Contracts ────────────────────────────────────────────
+
+class Angle(BaseModel):
+    statement: str = Field(..., description="The angle thesis in 1-2 sentences — the core idea")
+    emotional_hook: str = Field(..., description="The emotion targeted: curiosity / anger / hope / FOMO")
+    supporting_evidence: str = Field(..., description="Key data point from research that backs this angle")
+
+class AngleGenerationOutput(BaseModel):
+    angles: list[Angle] = Field(..., description="Generated content angles")
+
+class AutoSelectionOutput(BaseModel):
+    selected_indices: list[int] = Field(..., description="0-based indices of the chosen angles")
+    reasoning: str = Field(..., description="Why these angles were chosen over the others")
+
+class AngleEvaluation(BaseModel):
+    passed: bool = Field(..., description="Whether the angle generation passed the quality gate")
+    reason: str = Field(..., description="Reason for the evaluation result")
+
+class AngleRequest(BaseModel):
+    topic: str = Field(..., min_length=2, description="The topic to generate angles for")
+    synthesis: ResearchSynthesis = Field(..., description="Research synthesis to base angles on")
+    run_id: Optional[str] = Field(default=None, description="Run ID from the pipeline; generated if not provided")
+    mode: Literal["auto", "manual"] = Field(default="manual", description="auto = LLM selects; manual = human selects via interrupt")
+    max_angles_to_select: int = Field(default=3, description="How many angles to select in auto mode")
+
+class AngleResponse(BaseModel):
+    run_id: str = Field(..., description="Run ID for this angle generation run")
+    status: RunStatus = Field(default=RunStatus.PENDING)
+    angles: list[Angle] = Field(default_factory=list, description="All generated angles")
+    selected_angles: list[Angle] = Field(default_factory=list, description="Angles selected for content generation")
+    selection_reasoning: str = Field(default="", description="Reasoning behind the selection (populated in auto mode)")
+    evaluation: Optional[AngleEvaluation] = Field(default=None)
+    errors: list[str] = Field(default_factory=list)
+    output_path: str = Field(default="")

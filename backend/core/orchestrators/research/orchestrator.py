@@ -1,6 +1,4 @@
-import json
 import uuid
-from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -14,22 +12,20 @@ from core.orchestration.contracts import (
 )
 from core.schemas.workflow_state import ResearchGraphState
 from infra.logging import get_logger
+from infra.output_manager import RunOutputManager
 
 logger = get_logger(__name__)
 _settings = get_settings()
 _OUTPUTS_ROOT_DIR = Path(__file__).parents[3] / _settings.research_output_dirs
 
 async def save_research_output(state: ResearchGraphState, status: str) -> str:
-    """
-    Save research output to: backend/outputs/<run_id>/research/
-    """
+    """Save research output to: backend/outputs/<run_id>/research/"""
     run_id = state.get("run_id")
     request = state.get("request")
-    output_dir = _OUTPUTS_ROOT_DIR / run_id / "research"
-    output_dir.mkdir(parents=True, exist_ok=True)
+    manager = RunOutputManager(run_id=run_id, outputs_root=_OUTPUTS_ROOT_DIR)
 
     response_data = {
-        "run_id": state.get("run_id"),
+        "run_id": run_id,
         "status": status,
         "topic": request.topic,
         "mode": request.mode,
@@ -38,22 +34,18 @@ async def save_research_output(state: ResearchGraphState, status: str) -> str:
         "degraded_flags": state.get("degraded_flags", []),
         "errors": state.get("errors", []),
         "messages": state.get("messages", []),
-        "output_path": str(output_dir),
     }
-
     if state.get("synthesis"): response_data["synthesis"] = state.get("synthesis").model_dump()
     if state.get("evaluation"): response_data["evaluation"] = state.get("evaluation").model_dump()
 
-    (output_dir / "research_result.json").write_text(json.dumps(response_data, indent=2, default=str), encoding="utf-8")
-
-    evidence_list = [e.model_dump() for e in state.get("evidence", [])]
-    (output_dir / "evidence.json").write_text(json.dumps(evidence_list, indent=2, default=str), encoding="utf-8")
+    manager.save_json("research", "research_result.json", response_data)
+    manager.save_json("research", "evidence.json", [e.model_dump() for e in state.get("evidence", [])])
 
     synthesis = state.get("synthesis").model_dump() if state.get("synthesis") else {}
     if synthesis:
         md_lines = [
             f"# Research Synthesis: {request.topic.title()}",
-            f"**Run ID:** {state.get('run_id')}",
+            f"**Run ID:** {run_id}",
             f"**Status:** {status}",
             f"**Confidence:** {synthesis['confidence_score']:.2f}",
             "",
@@ -62,43 +54,26 @@ async def save_research_output(state: ResearchGraphState, status: str) -> str:
             "",
             "## Key Points",
         ]
-
         for point in synthesis["key_points"]:
             md_lines.append(f"- {point}")
-
         if synthesis["contradictions"]:
-            md_lines.append("")
-            md_lines.append("## Contradictions")
-            for contradiction in synthesis["contradictions"]:
-                md_lines.append(f"- {contradiction}")
-
+            md_lines += ["", "## Contradictions"] + [f"- {c}" for c in synthesis["contradictions"]]
         if synthesis["implications"]:
-            md_lines.append("")
-            md_lines.append("## Implications")
-            for implication in synthesis["implications"]:
-                md_lines.append(f"- {implication}")
-
+            md_lines += ["", "## Implications"] + [f"- {i}" for i in synthesis["implications"]]
         if synthesis["gaps"]:
-            md_lines.append("")
-            md_lines.append("## Gaps")
-            for gap in synthesis["gaps"]:
-                md_lines.append(f"- {gap}")
+            md_lines += ["", "## Gaps"] + [f"- {g}" for g in synthesis["gaps"]]
 
         all_evidence = state.get("evidence") or []
-        md_lines += [
-            "",
-            "## Sources",
-            f"Total sources: {len(all_evidence)}",
-        ]
-
+        md_lines += ["", "## Sources", f"Total sources: {len(all_evidence)}"]
         for e in all_evidence:
             label = e.source_name or e.source_type
             md_lines.append(f"- [{e.title}]({e.url}) — {label}")
 
-        (output_dir / "synthesis.md").write_text("\n".join(md_lines), encoding="utf-8")
-    
-    logger.info("research_output_saved", path=str(output_dir), status=status)
-    return str(output_dir)
+        manager.save_markdown("research", "synthesis.md", "\n".join(md_lines))
+
+    output_dir = str(manager.stage_dir("research"))
+    logger.info("research_output_saved", path=output_dir, status=status)
+    return output_dir
 
 @lru_cache(maxsize=1)
 def _get_compiled_graph():
@@ -109,9 +84,9 @@ class ResearchOrchestrator:
     def __init__(self):
         pass
 
-    async def run(self, request: Any) -> ResearchResponse:
+    async def run(self, request: Any, run_id: str | None = None) -> ResearchResponse:
         parsed_request = ResearchRequest.model_validate(request)
-        run_id = str(uuid.uuid4())
+        run_id = run_id or str(uuid.uuid4())
 
         logger.info(
             "research_orchestrator_started", 

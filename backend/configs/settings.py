@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     research_output_dirs: str = "outputs"
     research_allowed_tools: list[str] = ["news_api", "ddgs_text", "ddgs_news", "crawl4ai"]
 
+    # Angle Orchestrator Settings
+    angle_min_angles: int = 3
+    angle_default_mode: str = "manual"
+    angle_default_max_to_select: int = 3
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
