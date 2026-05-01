@@ -6,6 +6,40 @@
 
 ---
 
+## 2026-05-01 - Sessions 7–10: Research Orchestrator — Build, Wire & Multi-Round Bug Fix
+
+**Decision:** Built and stabilised the full research orchestrator pipeline end-to-end.
+
+**What was done:**
+
+**Build phase (Sessions 7–8):**
+- Implemented the full LangGraph `ResearchGraph` with 9 nodes: intake → route → execute_tools → normalize → synthesize → evaluate → refine / finalize / finalize_partial
+- Built the `DeterministicResearchRoutingPolicy` that selects tools based on freshness, explicit URLs, and claim-verification needs
+- Built the executor node that runs DDGS text/news, NewsAPI + GoogleNewsAPI (merged), and Crawl4AI with budget enforcement
+- Built the normalizer that maps all tool outputs into a unified `Evidence` schema with deduplication
+- Built the evaluator that quality-gates on source count and synthesis confidence, driving the refine/finalize branch
+- Added `ResearchOrchestrator` to compile and invoke the graph with MemorySaver checkpointing
+- Wired `research_node` as the LangGraph entry point for the broader `ContentWorkflowState`
+- Rewrote `run_workflow.py` as a `ContentPipelineOrchestrator` manager — structured to connect all future orchestrators (angle, image, content, post design) in sequence via `ContentWorkflowState`; uses logger throughout, no print statements
+- Added FastAPI `main.py` and `apps/api/v1/research.py` router with `/api/v1/research/run` and `/health` endpoints
+
+**Bug fix rounds (Sessions 9–10) — critical fixes:**
+- **structlog wiring** — `infra/logging.py` was returning a standard `logging.Logger` but the entire codebase used the structlog keyword-arg API; rewired to configure and return `structlog.BoundLogger` (would have crashed on every log call)
+- **DDGS async** — all three DDGS calls were blocking the event loop; wrapped in `asyncio.to_thread(lambda: list(...))`
+- **Timezone-naive datetimes** — fixed `datetime.now()` / `datetime.utcnow` calls across `news_api.py`, `crawl4ai_scraper_schema.py`, and `contracts.py`
+- **`source_name` fallback** — added `_domain_from_url()` helper so `NewsArticle.source_name` (required field) always has a value
+- **`published_at` fallback** — `NewsAPI._parse_article()` defaulted `published_at=None` which Pydantic rejects; fixed to `datetime.now(timezone.utc)`
+- **Settings integration** — wired `newsapi_api_key`, `research_*` settings throughout; removed ad-hoc `os.getenv`/`load_dotenv` calls
+- **Routing operator precedence** — hybrid rationale list concatenation silently dropped base rationale due to missing parentheses
+- **Output directory path** — `Path(__file__).parents[4]` pointed to project root instead of `backend/`; fixed to `parents[3]`
+- **`print()` in ClaudeLLM** — replaced with `logger.info()`
+- **8 missing `__init__.py` files** — created for all tool, infra, and app packages
+- **Typos in log event names** — `"resarch_node_start"` and `"retrived_at"` corrected
+
+**Status:** ✅ Research orchestrator complete and stable — ready for integration testing
+
+---
+
 ## 2026-04-10 - Session 6: DDGS Search Tool - Bug Fixes
 
 **Decision:** Fixed schema and test issues in DDGS search tool implementation.
@@ -496,4 +530,4 @@ For in-depth analysis, see:
 
 ---
 
-_Last updated: 2026-04-05_
+_Last updated: 2026-05-01_
