@@ -1,10 +1,9 @@
 import json
-import re
 import uuid
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
-from langgraph.checkpoint.memory import MemorySaver
 from configs.settings import get_settings
 from core.graphs.research_graph import build_research_graph
 from core.orchestration.contracts import (
@@ -20,21 +19,13 @@ logger = get_logger(__name__)
 _settings = get_settings()
 _OUTPUTS_ROOT_DIR = Path(__file__).parents[3] / _settings.research_output_dirs
 
-def _topic_slug(topic: str) -> str:
-    """Convert topic to a file-system safe slug, max 40 chars"""
-    topic = topic.lower()
-    slug = re.sub(r"[^a-z0-9\s]", "", topic)
-    slug = re.sub(r"\s+", "_", slug.strip())
-    return slug[:40]
-
 async def save_research_output(state: ResearchGraphState, status: str) -> str:
     """
-    Save research output to: backend/outputs/<topic_slug>_<timestamp>/research/
+    Save research output to: backend/outputs/<run_id>/research/
     """
+    run_id = state.get("run_id")
     request = state.get("request")
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    folder_name = f"{_topic_slug(request.topic)}_{timestamp}"
-    output_dir = _OUTPUTS_ROOT_DIR / folder_name / "research"
+    output_dir = _OUTPUTS_ROOT_DIR / run_id / "research"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     response_data = {
@@ -61,7 +52,7 @@ async def save_research_output(state: ResearchGraphState, status: str) -> str:
     synthesis = state.get("synthesis").model_dump() if state.get("synthesis") else {}
     if synthesis:
         md_lines = [
-            f"# Research Synthesis: {request.topic}",
+            f"# Research Synthesis: {request.topic.title()}",
             f"**Run ID:** {state.get('run_id')}",
             f"**Status:** {status}",
             f"**Confidence:** {synthesis['confidence_score']:.2f}",
@@ -93,29 +84,31 @@ async def save_research_output(state: ResearchGraphState, status: str) -> str:
             for gap in synthesis["gaps"]:
                 md_lines.append(f"- {gap}")
 
+        all_evidence = state.get("evidence") or []
         md_lines += [
             "",
             "## Sources",
-            f"Total evidence items: {len(state.get('evidence', []))}",
+            f"Total sources: {len(all_evidence)}",
         ]
 
-        for evidence in (state.get("evidence") or [])[:10]:
-            md_lines.append(f"- [{evidence.title}]({evidence.url}) ({evidence.source_type})")
+        for e in all_evidence:
+            label = e.source_name or e.source_type
+            md_lines.append(f"- [{e.title}]({e.url}) — {label}")
 
         (output_dir / "synthesis.md").write_text("\n".join(md_lines), encoding="utf-8")
     
     logger.info("research_output_saved", path=str(output_dir), status=status)
     return str(output_dir)
 
+@lru_cache(maxsize=1)
+def _get_compiled_graph():
+    return build_research_graph().compile()
+
+
 class ResearchOrchestrator:
     def __init__(self):
-        self._graph = None
+        pass
 
-    def _get_compiled_graph(self):
-        if self._graph is None:
-            self._graph = build_research_graph().compile(checkpointer=MemorySaver())
-        return self._graph
-    
     async def run(self, request: Any) -> ResearchResponse:
         parsed_request = ResearchRequest.model_validate(request)
         run_id = str(uuid.uuid4())
@@ -141,10 +134,8 @@ class ResearchOrchestrator:
         }
 
         try:
-            graph = self._get_compiled_graph()
-            # Langgraph requires a config with thread_id for MemorySaver checkpointing, even if we don't use threads here
-            config = {"configurable": {"thread_id": run_id}}
-            final_state = await graph.ainvoke(initial_state, config=config)
+            graph = _get_compiled_graph()
+            final_state = await graph.ainvoke(initial_state)
         except Exception as e:
             logger.error("research_orchestrator_error", run_id=run_id, error=str(e))
             final_state = initial_state.copy()

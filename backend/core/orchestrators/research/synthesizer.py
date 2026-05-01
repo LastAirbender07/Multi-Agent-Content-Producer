@@ -29,6 +29,7 @@ async def synthesize_node(state: ResearchGraphState) -> dict:
     if not state.get("evidence"):
         logger.warning("synthesize_node_no_evidence", run_id=state.get("run_id"))
         return {
+            "synthesis": None,
             "errors": state.get("errors", []) + ["No evidence collected to synthesize."],
             "messages": state.get("messages", []) + ["Synthesis skipped: No evidence."],
         }

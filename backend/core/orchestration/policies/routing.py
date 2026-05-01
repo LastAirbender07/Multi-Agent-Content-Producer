@@ -10,9 +10,11 @@ class DeterministicResearchRoutingPolicy:
 
         # Explicit URLs -> crawl them directly
         if request.explicit_urls:
-            plan.selected_tools.append("crawl4ai")
-            plan.crawl_urls = list(request.explicit_urls)
-            plan.rationale.append("Explicit URLs provided, so using crawl4ai to crawl them directly.")
+            clean_urls = [u for u in request.explicit_urls if u.strip()]
+            if clean_urls:
+                plan.selected_tools.append("crawl4ai")
+                plan.crawl_urls = clean_urls
+                plan.rationale.append("Explicit URLs provided, so using crawl4ai to crawl them directly.")
 
         if request.freshness in {"breaking", "recent"}:
             if "news_api" not in plan.selected_tools:
@@ -37,7 +39,11 @@ class DeterministicResearchRoutingPolicy:
             plan.selected_tools = ["ddgs_text", "news_api"]
             plan.rationale.append("No specific tool requirements, so defaulting to ddgs_text and news_api for broad coverage.")
 
-        plan.query_variants = [request.topic]
+        plan.query_variants = [
+            request.topic,
+            f"{request.topic} analysis trends",
+            f"{request.topic} expert perspectives research",
+        ]
         return plan
     
     

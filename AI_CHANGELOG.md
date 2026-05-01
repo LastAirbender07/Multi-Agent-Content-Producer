@@ -6,6 +6,16 @@
 
 ---
 
+## V2 Planned Improvements (Research Orchestrator)
+
+These are known design limitations in V1 that are intentionally deferred:
+
+1. **Evidence accumulation across refinement loops** — Currently each refinement loop overwrites `raw_tool_outputs` with fresh results, so you end up with the same number of evidence items regardless of how many loops ran. V2 should merge evidence across loops (the deduplication by URL is already in place, so accumulation would be safe).
+
+2. **LLM-driven confidence scoring** — The current `confidence_score` in `ResearchSynthesis` is assigned by the LLM itself based on how well the evidence covers the topic. This is a reasonable proxy but inconsistent. V2 should introduce a dedicated **Quality Checker node** that independently evaluates the synthesis against the evidence — checking factual grounding, coverage breadth, and source credibility — and assigns a more objective score. This separates synthesis from evaluation, which is cleaner architecturally.
+
+---
+
 ## 2026-05-01 - Sessions 7–10: Research Orchestrator — Build, Wire & Multi-Round Bug Fix
 
 **Decision:** Built and stabilised the full research orchestrator pipeline end-to-end.

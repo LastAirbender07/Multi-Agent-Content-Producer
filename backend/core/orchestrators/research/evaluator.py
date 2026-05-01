@@ -2,6 +2,7 @@ from configs.settings import get_settings
 from core.orchestration.contracts import EvaluationResult
 from core.schemas.workflow_state import ResearchGraphState
 from infra.logging import get_logger
+import re
 
 logger = get_logger(__name__)
 
@@ -9,28 +10,35 @@ _settings = get_settings()
 MIN_SOURCES: int = _settings.research_quality_min_sources
 MIN_CONFIDENCE: float = _settings.research_quality_min_confidence
 
+def _source_identifier(e) -> str:
+    """Return source_name if available, otherwise extract domain from URL."""
+    if e.source_name:
+        return e.source_name
+    match = re.search(r'https?://(?:www\.)?([^/]+)', str(e.url) if e.url else "")
+    return match.group(1) if match else ""
+
 async def evaluate_node(state: ResearchGraphState) -> dict:
     evidence = state.get("evidence") or []
     synthesis = state.get("synthesis")
     source_count = len(evidence)
-    source_names = {e.source_name for e in evidence if e.source_name}
-    diversity_score = min(1.0, len(source_names) / 4.0)
+    source_ids = {_source_identifier(e) for e in evidence if _source_identifier(e)}
+    diversity_score = min(1.0, len(source_ids) / 4.0)
     coverage_score = min(1.0, source_count / 8.0)
 
-    if source_count < MIN_SOURCES:
+    if synthesis is None:
         evaluation = EvaluationResult(
             passed=False,
-            should_refine=True,
-            reason=f"Insufficient sources collected: {source_count} found, at least {MIN_SOURCES} required.",
+            should_refine=False,
+            reason="Synthesis is missing — no evidence was collected or synthesis failed.",
             source_count=source_count,
             coverage_score=coverage_score,
             source_diversity_score=diversity_score,
         )
-    elif synthesis is None:
+    elif source_count < MIN_SOURCES:
         evaluation = EvaluationResult(
             passed=False,
-            should_refine=False,
-            reason="Synthesis is missing — synthesis node may have failed.",
+            should_refine=True,
+            reason=f"Insufficient sources collected: {source_count} found, at least {MIN_SOURCES} required.",
             source_count=source_count,
             coverage_score=coverage_score,
             source_diversity_score=diversity_score,

@@ -13,8 +13,10 @@ async def execute_tools_node(state: ResearchGraphState) -> dict:
     request = state["request"]
     plan = state["route_plan"]
 
-    # Use the first query variant from the plan; fall back to the raw topic
-    query = plan.query_variants[0] if plan.query_variants else request.topic
+    # Rotate query variant on each refinement loop so searches don't repeat identically
+    loop_count = state.get("loop_count", 0)
+    query_variants = plan.query_variants if plan.query_variants else [request.topic]
+    query = query_variants[loop_count % len(query_variants)]
 
     # if strict mode: errors already exist from route validation, skip tool execution
     if request.strict_tools and state.get("errors"):
@@ -35,10 +37,16 @@ async def execute_tools_node(state: ResearchGraphState) -> dict:
         trace = ToolTrace(tool_name=tool_name, started_at=datetime.now(timezone.utc))
         try:
             if tool_name == "ddgs_text":
-                raw_outputs[tool_name] = await ddgs.execute(query=query)
+                result = await ddgs.execute(query=query)
+                raw_outputs[tool_name] = result
+                if not result.success:
+                    raise RuntimeError(result.error or "ddgs_text returned a failure response")
 
             elif tool_name == "ddgs_news":
-                raw_outputs[tool_name] = await ddgs.search_news(query=query)
+                result = await ddgs.search_news(query=query)
+                raw_outputs[tool_name] = result
+                if not result.success:
+                    raise RuntimeError(result.error or "ddgs_news returned a failure response")
 
             elif tool_name == "news_api":
                 # Always run GoogleNewsAPI (no key required); try NewsAPI if key available
@@ -63,6 +71,8 @@ async def execute_tools_node(state: ResearchGraphState) -> dict:
                     articles=merged_articles,
                     total_results=len(merged_articles),
                 )
+                if not merged_articles:
+                    raise RuntimeError("news_api returned 0 articles from both NewsAPI and GoogleNewsAPI")
 
             elif tool_name == "crawl4ai":
                 crawl_results = []
@@ -70,6 +80,10 @@ async def execute_tools_node(state: ResearchGraphState) -> dict:
                     result = await crawl4ai.execute(url=url)
                     crawl_results.append(result)
                 raw_outputs[tool_name] = crawl_results
+                successful = [r for r in crawl_results if r.success]
+                if crawl_results and not successful:
+                    failed_errors = [r.error for r in crawl_results if r.error]
+                    raise RuntimeError(f"All {len(crawl_results)} crawl URL(s) failed: {failed_errors}")
 
             else:
                 raise ValueError(f"Unsupported tool: {tool_name}")
@@ -99,8 +113,8 @@ async def execute_tools_node(state: ResearchGraphState) -> dict:
     return {
         "raw_tool_outputs": raw_outputs,
         "tool_traces": tool_traces,
-        "skipped_tools": skipped_tools,
-        "degraded_flags": degraded_flags,
+        "skipped_tools": list({t.tool_name: t for t in skipped_tools}.values()),
+        "degraded_flags": list(dict.fromkeys(degraded_flags)),
         "errors": errors,
         "messages": state.get("messages", []) + ["Tool execution completed."],
     }

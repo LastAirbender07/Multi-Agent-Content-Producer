@@ -21,7 +21,7 @@ class BudgetConfig(BaseModel):
 
 class ResearchRequest(BaseModel):
     schema_version: str = Field(default="1.0", description="Schema version for the research request")
-    topic: str = Field(..., description="The main topic to research")
+    topic: str = Field(..., min_length=2, description="The main topic to research")
     mode: Literal["quick", "standard", "deep"] = Field(default="standard", description="The depth of the research")
     freshness: Literal["breaking", "recent", "evergreen"] = Field(default="recent", description="The freshness of the information")
     explicit_urls: list[str] = Field(default_factory=list, description="List of explicit URLs to include in the research")
