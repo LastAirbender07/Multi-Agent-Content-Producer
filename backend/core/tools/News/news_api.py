@@ -1,13 +1,12 @@
-import os
 import re
 import requests
 import asyncio
-from dotenv import load_dotenv
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Any, Tuple
 from email.utils import parsedate_to_datetime
 import trafilatura
 from html import unescape
+from configs.settings import get_settings
 from core.tools.base import BaseTool
 from core.tools.schemas.news_api_schema import (
     GoogleNewsAPISearchInput,
@@ -65,14 +64,19 @@ async def fetch_article_content(url: str, timeout: int = 10) -> Optional[str]:
         return None                                                                                 
                                                                                                       
                                                                                                       
-def clean_html(text: str) -> str:                                                                                                                           
-    if not text: return ""                                                                                   
-                                                                                                                                                                         
-    text = unescape(text)                                                                           
-    text = re.sub(r'<[^>]+>', '', text)                                                             
-    text = ' '.join(text.split())                                                                   
-                                                                                                      
+def clean_html(text: str) -> str:
+    if not text: return ""
+
+    text = unescape(text)
+    text = re.sub(r'<[^>]+>', '', text)
+    text = ' '.join(text.split())
+
     return text.strip()
+
+def _domain_from_url(url: str) -> str:
+    """Extract a readable domain name from a URL to use as a fallback source name."""
+    match = re.search(r'https?://(?:www\.)?([^/]+)', url or "")
+    return match.group(1) if match else "Unknown"
 
 class GoogleNewsAPI(BaseTool):
     def __init__(
@@ -94,7 +98,8 @@ class GoogleNewsAPI(BaseTool):
     
     async def convert_to_pydantic_article(self, article_dict: dict) -> NewsArticle:
         """Convert article dict to NewsArticle, fetching full content from URL."""
-        published_at = parsedate_to_datetime(article_dict.get("published"))
+        raw_published = article_dict.get("published")
+        published_at = parsedate_to_datetime(raw_published) if raw_published else datetime.now(timezone.utc)
         summary = clean_html(article_dict.get("summary", ""))
         content = summary
 
@@ -133,7 +138,7 @@ class GoogleNewsAPI(BaseTool):
             description=summary,
             content=content,
             url=real_url or google_news_url,
-            source_name=article_dict.get("source"),
+            source_name=article_dict.get("source") or _domain_from_url(real_url or google_news_url or ""),
             author=None,
             published_at=published_at,
             url_to_image=None,
@@ -152,7 +157,7 @@ class GoogleNewsAPI(BaseTool):
         when: Optional[str] = None,
         after: Optional[str] = None,
         before: Optional[str] = None,
-    ) -> GoogleNewsAPISearchInput:
+    ) -> NewsSearchOutput:
         
         try:
             search_input = GoogleNewsAPISearchInput(
@@ -211,7 +216,7 @@ class GoogleNewsAPI(BaseTool):
                 logger.info(f"✓ Successfully processed {len(articles)} articles")
 
                 metadata = {
-                    "query": search_input.dict(),
+                    "query": search_input.model_dump(),
                     "topic": search_input.topic,
                     "response_time": None,
                     "language": search_input.language,
@@ -220,7 +225,7 @@ class GoogleNewsAPI(BaseTool):
                     "after": search_input.after.isoformat() if search_input.after else None,
                     "before": search_input.before.isoformat() if search_input.before else None,
                     "cache_ttl": self.cache_ttl,
-                    "retrived_at": datetime.now().isoformat(),
+                    "retrieved_at": datetime.now(timezone.utc).isoformat(),
                     "retrieval_method": "GoogleNewsAPI",
                 }
 
@@ -249,11 +254,10 @@ class GoogleNewsAPI(BaseTool):
 class NewsAPI(BaseTool):
     def __init__(self):
         super().__init__()
-        load_dotenv()
-        self.api_key = os.getenv("NEWSAPI_API_KEY")
+        self.api_key = get_settings().newsapi_api_key
 
         if not self.api_key:
-            raise ValueError("NEWSAPI_API_KEY is not set in the environment variables")
+            raise ValueError("newsapi_api_key is not configured in settings (set NEWSAPI_API_KEY in .env)")
 
         self.headers = {
             "X-Api-Key": self.api_key,
@@ -291,16 +295,17 @@ class NewsAPI(BaseTool):
     def _parse_article(self, item: Dict[str, Any]) -> Optional[NewsArticle]:
         try:
             published_at_raw = item.get("publishedAt")
-            published_at = None
+            published_at = datetime.now(timezone.utc)
             if published_at_raw:
                 published_at = datetime.fromisoformat(published_at_raw.replace("Z", "+00:00"))
 
+            source = item.get("source", {})
             return NewsArticle(
                 title=item.get("title"),
                 description=item.get("description"),
                 content=item.get("content"),
                 url=item.get("url"),
-                source_name=item.get("source", {}).get("name"),
+                source_name=source.get("name") or source.get("id") or _domain_from_url(item.get("url") or ""),
                 author=item.get("author"),
                 published_at=published_at,
                 url_to_image=item.get("urlToImage"),
@@ -340,7 +345,7 @@ class NewsAPI(BaseTool):
         except Exception as e:
             return self._error_output(str(e))
 
-        to_date = datetime.now()
+        to_date = datetime.now(timezone.utc)
         from_date = to_date - timedelta(days=search_input.days_back)
 
         params = {
@@ -369,7 +374,7 @@ class NewsAPI(BaseTool):
             articles=articles,
             total_results=data.get("totalResults", len(articles)),
             metadata={
-                "query": search_input.dict(),
+                "query": search_input.model_dump(),
                 "response_time": response_time,
                 "date_range": {"from": from_date.isoformat(), "to": to_date.isoformat()},
                 "language": search_input.language,
@@ -404,6 +409,6 @@ class NewsAPI(BaseTool):
             metadata={
                 "query": {"country": country, "category": category, "max_results": max_results},
                 "response_time": response_time,
-                "date_retrieved": datetime.now().isoformat(),
+                "date_retrieved": datetime.now(timezone.utc).isoformat(),
             },
         )

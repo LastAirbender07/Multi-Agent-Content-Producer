@@ -28,6 +28,7 @@ async def test_ddgs_search_tool():
         max_results=10,
         backend="auto"
     )
+    text_result = result  # capture for summary
 
     if result.success:
         print(f"✅ Success!")
@@ -109,13 +110,13 @@ async def test_ddgs_search_tool():
     print("="*70)
 
     total_results = (
-        result.total_results +
+        text_result.total_results +
         news_result.total_results +
         image_result.total_results
     )
 
     print(f"   Total results: {total_results}")
-    print(f"   - Text: {result.total_results}")
+    print(f"   - Text: {text_result.total_results}")
     print(f"   - News: {news_result.total_results}")
     print(f"   - Images: {image_result.total_results}")
 

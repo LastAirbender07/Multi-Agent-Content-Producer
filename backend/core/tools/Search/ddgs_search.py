@@ -6,6 +6,7 @@ A search tool using the DDGS library for web, news, and image search.
 
 from datetime import datetime, timezone
 from typing import Optional, List
+import asyncio
 from ddgs import DDGS
 from core.tools.base import BaseTool
 from core.tools.schemas.ddgs_search_schema import (
@@ -92,13 +93,15 @@ class DDGSSearch(BaseTool):
         try:
             ddgs = DDGS(timeout=self.timeout)
 
-            raw_results = ddgs.text(
-                query=search_input.query,
-                region=search_input.region,
-                safesearch=search_input.safesearch,
-                timelimit=search_input.timelimit,
-                max_results=search_input.max_results,
-                backend=search_input.backend
+            raw_results = await asyncio.to_thread(
+                lambda: list(ddgs.text(
+                    query=search_input.query,
+                    region=search_input.region,
+                    safesearch=search_input.safesearch,
+                    timelimit=search_input.timelimit,
+                    max_results=search_input.max_results,
+                    backend=search_input.backend
+                ))
             )
 
             results = []
@@ -151,13 +154,15 @@ class DDGSSearch(BaseTool):
         try:
             ddgs = DDGS(timeout=self.timeout)
 
-            raw_results = ddgs.news(
-                query=query,
-                region=region,
-                safesearch=safesearch,
-                timelimit=timelimit,
-                max_results=max_results,
-                backend=backend
+            raw_results = await asyncio.to_thread(
+                lambda: list(ddgs.news(
+                    query=query,
+                    region=region,
+                    safesearch=safesearch,
+                    timelimit=timelimit,
+                    max_results=max_results,
+                    backend=backend
+                ))
             )
 
             results = []
@@ -218,12 +223,14 @@ class DDGSSearch(BaseTool):
         try:
             ddgs = DDGS(timeout=self.timeout)
 
-            raw_results = ddgs.images(
-                query=query,
-                region=region,
-                safesearch=safesearch,
-                max_results=max_results,
-                backend=backend
+            raw_results = await asyncio.to_thread(
+                lambda: list(ddgs.images(
+                    query=query,
+                    region=region,
+                    safesearch=safesearch,
+                    max_results=max_results,
+                    backend=backend
+                ))
             )
 
             results = []

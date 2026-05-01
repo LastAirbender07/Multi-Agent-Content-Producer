@@ -57,9 +57,9 @@ class NewsAPISearchInput(BaseModel):
     )
 
     max_results: int = Field(
-        deafault = 10,
-        ge = 1,
-        le = 50,
+        default=10,
+        ge=1,
+        le=50,
         description="Maximum number of news articles to return (1-50)"
     )
 

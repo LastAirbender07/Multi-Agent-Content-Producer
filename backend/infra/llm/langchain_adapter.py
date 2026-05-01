@@ -39,13 +39,17 @@ def _create_openai_client(settings) -> BaseChatModel:
     """Create OpenAI client (GPT-4, etc.)."""
     from langchain_openai import ChatOpenAI
 
-    return ChatOpenAI(
+    kwargs = dict(
         api_key=settings.openai_api_key,
         model=settings.llm_model,
         temperature=settings.llm_temperature,
         max_tokens=settings.llm_max_tokens,
-        timeout=settings.llm_timeout
+        timeout=settings.llm_timeout,
     )
+    if getattr(settings, "openai_base_url", None):
+        kwargs["base_url"] = settings.openai_base_url
+
+    return ChatOpenAI(**kwargs)
 
 
 def _create_gemini_client(settings) -> BaseChatModel:

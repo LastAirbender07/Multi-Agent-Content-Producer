@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     # === Google Gemini Settings ===
     gemini_api_key: Optional[str] = None
 
+    # === News API Settings ===
+    newsapi_api_key: Optional[str] = None
+
     # === General LLM Settings ===
     llm_model: str = "anthropic--claude-4.5-sonnet"
     llm_timeout: float = 300.0

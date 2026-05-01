@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, HttpUrl
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class Crawl4AIScraperInput(BaseModel):
@@ -42,7 +42,7 @@ class Crawl4AIScrapedContent(BaseModel):
 
     # Metadata
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata about the scraped content")
-    scraped_at: datetime = Field(default_factory=datetime.utcnow, description="The timestamp when the content was scraped")
+    scraped_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="The timestamp when the content was scraped")
     status_code: Optional[int] = Field(None, description="HTTP status code")
 
 

@@ -44,7 +44,7 @@ class ClaudeLLM(BaseLLM):
 
     async def generate(self, prompt: str, system_prompt: Optional[str] = None, **kwargs):
         start_time = time.time()
-        print(f"Generating response for prompt: {prompt[:50]}...")
+        logger.info("llm_generate_start", prompt_preview=prompt[:50])
 
         payload = {
             "model": self.model,

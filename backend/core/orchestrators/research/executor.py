@@ -13,6 +13,9 @@ async def execute_tools_node(state: ResearchGraphState) -> dict:
     request = state["request"]
     plan = state["route_plan"]
 
+    # Use the first query variant from the plan; fall back to the raw topic
+    query = plan.query_variants[0] if plan.query_variants else request.topic
+
     # if strict mode: errors already exist from route validation, skip tool execution
     if request.strict_tools and state.get("errors"):
         logger.warning(f"Strict tool selection is enabled and errors were found in the route plan validation. Skipping tool execution. Errors: {state.get('errors')}")
@@ -32,10 +35,10 @@ async def execute_tools_node(state: ResearchGraphState) -> dict:
         trace = ToolTrace(tool_name=tool_name, started_at=datetime.now(timezone.utc))
         try:
             if tool_name == "ddgs_text":
-                raw_outputs[tool_name] = await ddgs.execute(query=request.topic)
+                raw_outputs[tool_name] = await ddgs.execute(query=query)
 
             elif tool_name == "ddgs_news":
-                raw_outputs[tool_name] = await ddgs.search_news(query=request.topic)
+                raw_outputs[tool_name] = await ddgs.search_news(query=query)
 
             elif tool_name == "news_api":
                 # Always run GoogleNewsAPI (no key required); try NewsAPI if key available
@@ -44,14 +47,14 @@ async def execute_tools_node(state: ResearchGraphState) -> dict:
 
                 try:
                     news_api_inst = NewsAPI()
-                    news_api_output = await news_api_inst.execute(query=request.topic)
+                    news_api_output = await news_api_inst.execute(query=query)
                     if news_api_output.success:
                         news_api_articles = news_api_output.articles
                 except ValueError:
                     degraded_flags.append("news_api:no_api_key")
                     logger.warning("news_api_skipped", run_id=state.get("run_id"), reason="NEWSAPI_API_KEY not set")
 
-                google_news_output = await google_news.execute(query=request.topic)
+                google_news_output = await google_news.execute(query=query)
                 google_news_articles = google_news_output.articles if google_news_output.success else []
 
                 merged_articles = news_api_articles + google_news_articles

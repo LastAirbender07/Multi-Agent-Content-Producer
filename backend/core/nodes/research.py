@@ -8,7 +8,7 @@ _settings = get_settings()
 
 async def research_node(state: ContentWorkflowState) -> dict:
     topic = state["topic"]
-    logger.info("resarch_node_start", topic=topic)
+    logger.info("research_node_start", topic=topic)
 
     try:
         orchestrator = ResearchOrchestrator()
