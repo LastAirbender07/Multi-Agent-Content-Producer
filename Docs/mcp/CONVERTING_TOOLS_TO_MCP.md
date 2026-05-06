@@ -853,4 +853,195 @@ Unsure / want both options open?
 
 ---
 
-_Last updated: 2026-05-05_
+## Part 10 — Using the MCP Tool from executor.py
+
+Once your MCP server is running, you can call it from `executor.py` instead of importing `Crawl4AIScraper` directly. This section shows exactly what to change.
+
+### Why bother? (direct import vs MCP client)
+
+| | Direct import | MCP client |
+|---|---|---|
+| How it calls the tool | `Crawl4AIScraper().execute(url=url)` in-process | Spawns the MCP server subprocess, calls over stdio |
+| Coupling | `executor.py` depends on `Crawl4AIScraper` | `executor.py` depends only on the MCP protocol |
+| Tool runs in | Same process as the executor | Its own isolated subprocess |
+| Crash isolation | A crash in the scraper can affect the executor | Server subprocess can crash without taking down the executor |
+| Swap / replace tool | Edit the import | Change the server command string |
+
+For learning purposes it is perfectly valid to use the MCP client here — even though the executor calls it explicitly rather than letting the LLM discover and dispatch it dynamically.
+
+---
+
+### Step 1 — What to remove from executor.py
+
+**Remove line 4** (the direct import):
+
+```python
+# REMOVE THIS LINE:
+from core.tools.Crawl4ai.crawl4ai_scraper import Crawl4AIScraper
+```
+
+**Remove line 34** (the upfront instantiation):
+
+```python
+# REMOVE THIS LINE:
+crawl4ai = Crawl4AIScraper()
+```
+
+---
+
+### Step 2 — What to add (new imports)
+
+Add these imports near the top of `executor.py`, alongside the existing imports:
+
+```python
+import json
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+from core.tools.schemas.crawl4ai_scraper_schema import Crawl4AIScraperOutput
+```
+
+Why `Crawl4AIScraperOutput`?
+
+The MCP server returns JSON over stdio. The client receives a raw JSON string. We reconstruct the `Crawl4AIScraperOutput` Pydantic object from that dict so the rest of the executor (the normalizer, the `r.success` checks, the `r.error` reads) stays exactly the same — zero changes downstream.
+
+---
+
+### Step 3 — Replace the crawl4ai block
+
+**Before** (lines 77–86 in executor.py):
+
+```python
+elif tool_name == "crawl4ai":
+    crawl_results = []
+    for url in plan.crawl_urls[:request.budget.max_crawl_urls]:
+        result = await crawl4ai.execute(url=url)
+        crawl_results.append(result)
+    raw_outputs[tool_name] = crawl_results
+    successful = [r for r in crawl_results if r.success]
+    if crawl_results and not successful:
+        failed_errors = [r.error for r in crawl_results if r.error]
+        raise RuntimeError(f"All {len(crawl_results)} crawl URL(s) failed: {failed_errors}")
+```
+
+**After** (replace the entire block with this):
+
+```python
+elif tool_name == "crawl4ai":
+    crawl_results = []
+    server_params = StdioServerParameters(
+        command="python",
+        args=["-m", "core.tools.mcp_servers.crawl4ai_server"],
+    )
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            for url in plan.crawl_urls[:request.budget.max_crawl_urls]:
+                mcp_result = await session.call_tool(
+                    "scrape_url",
+                    arguments={"url": url, "timeout": 30},
+                )
+                data = json.loads(mcp_result.content[0].text)
+                crawl_results.append(Crawl4AIScraperOutput.model_validate(data))
+    raw_outputs[tool_name] = crawl_results
+    successful = [r for r in crawl_results if r.success]
+    if crawl_results and not successful:
+        failed_errors = [r.error for r in crawl_results if r.error]
+        raise RuntimeError(f"All {len(crawl_results)} crawl URL(s) failed: {failed_errors}")
+```
+
+---
+
+### What changed and why
+
+**`StdioServerParameters`**
+
+Tells the MCP client how to spawn the server subprocess:
+- `command="python"` — the executable
+- `args=["-m", "core.tools.mcp_servers.crawl4ai_server"]` — runs it as a module (same as `python -m core.tools.mcp_servers.crawl4ai_server` from the `backend/` directory)
+
+**`async with stdio_client(...) as (read, write)`**
+
+Opens the subprocess and creates the read/write streams. The subprocess starts here and is terminated when the `async with` block exits. All URLs for this one tool execution share the same subprocess — no extra startup cost per URL.
+
+**`await session.initialize()`**
+
+MCP handshake — client and server exchange capabilities. Must be called once per session before any tool calls.
+
+**`session.call_tool("scrape_url", arguments={...})`**
+
+Calls the tool by name with a dict of arguments. The server executes `Crawl4AIScraper.execute(url=url, timeout=30)` in its process and sends back JSON.
+
+**`json.loads(mcp_result.content[0].text)`**
+
+The MCP result wraps the return value as a list of content items. `content[0].text` is the JSON string the server returned. `json.loads` turns it into a dict.
+
+**`Crawl4AIScraperOutput.model_validate(data)`**
+
+Reconstructs the Pydantic model from the dict. This means `r.success`, `r.error`, and `r.content` all work identically to the direct import path — nothing below this block needs to change.
+
+---
+
+### The full diff at a glance
+
+```diff
+-from core.tools.Crawl4ai.crawl4ai_scraper import Crawl4AIScraper
++import json
++from mcp import ClientSession, StdioServerParameters
++from mcp.client.stdio import stdio_client
++from core.tools.schemas.crawl4ai_scraper_schema import Crawl4AIScraperOutput
+
+ # (line ~34)  remove this line:
+-crawl4ai = Crawl4AIScraper()
+
+ # (lines ~77-86)  replace the crawl4ai block:
+-elif tool_name == "crawl4ai":
+-    crawl_results = []
+-    for url in plan.crawl_urls[:request.budget.max_crawl_urls]:
+-        result = await crawl4ai.execute(url=url)
+-        crawl_results.append(result)
+-    raw_outputs[tool_name] = crawl_results
+-    successful = [r for r in crawl_results if r.success]
+-    if crawl_results and not successful:
+-        failed_errors = [r.error for r in crawl_results if r.error]
+-        raise RuntimeError(f"All {len(crawl_results)} crawl URL(s) failed: {failed_errors}")
++elif tool_name == "crawl4ai":
++    crawl_results = []
++    server_params = StdioServerParameters(
++        command="python",
++        args=["-m", "core.tools.mcp_servers.crawl4ai_server"],
++    )
++    async with stdio_client(server_params) as (read, write):
++        async with ClientSession(read, write) as session:
++            await session.initialize()
++            for url in plan.crawl_urls[:request.budget.max_crawl_urls]:
++                mcp_result = await session.call_tool(
++                    "scrape_url",
++                    arguments={"url": url, "timeout": 30},
++                )
++                data = json.loads(mcp_result.content[0].text)
++                crawl_results.append(Crawl4AIScraperOutput.model_validate(data))
++    raw_outputs[tool_name] = crawl_results
++    successful = [r for r in crawl_results if r.success]
++    if crawl_results and not successful:
++        failed_errors = [r.error for r in crawl_results if r.error]
++        raise RuntimeError(f"All {len(crawl_results)} crawl URL(s) failed: {failed_errors}")
+```
+
+Everything after `raw_outputs[tool_name] = crawl_results` is identical — the downstream error-checking and normalizer code sees the same `Crawl4AIScraperOutput` objects as before.
+
+---
+
+### Before you run: ensure the MCP server module is importable
+
+The `args=["-m", "core.tools.mcp_servers.crawl4ai_server"]` argument is resolved relative to wherever `python` is invoked. When FastAPI/uvicorn starts from `backend/`, the working directory is `backend/` — so `core.tools.mcp_servers.crawl4ai_server` resolves correctly.
+
+If you run tests from a different working directory, set `PYTHONPATH` explicitly:
+
+```bash
+cd backend
+PYTHONPATH=$PWD python -m pytest ...
+```
+
+---
+
+_Last updated: 2026-05-06_

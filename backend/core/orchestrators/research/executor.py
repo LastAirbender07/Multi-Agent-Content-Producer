@@ -1,10 +1,14 @@
+import json
 from datetime import datetime, timezone
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
 from core.orchestration.contracts import ToolTrace, SkippedTool
 from core.schemas.workflow_state import ResearchGraphState
-from core.tools.Crawl4ai.crawl4ai_scraper import Crawl4AIScraper
+# from core.tools.Crawl4ai.crawl4ai_scraper import Crawl4AIScraper
 from core.tools.News.news_api import NewsAPI, GoogleNewsAPI
 from core.tools.Search.ddgs_search import DDGSSearch
 from core.tools.schemas.news_api_schema import NewsSearchOutput
+from core.tools.schemas.crawl4ai_scraper_schema import Crawl4AIScraperOutput
 from infra.logging import get_logger
 
 logger = get_logger(__name__)
@@ -31,7 +35,7 @@ async def execute_tools_node(state: ResearchGraphState) -> dict:
 
     # Stateless tools that don't require API keys — safe to instantiate upfront
     ddgs = DDGSSearch()
-    crawl4ai = Crawl4AIScraper()
+    # crawl4ai = Crawl4AIScraper()
 
     for tool_name in plan.selected_tools:
         trace = ToolTrace(tool_name=tool_name, started_at=datetime.now(timezone.utc))
@@ -74,17 +78,40 @@ async def execute_tools_node(state: ResearchGraphState) -> dict:
                 if not merged_articles:
                     raise RuntimeError("news_api returned 0 articles from both NewsAPI and GoogleNewsAPI")
 
+            # elif tool_name == "crawl4ai":
+            #     crawl_results = []
+            #     for url in plan.crawl_urls[:request.budget.max_crawl_urls]:
+            #         result = await crawl4ai.execute(url=url)
+            #         crawl_results.append(result)
+            #     raw_outputs[tool_name] = crawl_results
+            #     successful = [r for r in crawl_results if r.success]
+            #     if crawl_results and not successful:
+            #         failed_errors = [r.error for r in crawl_results if r.error]
+            #         raise RuntimeError(f"All {len(crawl_results)} crawl URL(s) failed: {failed_errors}")
+
             elif tool_name == "crawl4ai":
                 crawl_results = []
-                for url in plan.crawl_urls[:request.budget.max_crawl_urls]:
-                    result = await crawl4ai.execute(url=url)
-                    crawl_results.append(result)
+                server_params = StdioServerParameters(
+                    command="python",
+                    args=["-m", "core.tools.mcp_servers.crawl4ai_server"],
+                )
+
+                async with stdio_client(server_params) as (read, write):
+                    async with ClientSession(read, write) as session:
+                        await session.initialize()
+                        for url in plan.crawl_urls[:request.budget.max_crawl_urls]:
+                            mcp_result = await session.call_tool(
+                                "scrape_url", 
+                                arguments={"url": url, "timeout": 30},
+                            )
+                            data = json.loads(mcp_result.content[0].text)
+                            crawl_results.append(Crawl4AIScraperOutput.model_validate(data))
                 raw_outputs[tool_name] = crawl_results
                 successful = [r for r in crawl_results if r.success]
                 if crawl_results and not successful:
                     failed_errors = [r.error for r in crawl_results if r.error]
                     raise RuntimeError(f"All {len(crawl_results)} crawl URL(s) failed: {failed_errors}")
-
+                
             else:
                 raise ValueError(f"Unsupported tool: {tool_name}")
 
