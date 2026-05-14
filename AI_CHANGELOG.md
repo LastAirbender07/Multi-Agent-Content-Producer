@@ -6,12 +6,105 @@
 
 ---
 
+## 2026-05-14 - Session 14: Carousel Layout Fixes + Arc & CTA Improvements
+
+**Decision:** Fixed three visual/structural issues in the carousel output identified from live pipeline review.
+
+**What was done:**
+
+**Layout fixes:**
+
+- Split the shared `{% else %}` CSS block for layouts 1 & 2 into separate `{% elif layout_variant == 1 %}` and `{% else %}` blocks in both `aurora/content.html.j2` and `lumina/content.html.j2`, giving independent padding control per layout
+- **Layout 1 (text top, image bottom):** Changed `text-panel` from `flex: 0 0 55%; justify-content: center` → `flex: 0 0 auto; justify-content: flex-start` (eliminates the blank gap below short text content). Changed `image-card` from `aspect-ratio: 16/7` → `flex: 1` so the image fills all remaining height — no dead space
+- **Layout 2 (image top, text bottom):** Added `padding: 28px 36px 8px` to `image-panel` — image was flush to the slide top edge (0px gap); now has a proper 28px visual inset. Text panel uses `padding: 20px 56px 28px` anchored via `justify-content: flex-start`
+- Both themes (aurora + lumina) updated identically
+
+**Arc ordering & CTA distribution:**
+
+- `reorder.py` updated to new arc: `hook → content[:1] → stats[:2] → engage → early_ctas → stats[2:] → body_contents → quotes → final_cta`
+- Ensures one content slide lands after the hook before any stats (gives context before data)
+- `ctas[:-1]` placed after engage (mid-carousel ~position 6), `ctas[-1:]` always closes
+- `slide_generation.txt` updated with explicit 2-CTA rule, updated slot distribution, and "NO EXCEPTIONS — output is invalid with 1 CTA" enforcement
+
+**Bug fixes:**
+
+- Fixed Jinja2 funnel chart access: `fdata.values` resolved to `dict.values()` method (getattr wins over getitem); changed to `fdata['values']` and `fdata['labels']` throughout `aurora/stat.html.j2` and `lumina/stat.html.j2`
+- Fixed double-dash attribution in quote slides: strip leading `—`/`–`/`-` from `slide.body` before prepending `— ` in both quote templates
+
+---
+
+## 2026-05-14 - Session 13: Content Orchestrator — Full Pipeline Build (A-Z)
+
+**Decision:** Built the complete content generation pipeline from slide data to final PNG carousels.
+
+**What was done:**
+
+**Orchestrators built (`core/orchestrators/content/`):**
+
+- `slide_generator.py` — LLM-driven slide generation from angle + research; outputs structured `Slide` objects (hook/content/stat/quote/engage/cta types with chart data)
+- `reorder.py` — Enforces carousel arc ordering (hook → stats → engage → content → quote → cta)
+- `image_fetcher.py` — Parallel image fetching from Pexels API + Bing fallback per slide; downloads and caches to `images/` dir
+- `carousel_generator.py` — Jinja2 HTML rendering per slide type + Playwright headless Chromium screenshotting at 2× DPI then downscaled to 1080×1080 PNG
+- `caption_generator.py` — LLM-generated Instagram/LinkedIn caption per angle
+- `finalizer.py` — Assembles output manifest JSON per angle
+- `render_server.py` — Ephemeral aiohttp static server for serving local assets (fonts, Chart.js, images) to Playwright during screenshot
+
+**Templates built (`core/templates/carousel/`):**
+
+- Two themes: `aurora` (dark, high-contrast) and `lumina` (light, clean)
+- Theme selected via `_TEMPLATE_MAP` keyed on `emotional_hook`: aurora for Anger/Fear/Urgency/Controversy/Surprise; lumina for Hope/Inspiration/Curiosity
+- Slide types per theme: `_base.html.j2`, `hook.html.j2`, `content.html.j2`, `stat.html.j2`, `quote.html.j2`, `engage.html.j2`, `cta.html.j2`
+- `content.html.j2`: 3 layout variants (0=left-text/right-portrait-image, 1=text-top/image-bottom, 2=image-top/text-bottom) cycled via `content_idx % 3`
+- `stat.html.j2`: 6 chart types via Chart.js (bar, column, donut, line, radar, funnel) all rendered client-side; funnel uses pure CSS/HTML
+- Assets: Plus Jakarta Sans (Regular/SemiBold/Bold) + Syne Bold fonts as woff2; Chart.js bundled locally (no CDN dependency)
+
+**Key technical decisions:**
+
+- Playwright screenshots at `device_scale_factor=2` (2160px) then Pillow LANCZOS downscale to 1080px — crisp text at final resolution
+- `document.fonts.ready` await + 300ms buffer before screenshot (Chart.js canvas flush)
+- `layout_variant` counter only increments for `content` slides; other types always get `layout_variant=0` (unused by their templates)
+- `slide_generation.txt` prompt template enforces strict type rules: EXACTLY 2 CTAs, exactly 1 engage, max 3 stats, min 4 content slides, all chart labels ≤25 chars
+
+---
+
+## 2026-05-01 - Session 11–12: Angle Orchestrator + Pipeline API
+
+**Decision:** Built the angle generation pipeline and wired the full CLI pipeline end-to-end.
+
+**What was done:**
+
+**Angle orchestrator (`core/orchestrators/angle/`):**
+
+- `generator.py` — LLM generates 3–5 candidate angles from research summary; each angle has `statement`, `emotional_hook`, `supporting_evidence`, `target_emotion`
+- `evaluator.py` — Scores each angle on specificity, emotional resonance, uniqueness, and research grounding (0–10 each)
+- `auto_selector.py` — In `auto` mode, picks top 3 angles by score; in `manual` mode, prints angles and waits for CLI input
+- `finalizer.py` — Assembles final angle list, saves `angles.json` to run output dir
+- `human_approval.py` — Async human-in-the-loop pause for manual mode
+
+**Graph wiring (`core/graphs/angle_graph.py`):**
+
+- LangGraph `StateGraph`: generate → evaluate → select (auto/manual branch) → finalize
+
+**Pipeline API (`apps/api/v1/pipeline.py`):**
+
+- `POST /api/v1/pipeline/run` — Accepts topic + mode, runs full research → angle → content pipeline, returns run_id
+- `GET /api/v1/pipeline/status/{run_id}` — Status polling endpoint
+- Wired into `main.py` FastAPI app alongside existing research/angle routers
+
+**CLI (`apps/cli/run_workflow.py`):**
+
+- Refactored to sequential stage runner: research → angle → content
+- `--mode {quick,standard,deep}` controls research depth
+- `--angle-mode {auto,manual}` controls angle selection
+- Structured stage logging with `pipeline_stage_started` / `pipeline_stage_completed` events
+
+---
+
 ## V2 Planned Improvements (Research Orchestrator)
 
 These are known design limitations in V1 that are intentionally deferred:
 
 1. **Evidence accumulation across refinement loops** — Currently each refinement loop overwrites `raw_tool_outputs` with fresh results, so you end up with the same number of evidence items regardless of how many loops ran. V2 should merge evidence across loops (the deduplication by URL is already in place, so accumulation would be safe).
-
 2. **LLM-driven confidence scoring** — The current `confidence_score` in `ResearchSynthesis` is assigned by the LLM itself based on how well the evidence covers the topic. This is a reasonable proxy but inconsistent. V2 should introduce a dedicated **Quality Checker node** that independently evaluates the synthesis against the evidence — checking factual grounding, coverage breadth, and source credibility — and assigns a more objective score. This separates synthesis from evaluation, which is cleaner architecturally.
 
 ---
@@ -23,6 +116,7 @@ These are known design limitations in V1 that are intentionally deferred:
 **What was done:**
 
 **Build phase (Sessions 7–8):**
+
 - Implemented the full LangGraph `ResearchGraph` with 9 nodes: intake → route → execute_tools → normalize → synthesize → evaluate → refine / finalize / finalize_partial
 - Built the `DeterministicResearchRoutingPolicy` that selects tools based on freshness, explicit URLs, and claim-verification needs
 - Built the executor node that runs DDGS text/news, NewsAPI + GoogleNewsAPI (merged), and Crawl4AI with budget enforcement
@@ -34,6 +128,7 @@ These are known design limitations in V1 that are intentionally deferred:
 - Added FastAPI `main.py` and `apps/api/v1/research.py` router with `/api/v1/research/run` and `/health` endpoints
 
 **Bug fix rounds (Sessions 9–10) — critical fixes:**
+
 - **structlog wiring** — `infra/logging.py` was returning a standard `logging.Logger` but the entire codebase used the structlog keyword-arg API; rewired to configure and return `structlog.BoundLogger` (would have crashed on every log call)
 - **DDGS async** — all three DDGS calls were blocking the event loop; wrapped in `asyncio.to_thread(lambda: list(...))`
 - **Timezone-naive datetimes** — fixed `datetime.now()` / `datetime.utcnow` calls across `news_api.py`, `crawl4ai_scraper_schema.py`, and `contracts.py`
@@ -55,18 +150,21 @@ These are known design limitations in V1 that are intentionally deferred:
 **Decision:** Fixed schema and test issues in DDGS search tool implementation.
 
 **Why:**
+
 - Schema had duplicate `timelimit` field causing validation errors
 - `VideoResult` had syntax error (used `def` instead of `class`)
 - Test was using invalid backend ("bing" for text search)
 - Google backend fails due to anti-scraping measures (DDGS library limitation)
 
 **Key Fixes:**
+
 1. Removed duplicate `timelimit` field from `DDGSSearchInput` schema
 2. Fixed `VideoResult` class declaration syntax
 3. Updated test to use valid backends: duckduckgo, google, brave
 4. Documented Google backend limitation (not a bug, expected behavior)
 
 **Test Results:**
+
 - ✅ Text search: 10 results (auto backend)
 - ✅ News search: 5 results
 - ✅ Image search: 5 results
@@ -85,12 +183,14 @@ These are known design limitations in V1 that are intentionally deferred:
 **Decision:** Implemented Crawl4AI scraper as the first general web scraping tool to complement Google News API.
 
 **Why:**
+
 - Need ability to scrape full content from arbitrary URLs (not just news)
 - Crawl4AI provides LLM-optimized markdown output
 - Free, no API keys, handles JavaScript rendering
 - First step toward multi-source research capability
 
 **Implementation:**
+
 ```
 backend/core/tools/
 ├── Crawl4ai/
@@ -102,6 +202,7 @@ backend/core/tools/
 **Key Technical Challenges Solved:**
 
 1. **Schema Mismatch with Crawl4AI Output**
+
    - Problem: Crawl4AI returns nested dicts, not simple lists
      - `links: {'internal': [...], 'external': [...]}`
      - `media: {'images': [...], 'videos': [...], 'audios': [...]}`
@@ -110,21 +211,23 @@ backend/core/tools/
      - `_extract_links()` - Parses nested link structure into separate internal/external lists
      - `_extract_images()` - Extracts image data with metadata
      - `_extract_markdown()` - Selects best markdown format (fit_markdown > raw_markdown)
-
 2. **Result Container Handling**
+
    - Problem: Crawl4AI returns `CrawlResultContainer` (iterable), not plain list
    - Solution: Check if result is iterable, extract first item
+
    ```python
    if hasattr(result, '__iter__') and not isinstance(result, str):
        page_result = list(result)[0]
    ```
-
 3. **Output Optimization**
+
    - Limited links (50 per type) and images (30) to prevent overwhelming output
    - Optional HTML inclusion (off by default to reduce size)
    - Structured metadata extraction from Crawl4AI response
 
 **Code Structure Pattern:**
+
 ```python
 class Crawl4AIScraper(BaseTool):
     def __init__(self, verbose: bool = False)
@@ -136,10 +239,12 @@ class Crawl4AIScraper(BaseTool):
 ```
 
 **Libraries Used:**
+
 - `crawl4ai` (v0.8.6) - Web scraping with JS rendering
 - `pydantic` - Input/output validation
 
 **Performance:**
+
 - Simple page (example.com): ~2.4s
 - Complex page (wikipedia.org): ~1.6s, 20K chars markdown, 70 links
 
@@ -148,6 +253,7 @@ class Crawl4AIScraper(BaseTool):
 **Next:** SearXNG search tool to find URLs, then combine both in research orchestrator
 
 **Docs Created:**
+
 - `Docs/WEB_SEARCH_TOOLS_IMPLEMENTATION.md` - Full implementation guide
 - `Docs/QUICK_REFERENCE_CHEATSHEET.md` - Quick reference patterns
 - `Docs/ARCHITECTURE_VISUAL_GUIDE.md` - Visual architecture diagrams
@@ -159,11 +265,13 @@ class Crawl4AIScraper(BaseTool):
 **Decision:** Implemented Google News RSS tool with full article content extraction via sequential processing.
 
 **Why:**
+
 - Free unlimited alternative to NewsAPI (no rate limits)
 - Need full article content, not just summaries
 - Google News redirect URLs required special handling
 
 **Implementation:**
+
 ```
 backend/core/tools/News/
 └── news_api.py
@@ -175,33 +283,36 @@ backend/core/tools/News/
 **Key Technical Decisions:**
 
 1. **Sequential Processing (not parallel)**
+
    - Problem: trafilatura's urllib3 pool exhaustion with concurrent requests
    - Solution: Process articles one-by-one (20-30s for 10 articles)
    - Rationale: Reliability > Speed for research tools
-
 2. **Google News URL Decoding**
+
    - Problem: Google wraps article URLs in redirects
    - Solution: Use `client.decode_url()` from google-news-api library
    - Benefit: Handles complex redirect chains automatically
-
 3. **Full Content Extraction Pipeline**
+
    ```python
    Google News URL
      → Decode to real article URL (client.decode_url)
      → Fetch full content (trafilatura)
      → Fallback to summary if fetch fails
    ```
-
 4. **Clean HTML Summaries**
+
    - Regex-based HTML tag removal (simple, fast)
    - No beautifulsoup overhead for summaries
 
 **Libraries Used:**
+
 - `google-news-api` - RSS feed parsing + URL decoding
 - `trafilatura` - Article content extraction (modern, maintained)
 - `beautifulsoup4` - Installed but not needed (URL decoding handled by library)
 
 **Architecture Pattern:**
+
 ```python
 # Sequential processing with progress tracking
 for idx, article in enumerate(articles):
@@ -211,6 +322,7 @@ for idx, article in enumerate(articles):
 ```
 
 **Benefits:**
+
 - ✅ Free unlimited news access
 - ✅ Full article content (not just summaries)
 - ✅ Clean descriptions (HTML stripped)
@@ -228,11 +340,13 @@ for idx, article in enumerate(articles):
 **Decision:** Implemented first research tool (NewsAPI) with async architecture, Pydantic validation.
 
 **Why:**
+
 - Avoid full dependency on Tavily (paid service)
 - Need multiple data sources for research orchestrator
 - Test individual tools before building orchestrator layer
 
 **Implementation:**
+
 ```
 backend/core/tools/
 ├── base.py                    # BaseTool abstract class
@@ -244,6 +358,7 @@ backend/core/tools/
 ```
 
 **Key Patterns:**
+
 - ✅ Async execution with `asyncio.to_thread()` for blocking I/O
 - ✅ Pydantic validation for input/output
 - ✅ Structured error handling (never crashes, returns success/error)
@@ -251,6 +366,7 @@ backend/core/tools/
 - ✅ Convenience functions for common use cases
 
 **Architecture Decisions:**
+
 - Reddit will use **LLM-powered dynamic subreddit generation** (not hardcoded)
 - Custom web scraping tools as Tavily alternatives
 - **Research Orchestrator Agent** to manage tool selection, retries, quality checks
@@ -268,11 +384,13 @@ backend/core/tools/
 **Decision:** Use real data sources (APIs/scraping) + LLM synthesis instead of LLM-only research.
 
 **Why:**
+
 - LLM-only research = hallucinations, outdated info, no sources
 - Production needs: real data, verifiable URLs, recent information
 - User insight: "Research should use web search, scraper, news APIs"
 
 **Architecture:**
+
 ```
 Research Node = Tools (gather data) + LLM (synthesize insights)
 
@@ -287,11 +405,13 @@ Output: Structured research with real sources
 ```
 
 **Tools Selected:**
+
 - **Tavily API** (web search, $1/1000, designed for AI)
 - **PRAW** (Reddit API, free, unlimited)
 - **NewsAPI** (news, 100/day free)
 
 **Key Pattern:**
+
 ```python
 # Gather real data
 web, reddit, news = await asyncio.gather(
@@ -308,6 +428,7 @@ research = await llm.generate_structured(
 ```
 
 **Benefits:**
+
 - ✅ No hallucinations (real data)
 - ✅ Verifiable sources (URLs included)
 - ✅ Recent information (not training cutoff)
@@ -326,11 +447,13 @@ research = await llm.generate_structured(
 **Decision:** Redesigned agent system based on initial plan + centralized prompt management.
 
 **Why:**
+
 - Initial guide missed prompt management (hard to iterate on voice/style)
 - Needed alignment with original plan (strong POV content system)
 - Prompts in code = hard to version/test/collaborate
 
 **New Architecture:**
+
 ```
 core/
 ├── prompts/           # ⭐ NEW - Centralized prompt management
@@ -343,6 +466,7 @@ core/
 ```
 
 **Key Pattern:**
+
 ```python
 # Separate voice (system) from task (user)
 system_prompt = get_system_prompt("angle")  # Defines style
@@ -351,12 +475,14 @@ result = llm.generate(user_prompt, system_prompt=system_prompt)
 ```
 
 **Benefits:**
+
 - ✅ Easy prompt iteration (change file, not code)
 - ✅ Version control prompts (track what works)
 - ✅ A/B testing (swap prompts, measure quality)
 - ✅ Non-coders can edit .txt files
 
 **Critical Insight from Plan:**
+
 - Angle Agent = CRITICAL node (quality decided here)
 - System prompts encode "strong, opinionated" voice
 - Workflow: Research → Angle → Approval → Content → Visual
@@ -372,12 +498,14 @@ result = llm.generate(user_prompt, system_prompt=system_prompt)
 **Decision:** Use LangGraph primitives instead of custom BaseAgent class.
 
 **Why:**
+
 - LangGraph already provides state management and orchestration
 - Simple node functions > complex class hierarchies
 - FastMCP provides tool abstractions
 - Don't reinvent what frameworks already do well
 
 **Architecture:**
+
 ```
 nodes/ → Simple async functions (not classes)
 graphs/ → StateGraph definitions (LangGraph)
@@ -386,6 +514,7 @@ tools/ → FastMCP tools (optional)
 ```
 
 **Key Pattern:**
+
 ```python
 # Node = simple function
 async def research_node(state: WorkflowState) -> dict:
@@ -396,6 +525,7 @@ graph.add_node("research", research_node)
 ```
 
 **Impact:**
+
 - Less code to maintain (no BaseAgent boilerplate)
 - Better error handling (framework built-in)
 - Easier testing (pure functions)
@@ -540,4 +670,4 @@ For in-depth analysis, see:
 
 ---
 
-_Last updated: 2026-05-01_
+_Last updated: 2026-05-14_
