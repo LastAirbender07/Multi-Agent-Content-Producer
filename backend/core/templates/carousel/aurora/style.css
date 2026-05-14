@@ -1,0 +1,303 @@
+/* Aurora theme — dark, bold, violet/teal
+ * Used by: anger, fear, urgency, controversy, surprise emotional hooks
+ * Canvas: 1080×1080px fixed
+ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --bg:          #090909;
+    --surface:     #131313;
+    --primary:     #7C6EFA;
+    --secondary:   #2DD4BF;
+    --accent:      #F59E0B;
+    --text:        #FAFAFA;
+    --muted:       #71717A;
+    --primary-rgb: 124, 110, 250;
+}
+
+/* ── Fonts ─────────────────────────────────────────────────── */
+
+@font-face {
+    font-family: 'Syne';
+    src: url('/assets/fonts/Syne-Bold.woff2') format('woff2');
+    font-weight: 700; font-style: normal;
+}
+@font-face {
+    font-family: 'PlusJakarta';
+    src: url('/assets/fonts/PlusJakartaSans-Bold.woff2') format('woff2');
+    font-weight: 700; font-style: normal;
+}
+@font-face {
+    font-family: 'PlusJakarta';
+    src: url('/assets/fonts/PlusJakartaSans-SemiBold.woff2') format('woff2');
+    font-weight: 600; font-style: normal;
+}
+@font-face {
+    font-family: 'PlusJakarta';
+    src: url('/assets/fonts/PlusJakartaSans-Regular.woff2') format('woff2');
+    font-weight: 400; font-style: normal;
+}
+
+/* ── Canvas ─────────────────────────────────────────────────── */
+
+html, body {
+    width: 1080px; height: 1080px;
+    overflow: hidden;
+    background: var(--bg);
+}
+
+.canvas {
+    position: relative;
+    width: 1080px; height: 1080px;
+    overflow: hidden;
+    font-family: 'PlusJakarta', sans-serif;
+    color: var(--text);
+}
+
+/* ── Brand bar (bottom 72px) ────────────────────────────────── */
+
+.brand-bar {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 72px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 48px;
+    background: rgba(9, 9, 9, 0.85);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    z-index: 10;
+}
+
+.brand-name {
+    font-size: 18px; font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.08em; text-transform: uppercase;
+}
+
+.progress {
+    font-size: 18px; font-weight: 600;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Progress bar ───────────────────────────────────────────── */
+
+.progress-bar {
+    position: absolute; bottom: 72px; left: 0; right: 0;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+}
+
+/* ── Hook slide ─────────────────────────────────────────────── */
+
+.bg-image {
+    position: absolute; inset: 0;
+    background-size: cover; background-position: center;
+}
+
+.bg-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(
+        135deg,
+        rgba(9, 9, 9, 0.88) 0%,
+        rgba(9, 9, 9, 0.65) 50%,
+        rgba(var(--primary-rgb), 0.25) 100%
+    );
+}
+
+.hook-card {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -55%);
+    width: 880px;
+    padding: 56px 64px;
+    background: rgba(19, 19, 19, 0.72);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+}
+
+.hook-label {
+    font-size: 14px; font-weight: 600;
+    color: var(--primary);
+    letter-spacing: 0.2em; text-transform: uppercase;
+    margin-bottom: 24px;
+}
+
+.hook-headline {
+    font-family: 'Syne', sans-serif;
+    font-size: 72px; font-weight: 700;
+    line-height: 1.05;
+    background: linear-gradient(135deg, var(--text) 0%, rgba(250, 250, 250, 0.75) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 32px;
+}
+
+.hook-sub {
+    font-size: 24px; font-weight: 400;
+    color: var(--muted); line-height: 1.5;
+}
+
+.swipe-hint {
+    position: absolute; bottom: 88px; right: 56px;
+    font-size: 14px; color: var(--muted);
+    letter-spacing: 0.12em; text-transform: uppercase;
+    display: flex; align-items: center; gap: 8px;
+}
+.swipe-hint::after { content: '→'; color: var(--primary); font-size: 18px; }
+
+/* ── Content slide ──────────────────────────────────────────── */
+
+.bg-texture {
+    position: absolute; inset: -5%;
+    background-size: cover; background-position: center;
+    filter: blur(28px) brightness(0.22);
+    transform: scale(1.12);
+}
+
+.bg-dim {
+    position: absolute; inset: 0;
+    background: rgba(9, 9, 9, 0.6);
+}
+
+.content-wrapper {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 72px;
+    display: flex; flex-direction: column;
+    justify-content: center;
+    padding: 72px 80px; gap: 32px;
+}
+
+.slide-title {
+    font-size: 52px; font-weight: 700;
+    line-height: 1.1; color: var(--text);
+    padding-left: 24px;
+    border-left: 5px solid var(--primary);
+}
+
+.slide-body {
+    font-size: 28px; font-weight: 400;
+    line-height: 1.6;
+    color: rgba(250, 250, 250, 0.75);
+    padding-left: 29px;
+    max-width: 820px;
+}
+
+.accent-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    margin-bottom: 16px; margin-left: 2px;
+}
+
+/* ── Stat slide ─────────────────────────────────────────────── */
+
+.stat-wrapper {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 72px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 16px; padding: 80px;
+}
+
+.stat-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 160px; font-weight: 700;
+    line-height: 0.9;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; text-align: center;
+}
+
+.stat-divider {
+    width: 120px; height: 3px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    border-radius: 2px; margin: 8px 0;
+}
+
+.stat-label {
+    font-size: 32px; font-weight: 400;
+    color: var(--muted); text-align: center;
+    max-width: 640px; line-height: 1.4;
+}
+
+.stat-context {
+    font-size: 22px; font-weight: 400;
+    color: rgba(113, 113, 122, 0.7);
+    text-align: center; margin-top: 8px;
+}
+
+/* ── Quote slide ────────────────────────────────────────────── */
+
+.quote-card {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -55%);
+    width: 880px; padding: 64px;
+    background: rgba(19, 19, 19, 0.75);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 24px;
+}
+
+.quote-mark {
+    font-family: 'Syne', sans-serif;
+    font-size: 96px; font-weight: 700;
+    color: var(--primary); opacity: 0.5;
+    line-height: 0.6; margin-bottom: 16px;
+}
+
+.quote-text {
+    font-size: 34px; font-weight: 600;
+    line-height: 1.4; color: var(--text);
+    font-style: italic;
+}
+
+.quote-attr {
+    margin-top: 32px;
+    font-size: 20px; font-weight: 400;
+    color: var(--muted);
+}
+
+/* ── CTA slide ──────────────────────────────────────────────── */
+
+.cta-bg {
+    position: absolute; inset: 0;
+    background:
+        radial-gradient(ellipse at 20% 80%, rgba(124, 110, 250, 0.35) 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 20%, rgba(45, 212, 191, 0.25) 0%, transparent 55%),
+        var(--bg);
+}
+
+.cta-wrapper {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 72px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 40px; padding: 80px; text-align: center;
+}
+
+.cta-headline {
+    font-family: 'Syne', sans-serif;
+    font-size: 64px; font-weight: 700;
+    line-height: 1.1; color: var(--text); max-width: 800px;
+}
+
+.cta-sub {
+    font-size: 26px; font-weight: 400;
+    color: var(--muted); max-width: 680px; line-height: 1.5;
+}
+
+.cta-button {
+    display: inline-flex; align-items: center; gap: 12px;
+    padding: 20px 52px;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    border-radius: 100px;
+    font-size: 22px; font-weight: 700;
+    color: #fff; letter-spacing: 0.03em;
+}

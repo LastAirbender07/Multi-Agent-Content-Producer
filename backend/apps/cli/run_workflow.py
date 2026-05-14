@@ -4,9 +4,8 @@ Manager Orchestrator CLI — runs the full content production pipeline.
 Orchestrates individual orchestrators in sequence:
   1. Research Orchestrator      ← implemented
   2. Angle Orchestrator         ← implemented
-  3. Image Retrieval/Generation ← planned
-  4. Content Generation         ← planned
-  5. Post Designer              ← planned
+  3. Content Generation         ← implemented
+  4. Post Designer              ← planned
 
 Usage:
     python -m apps.cli.run_workflow "your topic here"
@@ -16,8 +15,9 @@ import argparse
 import asyncio
 import sys
 import uuid
-from core.nodes.angle import angle_node
 from core.nodes.research import research_node
+from core.nodes.angle import angle_node
+from core.nodes.content import content_node
 from core.schemas.workflow_state import ContentWorkflowState
 from infra.logging import get_logger
 
@@ -55,11 +55,11 @@ class ContentPipelineOrchestrator:
             logger.error("pipeline_aborted_after_angle", errors=state["errors"])
             return state
 
-        # Stage 3: Image retrieval/generation — planned
-        # state = await self._run_stage("image", image_node, state)
-
-        # Stage 4: Content generation — planned
-        # state = await self._run_stage("content", content_node, state)
+        # Stage 3: Content generation
+        state = await self._run_stage("content", content_node, state)
+        if state.get("errors"):
+            logger.error("pipeline_aborted_after_content", errors=state["errors"])
+            return state
 
         # Stage 5: Post design — planned
         # state = await self._run_stage("post_design", post_design_node, state)

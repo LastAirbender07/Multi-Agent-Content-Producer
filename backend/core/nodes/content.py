@@ -1,53 +1,60 @@
-from infra.llm.factory import LLMFactory
+from pathlib import Path
+
+from configs.settings import get_settings
+from core.orchestration.contracts import ContentRequest
+from core.orchestrators.content.orchestrator import ContentOrchestrator
+from core.schemas.workflow_state import ContentWorkflowState
 from infra.logging import get_logger
-from core.schemas.workflow_state import ContentWorkflowState, ContentOutput
-from core.prompts.system_prompts import get_system_prompt, format_prompt
-from core.prompts.prompt_loader import load_prompt
 
 logger = get_logger(__name__)
+_settings = get_settings()
+_orchestrator = ContentOrchestrator()
+
 
 async def content_node(state: ContentWorkflowState) -> dict:
     topic = state["topic"]
-    angle = state["selected_angle"]
-    research_summary = state["research_summary"]
-    logger.info("content_node_start", topic=topic)
+    run_id = state.get("run_id")
+    selected_angles = state.get("selected_angles", [])
+    research_data = state.get("research_data", {})
+
+    logger.info("content_node_start", topic=topic, run_id=run_id, angles=len(selected_angles))
+
+    if not selected_angles:
+        return {
+            "errors": state.get("errors", []) + ["content_node: no selected_angles in state"],
+            "messages": state.get("messages", []) + ["Content skipped — no angles selected"],
+        }
 
     try:
-        llm = await LLMFactory.get_client()
-        system_prompt = get_system_prompt("content")
-        prompt_template = load_prompt("content_creation", topic=topic)
-
-        user_prompt = format_prompt(
-            prompt_template, 
+        request = ContentRequest(
+            run_id=run_id,
             topic=topic,
-            angle=angle,
-            research_summary=research_summary
+            selected_angles=selected_angles,
+            research_summary=research_data.get("summary", ""),
+            key_points=research_data.get("key_points", []),
+            max_slides=_settings.content_max_slides,
+            min_slides=_settings.content_min_slides,
         )
 
-        content = await llm.generate_structured(
-            prompt = user_prompt,
-            output_schema = ContentOutput,
-            system_prompt = system_prompt
-        )
+        result = await _orchestrator.run(request)
 
         logger.info(
-            "content_node_complete", 
-            topic=topic,
-            slides_count=len(content.slides),
-            hashtags_count=len(content.hashtags)
+            "content_node_complete",
+            run_id=run_id,
+            angles_processed=len(result.angles_processed),
+            status=result.status,
         )
 
         return {
-            "content_slides": [s.model_dump() for s in content.slides],
-            "content_hook": content.hook,
-            "content_caption": content.caption,
-            "content_hashtags": content.hashtags,
-            "messages": [f"✅ Content created: {len(content.slides)} slides"]
+            "messages": state.get("messages", []) + [
+                f"Content generated for {len(result.angles_processed)} angles"
+            ],
+            "errors": state.get("errors", []) + result.errors,
         }
-    
+
     except Exception as e:
         logger.error("content_node_error", topic=topic, error=str(e))
         return {
-            "errors": [f"Content generation failed: {str(e)}"],
-            "messages": [f"❌ Content generation failed: {str(e)}"]
+            "errors": state.get("errors", []) + [f"Content generation failed: {str(e)}"],
+            "messages": state.get("messages", []) + [f"Content generation failed: {str(e)}"],
         }

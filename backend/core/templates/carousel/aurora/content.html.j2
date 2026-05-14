@@ -1,0 +1,208 @@
+{% extends "_base.html.j2" %}
+
+{% block extra_styles %}
+.bg-texture {
+    position: absolute; inset: -5%;
+    {% if image_path %}
+    background-image: url('{{ image_path }}');
+    {% else %}
+    background: linear-gradient(145deg, #0D0B18, #1a1535);
+    {% endif %}
+    background-size: cover; background-position: center;
+    filter: blur(32px) brightness(0.15);
+    transform: scale(1.15);
+}
+.bg-dim {
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(9,9,9,0.93) 0%, rgba(9,9,9,0.78) 100%);
+}
+
+{% if layout_variant == 0 %}
+/* ── Layout 0: left text, right portrait image ── */
+.slide-grid {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 72px;
+    display: flex;
+    flex-direction: row;
+    padding: 32px 40px;
+    gap: 36px;
+    align-items: center;
+}
+.text-panel {
+    flex: 0 0 57%;
+    display: flex; flex-direction: column; gap: 16px;
+    justify-content: center; min-width: 0;
+}
+.accent-line {
+    width: 44px; height: 4px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    border-radius: 2px;
+}
+.slide-title { font-size: 44px; font-weight: 700; line-height: 1.15; color: var(--text); }
+.slide-body  { font-size: 22px; font-weight: 400; line-height: 1.6; color: rgba(250,250,250,0.76); }
+.bullets-list { display: flex; flex-direction: column; gap: 10px; margin-top: 2px; }
+.bullet-item  { display: flex; align-items: flex-start; gap: 12px; }
+.bullet-num {
+    flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: #fff; margin-top: 2px;
+}
+.bullet-text { font-size: 19px; font-weight: 400; line-height: 1.5; color: rgba(250,250,250,0.80); flex: 1; }
+.image-panel { flex: 1; display: flex; align-items: center; justify-content: center; }
+.image-card {
+    width: 100%; aspect-ratio: 4 / 5; border-radius: 18px; overflow: hidden;
+    box-shadow: 0 28px 56px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.07);
+}
+.image-card img { width: 100%; height: 100%; object-fit: cover; }
+.deco-panel {
+    width: 100%; aspect-ratio: 4 / 5; border-radius: 18px;
+    background: linear-gradient(145deg, rgba(124,110,250,0.14) 0%, rgba(45,212,191,0.07) 100%);
+    border: 1px solid rgba(124,110,250,0.18);
+    display: flex; align-items: center; justify-content: center;
+}
+.deco-circles { display: flex; flex-direction: column; gap: 18px; align-items: center; }
+.deco-circle {
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(124,110,250,0.25), rgba(45,212,191,0.15));
+    border: 1px solid rgba(124,110,250,0.25);
+}
+
+{% elif layout_variant == 1 %}
+/* ── Layout 1: text top, image bottom ── */
+.slide-grid {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 72px;
+    display: flex; flex-direction: column;
+    padding: 0; gap: 0; align-items: stretch;
+}
+.text-panel {
+    flex: 0 0 auto;
+    display: flex; flex-direction: column; gap: 13px;
+    justify-content: flex-start; min-width: 0;
+    padding: 36px 56px 24px;
+}
+.accent-line {
+    width: 44px; height: 4px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    border-radius: 2px;
+}
+.slide-title { font-size: 38px; font-weight: 700; line-height: 1.18; color: var(--text); }
+.slide-body  { font-size: 19px; font-weight: 400; line-height: 1.6; color: rgba(250,250,250,0.76); }
+.bullets-list { display: flex; flex-direction: column; gap: 9px; margin-top: 2px; }
+.bullet-item  { display: flex; align-items: flex-start; gap: 12px; }
+.bullet-num {
+    flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: #fff; margin-top: 2px;
+}
+.bullet-text { font-size: 17px; font-weight: 400; line-height: 1.5; color: rgba(250,250,250,0.80); flex: 1; }
+.image-panel { flex: 1; padding: 8px 36px 36px; display: flex; }
+.image-card {
+    flex: 1; border-radius: 18px; overflow: hidden;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.07);
+}
+.image-card img { width: 100%; height: 100%; object-fit: cover; }
+.deco-panel {
+    flex: 1; border-radius: 18px;
+    background: linear-gradient(145deg, rgba(124,110,250,0.14) 0%, rgba(45,212,191,0.07) 100%);
+    border: 1px solid rgba(124,110,250,0.18);
+    display: flex; align-items: center; justify-content: center;
+}
+.deco-circles { display: flex; flex-direction: row; gap: 18px; align-items: center; }
+.deco-circle {
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(124,110,250,0.25), rgba(45,212,191,0.15));
+    border: 1px solid rgba(124,110,250,0.25);
+}
+
+{% else %}
+/* ── Layout 2: image top, text bottom ── */
+.slide-grid {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 72px;
+    display: flex; flex-direction: column-reverse;
+    padding: 0; gap: 0; align-items: stretch;
+}
+.text-panel {
+    flex: 0 0 auto;
+    display: flex; flex-direction: column; gap: 13px;
+    justify-content: flex-start; min-width: 0;
+    padding: 20px 56px 28px;
+}
+.accent-line {
+    width: 44px; height: 4px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    border-radius: 2px;
+}
+.slide-title { font-size: 38px; font-weight: 700; line-height: 1.18; color: var(--text); }
+.slide-body  { font-size: 19px; font-weight: 400; line-height: 1.6; color: rgba(250,250,250,0.76); }
+.bullets-list { display: flex; flex-direction: column; gap: 9px; margin-top: 2px; }
+.bullet-item  { display: flex; align-items: flex-start; gap: 12px; }
+.bullet-num {
+    flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: #fff; margin-top: 2px;
+}
+.bullet-text { font-size: 17px; font-weight: 400; line-height: 1.5; color: rgba(250,250,250,0.80); flex: 1; }
+.image-panel { flex: 1; padding: 28px 36px 8px; display: flex; align-items: center; }
+.image-card {
+    width: 100%; aspect-ratio: 16 / 7; border-radius: 18px; overflow: hidden;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.07);
+}
+.image-card img { width: 100%; height: 100%; object-fit: cover; }
+.deco-panel {
+    width: 100%; aspect-ratio: 16 / 7; border-radius: 18px;
+    background: linear-gradient(145deg, rgba(124,110,250,0.14) 0%, rgba(45,212,191,0.07) 100%);
+    border: 1px solid rgba(124,110,250,0.18);
+    display: flex; align-items: center; justify-content: center;
+}
+.deco-circles { display: flex; flex-direction: row; gap: 18px; align-items: center; }
+.deco-circle {
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(124,110,250,0.25), rgba(45,212,191,0.15));
+    border: 1px solid rgba(124,110,250,0.25);
+}
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="bg-texture"></div>
+<div class="bg-dim"></div>
+<div class="slide-grid">
+    <div class="text-panel">
+        <div class="accent-line"></div>
+        <div class="slide-title">{{ slide.title }}</div>
+        {% if slide.body %}
+        <div class="slide-body">{{ slide.body }}</div>
+        {% endif %}
+        {% if slide.bullets %}
+        <div class="bullets-list">
+            {% for b in slide.bullets %}
+            <div class="bullet-item">
+                <div class="bullet-num">{{ loop.index }}</div>
+                <div class="bullet-text">{{ b }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    <div class="image-panel">
+        {% if image_path %}
+        <div class="image-card">
+            <img src="{{ image_path }}" alt="">
+        </div>
+        {% else %}
+        <div class="deco-panel">
+            <div class="deco-circles">
+                <div class="deco-circle" style="width:72px;height:72px;"></div>
+                <div class="deco-circle" style="width:48px;height:48px;opacity:0.6;"></div>
+                <div class="deco-circle" style="width:32px;height:32px;opacity:0.4;"></div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

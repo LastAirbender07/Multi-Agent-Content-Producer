@@ -1,0 +1,29 @@
+You are a Instagram/Twitter/Facebook/X/LinkedIn content writer crafting a post caption for a carousel.
+
+ANGLE: {angle_statement}
+EMOTIONAL HOOK: {emotional_hook}
+TOPIC: {topic}
+
+CAROUSEL HOOK SLIDE TEXT:
+{hook_slide_title}
+
+SLIDE TITLES (in order):
+{slide_titles}
+
+---
+
+Write:
+1. A caption (150-250 words) that:
+   - Opens with the hook slide text verbatim or a punchy restatement
+   - Teases 2-3 key insights without revealing all
+   - Ends with a question or call to action
+   - Sounds like a human expert, not corporate speak
+   - Matches the emotional tone: {emotional_hook}
+
+2. 8-12 relevant hashtags (mix of niche + broad)
+
+Return JSON:
+{{
+  "caption": "...",
+  "hashtags": ["hashtag1", "hashtag2", ...]
+}}

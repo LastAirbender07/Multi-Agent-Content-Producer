@@ -1,0 +1,110 @@
+{% extends "_base.html.j2" %}
+
+{% block extra_styles %}
+.bg-texture {
+    position: absolute; inset: -5%;
+    {% if image_path %}
+    background-image: url('{{ image_path }}');
+    {% else %}
+    background: linear-gradient(145deg, #EFF6FF, #ECFDF5);
+    {% endif %}
+    background-size: cover; background-position: center;
+    filter: blur(28px) brightness(1.15) saturate(0.3);
+    transform: scale(1.12);
+}
+.bg-dim {
+    position: absolute; inset: 0;
+    background: rgba(250,250,248,0.86);
+}
+.quote-wrapper {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 72px;
+}
+.quote-inner {
+    position: absolute;
+    top: 50%; left: 72px; right: 72px;
+    transform: translateY(-50%);
+    display: flex; flex-direction: column;
+}
+.quote-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+.quote-mark {
+    font-family: 'Syne', sans-serif;
+    font-size: 100px; font-weight: 700;
+    color: var(--primary); opacity: 0.40;
+    line-height: 0.65; margin-bottom: 12px;
+}
+.quote-text {
+    font-size: 40px; font-weight: 600;
+    line-height: 1.42; color: var(--text);
+    font-style: italic;
+}
+.quote-attr {
+    margin-top: 22px;
+    font-size: 20px; font-weight: 400;
+    color: var(--muted);
+}
+.quote-divider {
+    width: 100%; height: 1px;
+    background: rgba(0,0,0,0.08);
+    margin: 32px 0 26px;
+    flex-shrink: 0;
+}
+.insights-label {
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--secondary); margin-bottom: 18px;
+}
+.insights-list {
+    display: flex; flex-direction: column; gap: 14px;
+}
+.insight-item {
+    display: flex; align-items: flex-start; gap: 14px;
+}
+.insight-dot {
+    flex-shrink: 0;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--primary);
+    margin-top: 8px;
+}
+.insight-text {
+    font-size: 21px; font-weight: 400;
+    line-height: 1.55;
+    color: rgba(17,24,39,0.76);
+    flex: 1;
+}
+{% endblock %}
+
+{% block content %}
+<div class="bg-texture"></div>
+<div class="bg-dim"></div>
+<div class="quote-wrapper">
+    <div class="quote-inner">
+        <div class="quote-section">
+            <div class="quote-mark">"</div>
+            <div class="quote-text">{{ slide.title }}</div>
+            {% if slide.body %}
+            {% set body_clean = slide.body %}
+            {% if body_clean[:2] == '— ' or body_clean[:2] == '– ' %}{% set body_clean = body_clean[2:] %}{% elif body_clean[:1] == '—' or body_clean[:1] == '–' or body_clean[:1] == '-' %}{% set body_clean = body_clean[1:] | trim %}{% endif %}
+            <div class="quote-attr">— {{ body_clean }}</div>
+            {% endif %}
+        </div>
+        {% if slide.bullets %}
+        <div class="quote-divider"></div>
+        <div class="insights-label">Key Insights</div>
+        <div class="insights-list">
+            {% for b in slide.bullets %}
+            <div class="insight-item">
+                <div class="insight-dot"></div>
+                <div class="insight-text">{{ b }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -53,3 +53,18 @@ class ContentWorkflowState(TypedDict, total=False):
     content_hashtags: list[str]
     messages: list[str]
     errors: list[str]
+
+class ContentGraphState(TypedDict, total=False):
+    request: dict
+    run_id: str
+    angle: dict
+    angle_index: int
+    slides: list[dict]
+    caption: str
+    hashtags: list[str]
+    image_assets: list[dict]
+    slide_html_paths: list[str]
+    slide_png_paths: list[str]
+    messages: list[str]
+    errors: list[str]
+    output_path: str

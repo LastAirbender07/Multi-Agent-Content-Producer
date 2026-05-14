@@ -59,6 +59,14 @@ class Settings(BaseSettings):
     angle_default_mode: str = "manual"
     angle_default_max_to_select: int = 3
 
+    # Content Orchestrator Settings
+    pexels_api_key: Optional[str] = None
+
+    content_max_slides: int = 12
+    content_min_slides: int = 4
+    content_image_per_slide: int = 1
+    content_output_dir: str = "outputs"
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

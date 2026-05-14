@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<title>Slide {{ slide_number }}</title>
+<style>
+@font-face {
+    font-family: 'Syne';
+    src: url('{{ assets_root }}/fonts/Syne-Bold.woff2') format('woff2');
+    font-weight: 700; font-style: normal;
+}
+@font-face {
+    font-family: 'PlusJakarta';
+    src: url('{{ assets_root }}/fonts/PlusJakartaSans-Bold.woff2') format('woff2');
+    font-weight: 700; font-style: normal;
+}
+@font-face {
+    font-family: 'PlusJakarta';
+    src: url('{{ assets_root }}/fonts/PlusJakartaSans-SemiBold.woff2') format('woff2');
+    font-weight: 600; font-style: normal;
+}
+@font-face {
+    font-family: 'PlusJakarta';
+    src: url('{{ assets_root }}/fonts/PlusJakartaSans-Regular.woff2') format('woff2');
+    font-weight: 400; font-style: normal;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --bg:       #FAFAF8;
+    --surface:  #FFFFFF;
+    --primary:  #1E40AF;
+    --secondary:#0D9488;
+    --accent:   #D97706;
+    --text:     #111827;
+    --muted:    #6B7280;
+    --primary-rgb: 30,64,175;
+}
+
+html, body {
+    width: 1080px; height: 1080px;
+    overflow: hidden; background: var(--bg);
+}
+
+.brand-bar {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 72px;
+    display: flex; align-items: center;
+    justify-content: space-between;
+    padding: 0 48px;
+    background: rgba(250,250,248,0.90);
+    border-top: 1px solid rgba(0,0,0,0.08);
+    z-index: 10;
+}
+
+.brand-name {
+    font-size: 18px; font-weight: 600;
+    color: var(--muted); letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.progress {
+    font-size: 18px; font-weight: 600;
+    color: var(--muted); font-variant-numeric: tabular-nums;
+}
+
+.canvas {
+    position: relative;
+    width: 1080px; height: 1080px;
+    overflow: hidden;
+    font-family: 'PlusJakarta', sans-serif;
+    color: var(--text);
+}
+
+.progress-bar {
+    position: absolute; bottom: 72px; left: 0; right: 0;
+    height: 2px; background: rgba(255,255,255,0.08);
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    width: {{ (slide_number / total_slides * 100)|int }}%;
+    transition: width 0.3s ease;
+}
+{% block extra_styles %}{% endblock %}
+</style>
+</head>
+<body>
+<div class="canvas">
+{% block content %}{% endblock %}
+<div class="progress-bar"><div class="progress-fill"></div></div>
+<div class="brand-bar">
+    <span class="brand-name">{{ brand_name or '&nbsp;' }}</span>
+    <span class="progress">{{ slide_number }} / {{ total_slides }}</span>
+</div>
+</div>
+</body>
+</html>

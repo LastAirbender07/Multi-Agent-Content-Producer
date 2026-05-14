@@ -1,0 +1,273 @@
+{% extends "_base.html.j2" %}
+
+{% block extra_styles %}
+.stat-wrapper {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 72px;
+    display: flex; flex-direction: column;
+    justify-content: flex-start;
+    padding: 52px 64px 32px;
+    gap: 18px;
+}
+.stat-hero {
+    display: flex;
+    align-items: flex-start;
+    gap: 28px;
+}
+.stat-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 116px; font-weight: 700;
+    line-height: 0.88;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.stat-meta {
+    display: flex; flex-direction: column; gap: 8px;
+    padding-top: 10px;
+}
+.stat-label {
+    font-size: 24px; font-weight: 600;
+    color: var(--text); max-width: 380px; line-height: 1.3;
+}
+.stat-title {
+    font-size: 16px; font-weight: 400;
+    color: var(--muted); max-width: 380px; line-height: 1.4;
+}
+.stat-divider {
+    width: 60px; height: 3px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+.stat-body {
+    font-size: 20px; font-weight: 400;
+    line-height: 1.6;
+    color: rgba(250,250,250,0.72);
+    border-left: 3px solid rgba(124,110,250,0.35);
+    padding-left: 18px;
+}
+.chart-container {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    position: relative;
+}
+.chart-container canvas {
+    display: block;
+}
+/* Funnel CSS fallback */
+.funnel-wrap {
+    width: 100%;
+    display: flex; flex-direction: column;
+    justify-content: space-evenly;
+    height: 100%;
+}
+.funnel-row {
+    display: flex; align-items: center; gap: 14px;
+}
+.funnel-bar-wrap {
+    flex: 1; display: flex; justify-content: flex-start;
+}
+.funnel-bar {
+    height: 44px; border-radius: 5px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    display: flex; align-items: center; justify-content: flex-end; padding-right: 14px;
+    min-width: 60px;
+}
+.funnel-val {
+    font-size: 15px; font-weight: 700; color: #fff;
+}
+.funnel-label {
+    font-size: 16px; font-weight: 600;
+    color: rgba(250,250,250,0.82);
+    width: 190px; text-align: right; flex-shrink: 0;
+}
+{% endblock %}
+
+{% block content %}
+<div class="stat-wrapper">
+    <div class="stat-hero">
+        {% if slide.stat_value %}
+        <div class="stat-value">{{ slide.stat_value }}</div>
+        {% endif %}
+        <div class="stat-meta">
+            {% if slide.stat_label %}
+            <div class="stat-label">{{ slide.stat_label }}</div>
+            {% endif %}
+            {% if slide.title %}
+            <div class="stat-title">{{ slide.title }}</div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="stat-divider"></div>
+    {% if slide.body %}
+    <div class="stat-body">{{ slide.body }}</div>
+    {% endif %}
+
+    {% if slide.chart_data %}
+    <div class="chart-container" id="chartWrap">
+        {% if slide.chart_type == 'funnel' %}
+        {% set fdata = slide.chart_data %}
+        {% set fmax = fdata['values'] | max %}
+        <div class="funnel-wrap">
+            {% for i in range(fdata['labels'] | length) %}
+            {% set pct = (fdata['values'][i] / fmax * 100) | int %}
+            <div class="funnel-row">
+                <div class="funnel-label">{{ fdata['labels'][i] }}</div>
+                <div class="funnel-bar-wrap">
+                    <div class="funnel-bar" style="width:{{ pct }}%">
+                        <span class="funnel-val">{{ fdata['values'][i] }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <canvas id="chartCanvas"></canvas>
+        <script src="/assets/js/chart.min.js"></script>
+        <script>
+        // requestAnimationFrame defers until after flex layout is computed,
+        // so clientWidth/clientHeight return the real dimensions.
+        requestAnimationFrame(function() {
+            const canvas = document.getElementById('chartCanvas');
+            const wrap = document.getElementById('chartWrap');
+            const W = wrap.clientWidth || 860;
+            const H = wrap.clientHeight || 660;
+
+            const chartType = {{ slide.chart_type | tojson }};
+            const chartData = {{ slide.chart_data | tojson }};
+            const labels = chartData.labels || [];
+            const values = chartData.values || [];
+
+            const COLORS = ['#7C6EFA','#2DD4BF','#F59E0B','#EF4444','#8B5CF6','#06B6D4','#10B981','#F97316'];
+            const TICK_COLOR = 'rgba(250,250,250,0.65)';
+            const GRID_COLOR = 'rgba(255,255,255,0.08)';
+            const LABEL_COLOR = 'rgba(250,250,250,0.80)';
+
+            Chart.defaults.font.family = "'PlusJakarta', system-ui, sans-serif";
+            Chart.defaults.font.size = 15;
+            Chart.defaults.color = TICK_COLOR;
+
+            canvas.width = W;
+            canvas.height = H;
+
+            let config;
+
+            if (chartType === 'donut') {
+                config = {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{ data: values, backgroundColor: COLORS, borderWidth: 0, hoverOffset: 4 }]
+                    },
+                    options: {
+                        responsive: false, animation: false,
+                        cutout: '58%',
+                        layout: { padding: 12 },
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: { color: LABEL_COLOR, font: { size: 17 }, padding: 20, boxWidth: 18 }
+                            }
+                        }
+                    }
+                };
+            } else if (chartType === 'line') {
+                config = {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: values,
+                            borderColor: '#7C6EFA', backgroundColor: 'rgba(124,110,250,0.15)',
+                            pointBackgroundColor: '#7C6EFA', pointRadius: 7, pointHoverRadius: 9,
+                            fill: true, tension: 0.35, borderWidth: 3
+                        }]
+                    },
+                    options: {
+                        responsive: false, animation: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { grid: { color: GRID_COLOR }, ticks: { color: TICK_COLOR, font: { size: 15 } } },
+                            y: { grid: { color: GRID_COLOR }, ticks: { color: TICK_COLOR, font: { size: 15 } } }
+                        }
+                    }
+                };
+            } else if (chartType === 'radar') {
+                const datasets = chartData.datasets
+                    ? chartData.datasets.map((ds, i) => ({
+                        label: ds.label, data: ds.values,
+                        backgroundColor: COLORS[i] + '30',
+                        borderColor: COLORS[i], pointBackgroundColor: COLORS[i],
+                        borderWidth: 2.5
+                      }))
+                    : [{ data: values, backgroundColor: '#7C6EFA30', borderColor: '#7C6EFA', borderWidth: 2.5 }];
+                config = {
+                    type: 'radar',
+                    data: { labels: labels, datasets: datasets },
+                    options: {
+                        responsive: false, animation: false,
+                        plugins: { legend: { labels: { color: LABEL_COLOR, font: { size: 16 } } } },
+                        scales: {
+                            r: {
+                                grid: { color: GRID_COLOR },
+                                angleLines: { color: GRID_COLOR },
+                                pointLabels: { color: LABEL_COLOR, font: { size: 15 } },
+                                ticks: { display: false }
+                            }
+                        }
+                    }
+                };
+            } else if (chartType === 'column') {
+                config = {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: COLORS.slice(0, values.length),
+                            borderRadius: 7, borderSkipped: false
+                        }]
+                    },
+                    options: {
+                        responsive: false, animation: false, indexAxis: 'x',
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { grid: { display: false }, ticks: { color: TICK_COLOR, font: { size: 15 } } },
+                            y: { grid: { color: GRID_COLOR }, ticks: { color: TICK_COLOR, font: { size: 15 } } }
+                        }
+                    }
+                };
+            } else {
+                /* default: horizontal bar — use full H so bars fill the space */
+                config = {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: labels.map((_, i) => COLORS[i % COLORS.length]),
+                            borderRadius: 6, borderSkipped: false
+                        }]
+                    },
+                    options: {
+                        responsive: false, animation: false, indexAxis: 'y',
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { grid: { display: false }, ticks: { color: TICK_COLOR, font: { size: 17 } } },
+                            x: { grid: { color: GRID_COLOR }, ticks: { color: TICK_COLOR, font: { size: 15 } } }
+                        }
+                    }
+                };
+            }
+
+            new Chart(canvas, config);
+        });
+        </script>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

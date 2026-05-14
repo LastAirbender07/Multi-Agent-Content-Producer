@@ -131,3 +131,68 @@ class AngleResponse(BaseModel):
     evaluation: Optional[AngleEvaluation] = Field(default=None)
     errors: list[str] = Field(default_factory=list)
     output_path: str = Field(default="")
+
+
+# ─── Content Generation Orchestrator Contracts ─────────────────────────────────
+
+class SlideType(str, Enum):
+    hook = "hook"
+    content = "content"
+    stat = "stat"
+    quote = "quote"
+    cta = "cta"
+    engage = "engage"
+
+class Slide(BaseModel):
+    slide_number: int = Field(..., description="The position of the slide in the content sequence")
+    type: SlideType = Field(..., description="The type of slide (hook, content, stat, quote, cta)")
+    title: str = Field(..., description="The title or main text of the slide")
+    body: str = Field(..., description="The body or supporting text of the slide")
+    bullets: list[str] = Field(default_factory=list, description="Bullet points for content slides (3-5 items)")
+    stat_value: Optional[str] = Field(default=None, description="The value of the stat if the slide type is 'stat'")
+    stat_label: Optional[str] = Field(default=None, description="The descriptive label below a stat value eg: 'workers affected'")
+    chart_type: Optional[str] = Field(default=None, description="Chart type for stat slides: bar|column|line|donut|radar|funnel")
+    chart_data: Optional[dict] = Field(default=None, description="Chart data dict: {labels: [...], values: [...]} or {labels: [...], datasets: [{label, values}]} for radar")
+    image_query: Optional[str] = Field(default=None, description="The query to use for image generation for this slide, if applicable")
+
+class SlideGenerationOutput(BaseModel):
+    slides: list[Slide] = Field(..., description="Generated slides for the content")
+
+class CarouselContent(BaseModel):
+    angle_index: int = Field(..., description="The index of the angle this content is based on")
+    angle_statement: str = Field(..., description="The statement of the angle this content is based on")
+    emotional_hook: str = Field(..., description="The emotional hook this content is targeting")
+    hook: str = Field(..., description="The hook text for the content")
+    slides: list[Slide] = Field(..., description="The list of slides that make up the carousel content")
+    caption: str = Field(..., description="The caption text for the carousel")
+    hashtags: list[str] = Field(default_factory=list, description="List of hashtags to include with the content")
+    cta: Optional[str] = Field(default=None, description="Call to action text for the content, if applicable")
+
+class ImageAsset(BaseModel):
+    slide_number: int = Field(..., description="The slide number this image asset corresponds to")
+    source: str = Field(..., description="pexels, ddgs, brand, colour")
+    original_url: Optional[str] = Field(default=None, description="The original URL of the image if sourced from the web")
+    local_raw_path: Optional[str] = Field(default=None, description="Local path to the raw image file")
+    processed_path: Optional[str] = Field(default=None, description="Local path to the processed image file ready for use in content")
+
+class ContentRequest(BaseModel):
+    run_id: str = Field(..., description="Run ID from the pipeline")
+    topic: str = Field(..., min_length=2, description="The topic to generate content for")
+    selected_angles: list[dict] = Field(..., description="The angles selected for content generation")
+    research_summary: str = Field(..., description="Summary of the research findings to inform content generation")
+    key_points: list[str] = Field(default_factory=list, description="Key points from the research to inform content generation")
+    template: str = "auto"
+    max_slides: int = Field(default=14, description="Maximum number of slides to generate for the content (ideal 10-14, hard cap 20)")
+    min_slides: int = Field(default=4, description="Minimum number of slides to generate for the content")
+
+class ContentResponse(BaseModel):
+    run_id: str = Field(..., description="Run ID for this content generation run")
+    status: RunStatus = Field(default=RunStatus.PENDING)
+    angles_processed: list[int] = Field(default_factory=list, description="Indices of angles that have been processed for content generation")
+    output_paths: list[str] = Field(default_factory=list, description="List of output paths for the generated content")
+    carousel_paths: list[list[str]] = Field(default_factory=list, description="Per-angle list of PNG paths: carousel_paths[i] = slide PNGs for angle i")
+    errors: list[str] = Field(default_factory=list)
+
+class CaptionOutput(BaseModel):
+    caption: str = Field(..., description="Generated caption text for the content")
+    hashtags: list[str] = Field(default_factory=list, description="List of generated hashtags to include with the content without the # symbol")
