@@ -27,6 +27,31 @@ def _get_template_name(emotional_hook: str) -> str:
     return _TEMPLATE_MAP.get(emotional_hook, "aurora")
 
 
+def _layout_variant_for_image(image_path: str, landscape_counter: list) -> int:
+    """
+    Choose layout variant from the actual downloaded image's aspect ratio.
+    - Portrait  (ratio < 0.95)  → 0  (left-text / right-portrait-card)
+    - Square    (0.95–1.4)      → 0  (portrait card still fits fine)
+    - Landscape (ratio > 1.4)   → alternate 1 / 2 for visual variety
+    Returns the variant int.  landscape_counter is a mutable [int] so we can
+    increment it across calls without passing state explicitly.
+    """
+    if not image_path:
+        return 0
+    try:
+        with Image.open(image_path) as img:
+            w, h = img.size
+        ratio = w / h
+    except Exception:
+        return 0
+
+    if ratio > 1.4:
+        variant = 1 if (landscape_counter[0] % 2 == 0) else 2
+        landscape_counter[0] += 1
+        return variant
+    return 0
+
+
 async def render_slides_node(state: ContentGraphState) -> dict:
     """Render HTML for each slide using Jinja2 templates."""
     request = ContentRequest.model_validate(state["request"])
@@ -47,7 +72,7 @@ async def render_slides_node(state: ContentGraphState) -> dict:
 
     total = len(slides)
     html_paths: list[str] = []
-    content_idx = 0  # cycles layout variants (0=lr, 1=text-top, 2=image-top) for content slides
+    landscape_counter = [0]  # mutable counter shared across landscape slides
 
     for slide in slides:
         asset = image_assets.get(slide.slide_number, {})
@@ -55,13 +80,15 @@ async def render_slides_node(state: ContentGraphState) -> dict:
         has_image = bool(image_path) and asset.get("source") != "colour"
 
         if image_path:
+            local_path = image_path  # absolute path for dimension reading
             image_path = "/" + str(
                 Path(image_path).relative_to(_BACKEND_ROOT)
             ).replace("\\", "/")
+        else:
+            local_path = ""
 
         if slide.type.value == "content":
-            layout_variant = content_idx % 3
-            content_idx += 1
+            layout_variant = _layout_variant_for_image(local_path, landscape_counter) if has_image else 0
         else:
             layout_variant = 0
 

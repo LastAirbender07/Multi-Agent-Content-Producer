@@ -70,9 +70,18 @@ STRICT RULES:
 5. stat slides MUST have chart_type and chart_data — leave bullets as []
 6. quote slides MUST have 2-3 bullets as key insights/takeaways
 7. All numbers and claims must come from the RESEARCH SUMMARY — do not invent data
-8. Every non-cta, non-engage slide needs BOTH image fields:
-   - image_query: 3-5 generic/conceptual words for stock photo search (e.g. "courtroom scales justice", "tribal village forest India")
-   - image_query_ddgs: a specific web image search query using real names, places, dates, or events from this slide (e.g. "Vachathi tribal village Tamil Nadu 1992", "Sengottaiyan AIADMK Forest Minister", "Madras High Court Vachathi verdict 2011"). Think: what would a photo editor type to find a news photo for this exact slide? Always use proper nouns and specific terms from the topic.
+8. Every non-cta, non-engage, non-stat slide needs BOTH image fields. Think like a photo editor assigning shots:
+
+   **image_source_preference** — choose the tool FIRST:
+   - "ddgs"  → real identifiable subjects: a specific person (politician, CEO, actor), a real place/event, a court case, a protest, a news moment. DDGS finds actual news/web photos.
+   - "pexels" → abstract or generic visual: AI, technology, school, office, nature, emotion, concept. Pexels has high-quality stock for these.
+   - "none"  → for stat, cta, engage slides only (no image needed)
+
+   **image_query** — write ONE query optimised for the chosen tool:
+   - If ddgs: specific journalist-style — full name + context + year. E.g. "Udhayanidhi Stalin Deputy CM Tamil Nadu 2024", "Vijay actor Thalapathy politics 2024", "OpenAI Sam Altman fired rehired 2023"
+   - If pexels: abstract 3-5 word stock phrase. E.g. "artificial intelligence neural network", "students classroom learning", "corporate office technology"
+
+   Never write a vague query for ddgs ("politician India") or an overly specific query for pexels ("Sam Altman photo").
 9. Do NOT repeat the same idea in multiple slides
 10. MAXIMUM 3 stat slides. Only create a stat slide when you have a specific, concrete number from the research. Do not create a stat slide just to fill space — content slides carry the real value.
 11. MINIMUM 4 content slides. Content slides are the primary learning vehicle. Readers come for insight — fill these with dense, specific knowledge.
@@ -89,8 +98,8 @@ Return a JSON object with a "slides" array. Each slide:
   "stat_label": null,
   "chart_type": null,
   "chart_data": null,
-  "image_query": "generic stock photo query",
-  "image_query_ddgs": "Specific Person Name event place year"
+  "image_query": "query written for the chosen tool",
+  "image_source_preference": "ddgs|pexels|none"
 }}
 
 Example quote slide with bullets:
@@ -109,7 +118,7 @@ Example quote slide with bullets:
   "chart_type": null,
   "chart_data": null,
   "image_query": "office boardroom meeting tension",
-  "image_query_ddgs": null
+  "image_source_preference": "pexels"
 }}
 
 Example engage slide:
@@ -124,5 +133,5 @@ Example engage slide:
   "chart_type": null,
   "chart_data": null,
   "image_query": null,
-  "image_query_ddgs": null
+  "image_source_preference": "none"
 }}

@@ -61,44 +61,16 @@ async def _search_ddgs(query: str, max_results: int = 15) -> list[dict]:
     return []
 
 
-def _resolve_preferred_source(
-    generic_query: str,
-    specific_query: str,
-    image_source: str,
-) -> str:
-    """
-    Returns 'pexels' or 'ddgs' as the preferred source for this query.
-    - forced pexels/ddgs: honour user choice directly
-    - auto: LLM's own judgment — if it generated a DDGS-specific query that
-      differs from the generic stock query, the slide needs a real web image.
-    """
-    if image_source == "pexels":
-        return "pexels"
-    if image_source == "ddgs":
-        return "ddgs"
-    # auto: trust the LLM's dual-query signal
-    if specific_query and specific_query.strip().lower() != generic_query.strip().lower():
-        return "ddgs"
-    return "pexels"
-
-
-def _score_image(img: dict, preferred_source: str) -> float:
-    """Score an image candidate. preferred_source strongly biases the ranking."""
-    source = img["source"]
-
-    # Base score: strongly prefer the resolved source, allow the other as fallback
-    if source == preferred_source:
-        score = 20.0
-    else:
-        score = 5.0  # still usable as fallback if preferred source returns nothing
-
+def _score_image(img: dict) -> float:
+    """Score an image candidate — same source wins; bigger and squarer is better."""
+    score = 10.0
     w = img.get("width", 0)
     h = img.get("height", 0)
     if w < 600 or h < 600:
         score -= 6.0
     if w > 0 and h > 0:
         ratio = w / h
-        if 0.75 <= ratio <= 1.33:  # roughly square
+        if 0.75 <= ratio <= 1.33:
             score += 3.0
     return score
 
@@ -118,13 +90,36 @@ async def _download_image(url: str, dest: Path, source: str, api_key: str = None
         return False
 
 
+def _effective_source(
+    slide_preference: str | None,
+    slide_type: str,
+    global_override: str,
+) -> str:
+    """
+    Resolve the final image source for a slide.
+
+    Priority:
+    1. Global user override (--image-source pexels / ddgs) — forces all slides
+    2. Slide-level preference from the LLM (ddgs / pexels / none)
+    3. Slide type default (stat/cta/engage → none)
+    """
+    if global_override in ("pexels", "ddgs"):
+        return global_override
+    if slide_type in _NO_IMAGE_TYPES:
+        return "none"
+    if slide_preference in ("ddgs", "pexels", "none"):
+        return slide_preference
+    # fallback: generic topic → pexels
+    return "pexels"
+
+
 async def fetch_images_node(state: ContentGraphState) -> dict:
     request = ContentRequest.model_validate(state["request"])
     slides = state.get("slides", [])
     run_id = state.get("run_id")
     angle_index = state.get("angle_index", 0)
 
-    image_source = request.image_source       # "auto", "pexels", "ddgs"
+    global_override = request.image_source   # "auto", "pexels", "ddgs"
 
     images_dir = (
         _BACKEND_ROOT / _settings.content_output_dir
@@ -139,42 +134,45 @@ async def fetch_images_node(state: ContentGraphState) -> dict:
 
     for slide in slides:
         slide_num = slide["slide_number"]
-        generic_query = slide.get("image_query") or f"{request.topic} professional"
-        specific_query = slide.get("image_query_ddgs") or generic_query
+        slide_type = slide.get("type", "content")
+        query = slide.get("image_query") or f"{request.topic} professional"
+        slide_pref = slide.get("image_source_preference")  # LLM's explicit choice
 
-        if slide.get("type") in _NO_IMAGE_TYPES:
+        source = _effective_source(slide_pref, slide_type, global_override)
+
+        if source == "none":
             image_assets.append(ImageAsset(
                 slide_number=slide_num,
                 source="colour",
             ).model_dump())
             continue
 
-        preferred = _resolve_preferred_source(generic_query, specific_query, image_source)
+        # Fetch from the chosen source only
+        if source == "pexels":
+            results = await _search_pexels(query, per_page=15)
+        else:  # ddgs
+            results = await _search_ddgs(query, max_results=15)
 
-        # Use the entity-specific query when pulling from DDGS, stock query for Pexels
-        ddgs_query = specific_query if preferred == "ddgs" else generic_query
-        pexels_query = generic_query
-
-        # Fetch: in forced mode only call the required source; in auto call both
-        if image_source == "pexels":
-            pexels_results = await _search_pexels(pexels_query, per_page=15)
-            ddgs_results = []
-        elif image_source == "ddgs":
-            ddgs_results = await _search_ddgs(ddgs_query, max_results=15)
-            pexels_results = []
-        else:
-            # auto: run both in parallel with their respective queries
-            pexels_results, ddgs_results = await asyncio.gather(
-                _search_pexels(pexels_query, per_page=15),
-                _search_ddgs(ddgs_query, max_results=15),
+        # Fallback: if chosen source returns nothing, try the other
+        if not results:
+            logger.warning(
+                "image_source_fallback",
+                slide=slide_num,
+                tried=source,
+                query=query[:60],
             )
+            if source == "pexels":
+                results = await _search_ddgs(query, max_results=15)
+                source = "ddgs"
+            else:
+                results = await _search_pexels(query, per_page=15)
+                source = "pexels"
 
-        all_results = pexels_results + ddgs_results
-        if not all_results:
+        if not results:
             image_assets.append(ImageAsset(slide_number=slide_num, source="colour").model_dump())
             continue
 
-        ranked = sorted(all_results, key=lambda img: _score_image(img, preferred), reverse=True)
+        ranked = sorted(results, key=_score_image, reverse=True)
         best = ranked[0]
 
         download_url = best.get("src", {}).get("large2x") or best.get("url", "")
@@ -205,9 +203,10 @@ async def fetch_images_node(state: ContentGraphState) -> dict:
             "image_fetched",
             slide=slide_num,
             source=best["source"],
-            preferred=preferred,
-            mode=image_source,
-            query=ddgs_query if best["source"] == "ddgs" else pexels_query,
+            tool_used=source,
+            llm_preference=slide_pref,
+            global_override=global_override,
+            query=query[:80],
         )
 
     return {

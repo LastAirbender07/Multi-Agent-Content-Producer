@@ -74,6 +74,14 @@ class ResearchSynthesis(BaseModel):
     confidence_score: float = Field(default=0.0, description="Overall confidence score of the research synthesis, if available")
     gaps: list[str] = Field(default_factory=list, description="List of any gaps identified in the research findings")
 
+class LLMEvaluationOutput(BaseModel):
+    factual_grounding: float = Field(default=0.0, description="0-1: Are claims traceable to the provided evidence snippets?")
+    topic_relevance: float = Field(default=0.0, description="0-1: Does the synthesis actually address the research topic?")
+    specificity: float = Field(default=0.0, description="0-1: Does the synthesis contain concrete facts/numbers vs vague generalities?")
+    coverage_breadth: float = Field(default=0.0, description="0-1: Are multiple distinct aspects of the topic covered?")
+    overall_score: float = Field(default=0.0, description="0-1: Holistic quality score (not just an average — use judgement)")
+    reasoning: str = Field(default="", description="2-3 sentence explanation of the scores, noting specific strengths or gaps")
+
 class EvaluationResult(BaseModel):
     passed: bool = Field(..., description="Whether the evaluation passed or failed")
     should_refine: bool = Field(default=False, description="Whether the research should be refined based on the evaluation results")
@@ -81,6 +89,9 @@ class EvaluationResult(BaseModel):
     source_count: int = Field(..., description="Number of sources evaluated")
     coverage_score: float = Field(default=0.0, description="Score representing the coverage of the research topic by the collected evidence")
     source_diversity_score: float = Field(default=0.0, description="Score representing the diversity of sources collected during the research")
+    llm_content_score: float = Field(default=0.0, description="LLM judge's overall content quality score (0-1)")
+    source_score: float = Field(default=0.0, description="Source-based score combining coverage and diversity (0-1)")
+    combined_confidence: float = Field(default=0.0, description="Final confidence: llm_content_score*0.6 + source_score*0.4")
 
 class ResearchResponse(BaseModel):
     schema_version: str = Field(default="1.0", description="Schema version for the research response")
@@ -154,8 +165,8 @@ class Slide(BaseModel):
     stat_label: Optional[str] = Field(default=None, description="The descriptive label below a stat value eg: 'workers affected'")
     chart_type: Optional[str] = Field(default=None, description="Chart type for stat slides: bar|column|line|donut|radar|funnel")
     chart_data: Optional[dict] = Field(default=None, description="Chart data dict: {labels: [...], values: [...]} or {labels: [...], datasets: [{label, values}]} for radar")
-    image_query: Optional[str] = Field(default=None, description="Generic/conceptual query for stock image search (Pexels)")
-    image_query_ddgs: Optional[str] = Field(default=None, description="Entity-specific query for web image search (DDGS) — uses real names, places, events")
+    image_query: Optional[str] = Field(default=None, description="Search query for the image — written for the chosen source tool (specific if ddgs, abstract if pexels)")
+    image_source_preference: Optional[Literal["ddgs", "pexels", "none"]] = Field(default=None, description="Which image tool to use: ddgs=real people/events/places, pexels=generic concepts/stock, none=no image needed")
 
 class SlideGenerationOutput(BaseModel):
     slides: list[Slide] = Field(..., description="Generated slides for the content")
@@ -186,8 +197,7 @@ class ContentRequest(BaseModel):
     template: str = "auto"
     max_slides: int = Field(default=14, description="Maximum number of slides to generate for the content (ideal 10-14, hard cap 20)")
     min_slides: int = Field(default=4, description="Minimum number of slides to generate for the content")
-    image_source: Literal["auto", "pexels", "ddgs"] = Field(default="auto", description="Image source mode: auto = entity-aware selection, pexels = stock photos only, ddgs = web images only (real people/places/events)")
-    entities: list[str] = Field(default_factory=list, description="Named entities from query preprocessor used in auto mode to detect entity-specific queries and prefer DDGS")
+    image_source: Literal["auto", "pexels", "ddgs"] = Field(default="auto", description="Global override: auto = trust LLM per-slide preference, pexels = force all slides to stock, ddgs = force all slides to web images")
 
 class ContentResponse(BaseModel):
     run_id: str = Field(..., description="Run ID for this content generation run")
