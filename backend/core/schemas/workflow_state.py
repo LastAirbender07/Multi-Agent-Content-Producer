@@ -21,6 +21,7 @@ class ResearchGraphState(TypedDict, total=False):
     evidence: list[Evidence]
     synthesis: ResearchSynthesis
     evaluation: EvaluationResult
+    iteration_history: list[dict]
     degraded_flags: list[str]
     errors: list[str]
     messages: list[str]

@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     research_max_crawl_urls: int = 5
     research_max_refinement_loops: int = 2
     research_quality_min_sources: int = 3
-    research_quality_min_confidence: float = 0.5
+    research_quality_min_confidence: float = 0.6
     research_output_dirs: str = "outputs"
     research_allowed_tools: list[str] = ["news_api", "ddgs_text", "ddgs_news", "crawl4ai"]
 

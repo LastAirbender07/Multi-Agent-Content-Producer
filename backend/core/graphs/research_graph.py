@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from langgraph.graph import START, END, StateGraph
 from core.orchestrators.research.evaluator import evaluate_node
 from core.orchestrators.research.executor import execute_tools_node
@@ -22,17 +23,37 @@ async def intake_node(state: ResearchGraphState) -> dict:
     return {"messages": state.get("messages", []) + ["intake complete."]}
 
 async def refine_node(state: ResearchGraphState) -> dict:
-    """Increment loop counter before looping back to execute_tools"""
+    """Record completed iteration, save snapshot to disk, increment loop counter."""
+    from core.orchestrators.research.orchestrator import save_iteration_snapshot
+
     loop_count = state.get("loop_count", 0)
+    iteration_number = loop_count + 1
+
+    synthesis = state.get("synthesis")
+    evaluation = state.get("evaluation")
+    history = list(state.get("iteration_history", []))
+    history.append({
+        "iteration": iteration_number,
+        "synthesis": synthesis.model_dump() if synthesis else None,
+        "evaluation": evaluation.model_dump() if evaluation else None,
+        "evidence_count": len(state.get("evidence", [])),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
+
+    await save_iteration_snapshot(state, iteration_history=history)
+
     return {
         "loop_count": loop_count + 1,
-        "messages": state.get("messages", []) + [f"Refinement loop triggered. Loop count: {loop_count + 1}"],
+        "iteration_history": history,
+        "messages": state.get("messages", []) + [
+            f"Iteration {iteration_number} complete (confidence below threshold). Retrying research."
+        ],
     }
 
 async def finalize_node(state: ResearchGraphState) -> dict:
     """save full output to disk. Called on Success"""
     from core.orchestrators.research.orchestrator import save_research_output
-    output_path = await save_research_output(state, status="success")
+    output_path = await save_research_output(state, status="success", iteration_history=state.get("iteration_history", []))
     return {
         "output_path": output_path,
         "messages": state.get("messages", []) + [f"Research run completed successfully. Output saved to {output_path}"],
@@ -41,7 +62,7 @@ async def finalize_node(state: ResearchGraphState) -> dict:
 async def finalize_partial_node(state: ResearchGraphState) -> dict:
     """save partial output to disk. Called when quality gate fails and no budget left."""
     from core.orchestrators.research.orchestrator import save_research_output
-    output_path = await save_research_output(state, status="partial_success")
+    output_path = await save_research_output(state, status="partial_success", iteration_history=state.get("iteration_history", []))
     return {
         "output_path": output_path,
         "messages": state.get("messages", []) + [f"Research run completed with partial results. Output saved to {output_path}"],

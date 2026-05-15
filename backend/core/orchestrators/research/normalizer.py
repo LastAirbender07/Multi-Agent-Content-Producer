@@ -8,8 +8,10 @@ logger = get_logger(__name__)
 
 async def normalize_evidence_node(state: ResearchGraphState) -> dict:
     raw_outputs = state.get("raw_tool_outputs", {})
-    evidence: list[Evidence] = []
-    seen_urls: set[str] = set()
+    # Accumulate: start from evidence collected in previous iterations
+    existing_evidence: list[Evidence] = list(state.get("evidence", []))
+    seen_urls: set[str] = {str(e.url) for e in existing_evidence}
+    evidence: list[Evidence] = list(existing_evidence)
     now = datetime.now(timezone.utc)
 
     # DDGS text results
@@ -97,9 +99,12 @@ async def normalize_evidence_node(state: ResearchGraphState) -> dict:
         ))
 
     evidence = sorted(evidence, key=lambda x: x.relevance_score, reverse=True)
-    logger.info("normalize_completed", run_id=state.get("run_id"), evidence_count=len(evidence))
+    new_count = len(evidence) - len(existing_evidence)
+    logger.info("normalize_completed", run_id=state.get("run_id"), evidence_count=len(evidence), new_items=new_count)
 
     return {
         "evidence": evidence,
-        "messages": state.get("messages", []) + [f"Evidence normalization completed with {len(evidence)} items."]
+        "messages": state.get("messages", []) + [
+            f"Evidence normalization: {len(evidence)} total ({new_count} new this iteration)."
+        ]
     }

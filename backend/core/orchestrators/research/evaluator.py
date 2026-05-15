@@ -124,7 +124,7 @@ async def evaluate_node(state: ResearchGraphState) -> dict:
         # Run LLM judge
         llm_eval = await _run_llm_judge(topic, synthesis, evidence)
         llm_score = round(llm_eval.overall_score, 4)
-        combined = round(llm_score * 0.6 + source_score * 0.4, 4)
+        combined = round(llm_score * 0.35 + source_score * 0.65, 4)
 
         passed = combined >= MIN_COMBINED_CONFIDENCE
         should_refine = not passed
@@ -132,13 +132,13 @@ async def evaluate_node(state: ResearchGraphState) -> dict:
         if passed:
             reason = (
                 f"Passed. Combined confidence: {combined:.2f} "
-                f"(LLM={llm_score:.2f}×0.6 + sources={source_score:.2f}×0.4). "
+                f"(LLM={llm_score:.2f}×0.35 + sources={source_score:.2f}×0.65). "
                 f"Judge: {llm_eval.reasoning[:120]}"
             )
         else:
             reason = (
                 f"Below threshold ({combined:.2f} < {MIN_COMBINED_CONFIDENCE}). "
-                f"LLM={llm_score:.2f}, sources={source_score:.2f}. "
+                f"LLM={llm_score:.2f}×0.35, sources={source_score:.2f}×0.65. "
                 f"Judge: {llm_eval.reasoning[:120]}"
             )
 

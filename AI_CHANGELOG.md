@@ -6,6 +6,63 @@
 
 ---
 
+## 2026-05-15 - Session 16: LLM Research Evaluator + Refinement Loop Hardening
+
+**Decision:** Three layered improvements to the research quality pipeline — independent LLM judge, weight rebalance, and proper evidence accumulation across refinement iterations.
+
+---
+
+**1. Independent LLM content judge (`evaluator.py`, `contracts.py`, `content_evaluation.txt`)**
+
+- New `LLMEvaluationOutput` Pydantic model: `factual_grounding`, `topic_relevance`, `specificity`, `coverage_breadth`, `overall_score`, `reasoning` (all 0–1 floats).
+- `_run_llm_judge()` calls a separate LLM structured output with the raw evidence snippets — crucially, it reads evidence directly rather than trusting the synthesizer's self-report, catching cases where the LLM hallucinated beyond its sources.
+- Prompt `content_evaluation.txt` instructs the judge to score only based on traceable evidence, penalise vague generalities, and write a 2-3 sentence reasoning citing specific claims.
+- `EvaluationResult` extended with `llm_content_score`, `source_score`, `combined_confidence` fields.
+
+---
+
+**2. Weight rebalance and threshold raise (`evaluator.py`, `settings.py`)**
+
+- New formula: `combined = llm_score × 0.35 + source_score × 0.65` (sources weighted higher — more objective than self-graded LLM).
+- Pass threshold raised: `research_quality_min_confidence = 0.60` (was 0.50).
+- If `combined_confidence < 0.60` and budget allows → `should_refine=True` → research loop retries.
+- Graceful fallback: if LLM judge call fails, defaults to neutral 0.5 so the pipeline never hard-crashes on evaluator errors.
+
+---
+
+**3. Evidence accumulation + per-iteration file persistence (`normalizer.py`, `research_graph.py`, `orchestrator.py`, `workflow_state.py`)**
+
+- `normalizer.py` now pre-seeds `seen_urls` from `state.get("evidence", [])` and starts the result list from existing evidence — each refinement iteration **adds** new sources instead of replacing them.
+- `ResearchGraphState` gets a new `iteration_history: list[dict]` field.
+- `refine_node` now records completed iteration (synthesis dump, evaluation dump, evidence count, timestamp) into `iteration_history`, then calls `save_iteration_snapshot()` to flush `evidence.json` + `research_result.json` to disk before looping back.
+- `save_iteration_snapshot()` — new helper in orchestrator.py; writes mid-loop snapshots without touching `synthesis.md`.
+- `save_research_output()` — extended with `iteration_history` param, writes `iterations[]` array, `total_iterations`, `best_iteration` into `research_result.json`.
+- `_pick_best_iteration()` — helper that selects the synthesis + evaluation with highest `combined_confidence` across all iterations (including the final one); used both for `synthesis.md` and `ResearchResponse.synthesis`.
+- `ResearchOrchestrator.run()` now returns the best synthesis (not just the last) so downstream angle/content nodes always get the highest-quality research regardless of how many loops ran.
+
+**New `research_result.json` structure:**
+```json
+{
+  "total_iterations": 2,
+  "best_iteration": 2,
+  "synthesis": { ...best synthesis... },
+  "evaluation": { ...best evaluation... },
+  "iterations": [
+    { "iteration": 1, "synthesis": {...}, "evaluation": {"combined_confidence": 0.45}, "evidence_count": 15, "timestamp": "..." },
+    { "iteration": 2, "synthesis": {...}, "evaluation": {"combined_confidence": 0.72}, "evidence_count": 30, "timestamp": "..." }
+  ]
+}
+```
+
+---
+
+**E2E tests run:**
+
+- `"Agentic AI agents in enterprise software"` — combined_confidence=0.9545 (LLM=0.87×0.35 + sources=1.0×0.65), passed in 1 iteration, full pipeline ✅
+- `"How SAP is betting on AI agents to transform enterprise ERP in 2026"` — combined_confidence=0.902 (LLM=0.72×0.35 + sources=1.0×0.65), research summary cited Sapphire 2026 correctly, 3 angles × 12 slides each ✅
+
+---
+
 ## 2026-05-15 - Session 15: Image Intelligence, No-Skeleton Layout, Graph Validator & Date Awareness
 
 **Decision:** Four improvements to output quality based on live review of carousel output.
@@ -156,12 +213,12 @@
 
 ---
 
-## V2 Planned Improvements (Research Orchestrator)
+## ~~V2 Planned Improvements (Research Orchestrator)~~ — Completed in Session 16
 
-These are known design limitations in V1 that are intentionally deferred:
+~~These are known design limitations in V1 that are intentionally deferred:~~
 
-1. **Evidence accumulation across refinement loops** — Currently each refinement loop overwrites `raw_tool_outputs` with fresh results, so you end up with the same number of evidence items regardless of how many loops ran. V2 should merge evidence across loops (the deduplication by URL is already in place, so accumulation would be safe).
-2. **LLM-driven confidence scoring** — The current `confidence_score` in `ResearchSynthesis` is assigned by the LLM itself based on how well the evidence covers the topic. This is a reasonable proxy but inconsistent. V2 should introduce a dedicated **Quality Checker node** that independently evaluates the synthesis against the evidence — checking factual grounding, coverage breadth, and source credibility — and assigns a more objective score. This separates synthesis from evaluation, which is cleaner architecturally.
+1. ~~**Evidence accumulation across refinement loops**~~ ✅ Done — normalizer now accumulates across loops; `iteration_history` tracks each pass; per-iteration snapshots written to disk.
+2. ~~**LLM-driven confidence scoring**~~ ✅ Done — independent LLM judge reads raw evidence and scores factual_grounding/topic_relevance/specificity/coverage_breadth; combined with source score (35/65 weighting).
 
 ---
 
@@ -726,4 +783,4 @@ For in-depth analysis, see:
 
 ---
 
-_Last updated: 2026-05-15_
+_Last updated: 2026-05-15 (Session 16)_
