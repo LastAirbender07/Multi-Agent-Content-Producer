@@ -31,6 +31,7 @@ class ResearchRequest(BaseModel):
     strict_tools: bool = Field(default=False, description="Whether to strictly adhere to the selected tools (used if tool_selection_mode is hybrid)")
     include_debug_trace: bool = Field(default=True, description="Whether to include debug trace information in the research results")
     budget: BudgetConfig = Field(default_factory=BudgetConfig, description="Budget configuration for the research run")
+    preprocessed_queries: list[str] = Field(default_factory=list, description="Pre-generated search queries from the query preprocessor; if non-empty, routing policy uses these instead of generating generic variants from the topic")
 
 class ToolTrace(BaseModel):
     tool_name: str = Field(..., description="Name of the tool called")
@@ -153,7 +154,8 @@ class Slide(BaseModel):
     stat_label: Optional[str] = Field(default=None, description="The descriptive label below a stat value eg: 'workers affected'")
     chart_type: Optional[str] = Field(default=None, description="Chart type for stat slides: bar|column|line|donut|radar|funnel")
     chart_data: Optional[dict] = Field(default=None, description="Chart data dict: {labels: [...], values: [...]} or {labels: [...], datasets: [{label, values}]} for radar")
-    image_query: Optional[str] = Field(default=None, description="The query to use for image generation for this slide, if applicable")
+    image_query: Optional[str] = Field(default=None, description="Generic/conceptual query for stock image search (Pexels)")
+    image_query_ddgs: Optional[str] = Field(default=None, description="Entity-specific query for web image search (DDGS) — uses real names, places, events")
 
 class SlideGenerationOutput(BaseModel):
     slides: list[Slide] = Field(..., description="Generated slides for the content")
@@ -184,6 +186,8 @@ class ContentRequest(BaseModel):
     template: str = "auto"
     max_slides: int = Field(default=14, description="Maximum number of slides to generate for the content (ideal 10-14, hard cap 20)")
     min_slides: int = Field(default=4, description="Minimum number of slides to generate for the content")
+    image_source: Literal["auto", "pexels", "ddgs"] = Field(default="auto", description="Image source mode: auto = entity-aware selection, pexels = stock photos only, ddgs = web images only (real people/places/events)")
+    entities: list[str] = Field(default_factory=list, description="Named entities from query preprocessor used in auto mode to detect entity-specific queries and prefer DDGS")
 
 class ContentResponse(BaseModel):
     run_id: str = Field(..., description="Run ID for this content generation run")

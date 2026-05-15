@@ -42,6 +42,8 @@ class ContentWorkflowState(TypedDict, total=False):
     topic: str
     run_id: str
     angle_mode: str             # "auto" or "manual" — set by pipeline caller
+    image_source: str           # "auto", "pexels", "ddgs" — set by pipeline caller
+    processed_query: dict       # ProcessedQuery.model_dump() from QueryPreprocessor
     research_data: dict[str, Any]
     research_summary: str
     generated_angles: list[dict]

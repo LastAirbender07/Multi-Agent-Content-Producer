@@ -26,6 +26,7 @@ async def content_node(state: ContentWorkflowState) -> dict:
         }
 
     try:
+        processed_query = state.get("processed_query", {})
         request = ContentRequest(
             run_id=run_id,
             topic=topic,
@@ -34,6 +35,8 @@ async def content_node(state: ContentWorkflowState) -> dict:
             key_points=research_data.get("key_points", []),
             max_slides=_settings.content_max_slides,
             min_slides=_settings.content_min_slides,
+            image_source=state.get("image_source", "auto"),
+            entities=processed_query.get("entities", []),
         )
 
         result = await _orchestrator.run(request)

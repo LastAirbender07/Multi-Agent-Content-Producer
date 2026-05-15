@@ -1,4 +1,5 @@
 from core.orchestration.contracts import ContentRequest, SlideGenerationOutput
+from core.orchestrators.content.graph_validator import validate_and_fix_slides
 from core.prompts.prompt_loader import load_prompt
 from core.prompts.system_prompts import get_system_prompt
 from core.schemas.workflow_state import ContentGraphState
@@ -33,20 +34,21 @@ async def generate_slides_node(state: ContentGraphState) -> dict:
         )
 
         slides = result.slides
-        if len(slides) > request.max_slides:
-            logger.warning(f"Generated {len(slides)} slides, which exceeds the requested maximum of {request.max_slides}. Truncating to fit.")
-            slides = slides[:request.max_slides]
+        slides_dicts = validate_and_fix_slides([s.model_dump() for s in slides])
+        if len(slides_dicts) > request.max_slides:
+            logger.warning(f"Generated {len(slides_dicts)} slides, which exceeds the requested maximum of {request.max_slides}. Truncating to fit.")
+            slides_dicts = slides_dicts[:request.max_slides]
 
         logger.info(
             "generate_slide_node_complete",
             run_id=state["run_id"],
             angle_index=state.get("angle_index"),
-            slide_count=len(slides)
+            slide_count=len(slides_dicts)
         )
 
         return {
-            "slides": [slide.model_dump() for slide in slides],
-            "messages": state.get("messages", []) + [f"Generated {len(slides)} slides successfully."]
+            "slides": slides_dicts,
+            "messages": state.get("messages", []) + [f"Generated {len(slides_dicts)} slides successfully."]
         }
     except Exception as e:
         logger.error(

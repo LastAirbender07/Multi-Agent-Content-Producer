@@ -1,5 +1,6 @@
 from configs.settings import get_settings
 from core.orchestrators.research.orchestrator import ResearchOrchestrator
+from core.orchestrators.research.query_preprocessor import QueryPreprocessor
 from core.schemas.workflow_state import ContentWorkflowState
 from infra.logging import get_logger
 
@@ -12,13 +13,23 @@ async def research_node(state: ContentWorkflowState) -> dict:
     logger.info("research_node_start", topic=topic, run_id=run_id)
 
     try:
+        preprocessor = QueryPreprocessor()
+        processed = await preprocessor.process(topic)
+        logger.info(
+            "research_node_preprocessed",
+            cleaned_topic=processed.cleaned_topic,
+            query_count=len(processed.search_queries),
+            freshness_hint=processed.freshness_hint,
+        )
+
         orchestrator = ResearchOrchestrator()
         result = await orchestrator.run(
             {
-                "topic": topic,
+                "topic": processed.cleaned_topic,
                 "mode": _settings.research_default_mode,
-                "freshness": _settings.research_default_freshness,
+                "freshness": processed.freshness_hint,
                 "explicit_urls": [],
+                "preprocessed_queries": processed.search_queries,
             },
             run_id=run_id,
         )
@@ -36,6 +47,7 @@ async def research_node(state: ContentWorkflowState) -> dict:
 
         return {
             "run_id": result.run_id,
+            "processed_query": processed.model_dump(),
             "research_data": {
                 "summary": summary,
                 "key_points": key_points,

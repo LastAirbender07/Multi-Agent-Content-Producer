@@ -39,11 +39,15 @@ class DeterministicResearchRoutingPolicy:
             plan.selected_tools = ["ddgs_text", "news_api"]
             plan.rationale.append("No specific tool requirements, so defaulting to ddgs_text and news_api for broad coverage.")
 
-        plan.query_variants = [
-            request.topic,
-            f"{request.topic} analysis trends",
-            f"{request.topic} expert perspectives research",
-        ]
+        if request.preprocessed_queries:
+            plan.query_variants = request.preprocessed_queries
+            plan.rationale.append("Using preprocessed search queries from query preprocessor.")
+        else:
+            plan.query_variants = [
+                request.topic,
+                f"{request.topic} analysis trends",
+                f"{request.topic} expert perspectives research",
+            ]
         return plan
     
     

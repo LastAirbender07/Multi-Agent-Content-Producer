@@ -6,6 +6,62 @@
 
 ---
 
+## 2026-05-15 - Session 15: Image Intelligence, No-Skeleton Layout, Graph Validator & Date Awareness
+
+**Decision:** Four improvements to output quality based on live review of carousel output.
+
+---
+
+**1. Smarter per-slide image source selection (`image_fetcher.py`)**
+
+- Removed entity-substring heuristic (`_is_entity_query`) from `_resolve_preferred_source()`.
+- New logic: in `auto` mode, if the LLM's `image_query_ddgs` differs from `image_query`, prefer DDGS (the LLM already signalled this slide needs a real web image). If identical, prefer Pexels.
+- Signature change: `_resolve_preferred_source(generic_query, specific_query, image_source)` — `entities` arg dropped entirely.
+- Result: entity/news slides get DDGS (real faces, protest photos, news screenshots); abstract concept slides get Pexels (high quality stock). Works per-slide, not per-topic.
+
+---
+
+**2. Dual image queries in slide generation (`slide_generation.txt`, `contracts.py`)**
+
+- `Slide` schema extended: added `image_query_ddgs` (entity-specific journalist query) alongside existing `image_query` (generic stock query).
+- Prompt Rule 8 updated: all non-cta/non-engage slides must provide BOTH fields. `image_query` = 3-5 abstract words for Pexels; `image_query_ddgs` = specific person/place/date/event for DDGS web search ("what would a photo editor type to find a news photo for this exact slide?").
+- `fetch_images_node` routes each slide independently: uses `image_query_ddgs` when source is DDGS, `image_query` when source is Pexels.
+
+---
+
+**3. No-skeleton text-only layout for colour slides (`carousel_generator.py`, content templates)**
+
+- `carousel_generator.py` now computes `has_image = bool(image_path) and asset["source"] != "colour"` and passes it to every template render call.
+- `aurora/content.html.j2` and `lumina/content.html.j2`: when `not has_image`, a dedicated CSS block activates — `.slide-grid` goes full-width column layout with padding `44px 60px`, `.text-panel` fills all space, fonts bump up (title 48px, body 23px, bullet-text 20px). No `.image-panel` rendered at all.
+- Eliminated the deco-circles "skeleton" placeholder entirely — slides with no valid image now look like intentional text-focus slides, not broken placeholders.
+
+---
+
+**4. Graph validator (`graph_validator.py`, `slide_generator.py`)**
+
+- New file: `core/orchestrators/content/graph_validator.py` — `validate_and_fix_slides(slides)` iterates stat slides and nulls out `chart_type`/`chart_data` when the chart is invalid.
+- Validation checks: chart_data exists + is dict, labels/values present, lengths match, ≥2 data points, values are numeric, not all-identical (flat), year-as-absolute-value pattern (bar/column/donut with all values 1800–2100), radar `datasets` structure matches labels length.
+- Stat template already guards on `{% if slide.chart_data %}` — nulling it produces a clean stat-value-only slide with no chart, no crash.
+- Called in `slide_generator.py` immediately after `result.slides` is returned by the LLM, before any truncation or state update.
+
+---
+
+**5. Date awareness in all LLM calls (`system_prompts.py`, `query_preprocessor.py`)**
+
+- `_date_banner()` function added to `system_prompts.py` — returns today's date in both human (`15 May 2026`) and ISO (`2026-05-15`) formats with instructions: "treat anything before today as historical, anything after today as future/planned."
+- `get_system_prompt()` now prepends `_date_banner()` to every system prompt at call time (not import time) — covers all four agents: RESEARCH, ANGLE, CONTENT, VISUAL.
+- `query_preprocessor.py` + `query_preprocessing.txt`: `{current_date}` injected into the preprocessor template, with explicit freshness calibration ("breaking = last 48h from today").
+- Validated in E2E test: research summary for "Agentic AI 2025" correctly said "by early 2026", "end of 2025" — no more temporal confusion.
+
+---
+
+**E2E tests run:**
+
+- `"Dirty politics of DMK in Tamil Nadu — Karunanidhi → Stalin → Udhayanidhi"` — 3 angles, 12 slides each, DDGS images (Udhayanidhi, Stalin, protest photos), no skeleton slides ✅
+- `"Rise of Agentic AI in 2025 — autonomous agents replacing knowledge workers"` — research `status=success` in 1 loop (confidence 0.62), date-aware key points, correct arc ✅
+
+---
+
 ## 2026-05-14 - Session 14: Carousel Layout Fixes + Arc & CTA Improvements
 
 **Decision:** Fixed three visual/structural issues in the carousel output identified from live pipeline review.
@@ -670,4 +726,4 @@ For in-depth analysis, see:
 
 ---
 
-_Last updated: 2026-05-14_
+_Last updated: 2026-05-15_

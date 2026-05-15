@@ -31,12 +31,13 @@ class ContentPipelineOrchestrator:
     land under outputs/<run_id>/ regardless of which orchestrator produced them.
     """
 
-    async def run(self, topic: str, mode: str = "standard", freshness: str = "recent", angle_mode: str = "auto") -> ContentWorkflowState:
+    async def run(self, topic: str, mode: str = "standard", freshness: str = "recent", angle_mode: str = "auto", image_source: str = "auto") -> ContentWorkflowState:
         run_id = str(uuid.uuid4())
         state: ContentWorkflowState = {
             "topic": topic,
             "run_id": run_id,
             "angle_mode": angle_mode,
+            "image_source": image_source,
             "messages": [],
             "errors": [],
         }
@@ -103,12 +104,19 @@ def _build_parser() -> argparse.ArgumentParser:
         dest="angle_mode",
         help="Angle selection mode: auto = LLM picks, manual = human picks via API (default: auto)",
     )
+    parser.add_argument(
+        "--image-source",
+        choices=["auto", "pexels", "ddgs"],
+        default="auto",
+        dest="image_source",
+        help="Image source: auto = entity-aware (default), pexels = stock photos only, ddgs = web images (real people/places)",
+    )
     return parser
 
 
-async def run(topic: str, mode: str, freshness: str, angle_mode: str) -> int:
+async def run(topic: str, mode: str, freshness: str, angle_mode: str, image_source: str) -> int:
     orchestrator = ContentPipelineOrchestrator()
-    final_state = await orchestrator.run(topic=topic, mode=mode, freshness=freshness, angle_mode=angle_mode)
+    final_state = await orchestrator.run(topic=topic, mode=mode, freshness=freshness, angle_mode=angle_mode, image_source=image_source)
 
     if final_state.get("errors"):
         logger.error("pipeline_finished_with_errors", errors=final_state["errors"])
@@ -126,7 +134,7 @@ async def run(topic: str, mode: str, freshness: str, angle_mode: str) -> int:
 def main():
     parser = _build_parser()
     args = parser.parse_args()
-    sys.exit(asyncio.run(run(args.topic, args.mode, args.freshness, args.angle_mode)))
+    sys.exit(asyncio.run(run(args.topic, args.mode, args.freshness, args.angle_mode, args.image_source)))
 
 
 if __name__ == "__main__":

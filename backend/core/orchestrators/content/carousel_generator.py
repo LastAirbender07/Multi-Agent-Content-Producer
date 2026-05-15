@@ -52,6 +52,7 @@ async def render_slides_node(state: ContentGraphState) -> dict:
     for slide in slides:
         asset = image_assets.get(slide.slide_number, {})
         image_path = asset.get("processed_path") or ""
+        has_image = bool(image_path) and asset.get("source") != "colour"
 
         if image_path:
             image_path = "/" + str(
@@ -68,6 +69,7 @@ async def render_slides_node(state: ContentGraphState) -> dict:
         html = template.render(
             slide=slide,
             image_path=image_path,
+            has_image=has_image,
             slide_number=slide.slide_number,
             total_slides=total,
             template=template_name,
