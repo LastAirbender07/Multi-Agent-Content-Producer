@@ -1,4 +1,4 @@
-# Multi-Agent Content Producer
+# 🚀 Multi-Agent Content Producer
 
 > **From a single topic to a publish-ready carousel — fully automated, research-grounded, and visually stunning.**
 
@@ -10,7 +10,7 @@ This is what a team of a researcher, a strategist, a copywriter, a designer, and
 
 ---
 
-## What It Does
+## ⚡ What It Does
 
 ### The Full Pipeline
 
@@ -19,26 +19,26 @@ Your Topic
     │
     ▼
 ┌─────────────────────────────────────────────────────┐
-│  STAGE 1 · RESEARCH                                  │
+│  STAGE 1 · 🔬 RESEARCH                               │
 │  Web search · News APIs · Crawl · Synthesis · Judge  │
 └──────────────────────────┬──────────────────────────┘
                            │  Research confidence score
                            │  (retries automatically if < 0.60)
                            ▼
 ┌─────────────────────────────────────────────────────┐
-│  STAGE 2 · ANGLE GENERATION                          │
+│  STAGE 2 · 🎯 ANGLE GENERATION                       │
 │  5 candidate angles · Evaluated · Top 3 selected     │
 └──────────────────────────┬──────────────────────────┘
                            │  Angles with emotional hooks
                            ▼
 ┌─────────────────────────────────────────────────────┐
-│  STAGE 3 · CONTENT GENERATION                        │
+│  STAGE 3 · ✍️  CONTENT GENERATION                    │
 │  12-slide carousel per angle · Captions · Hashtags   │
 └──────────────────────────┬──────────────────────────┘
                            │  Images sourced per slide
                            ▼
 ┌─────────────────────────────────────────────────────┐
-│  STAGE 4 · RENDER                                    │
+│  STAGE 4 · 🎨 RENDER                                 │
 │  HTML templates · Playwright screenshot · 1080px PNG │
 └──────────────────────────┬──────────────────────────┘
                            │
@@ -47,18 +47,18 @@ Your Topic
          slide_01.png → slide_12.png  ✅ Done
 ```
 
-### Research Engine
+### 🔬 Research Engine
 
 The research stage isn't a single API call. It's a multi-tool pipeline with a quality gate:
 
-- **Query Preprocessor** — Rewrites your raw topic into 6-10 targeted search queries, infers freshness (`breaking` / `recent` / `evergreen`), and strips ambiguity before any tools fire.
-- **Multi-tool execution** — Runs news APIs (NewsAPI + Google News), DuckDuckGo web search, DuckDuckGo news, and Crawl4AI deep-scraping in parallel. Tools are selected per-run based on topic freshness and mode.
-- **Evidence normaliser** — Deduplicates by URL, scores each item for credibility and relevance, and merges all sources into a unified evidence bank.
-- **Synthesiser** — An LLM reads up to 12 evidence items and produces a structured `ResearchSynthesis` (summary, key points, contradictions, implications, gaps, confidence score).
-- **Independent LLM Judge** — A *separate* LLM call reads the raw evidence snippets and scores the synthesis on factual grounding, topic relevance, specificity, and coverage breadth — catching hallucinations the synthesiser might introduce.
-- **Combined confidence gate** — `combined = llm_judge × 0.35 + source_score × 0.65`. If below **0.60**, the loop fires again with a different query variant, accumulating new evidence on top of existing sources. Up to 2 retry loops. Every iteration is saved to disk.
+- **🧠 Query Preprocessor** — Rewrites your raw topic into 6-10 targeted search queries, infers freshness (`breaking` / `recent` / `evergreen`), and strips ambiguity before any tools fire.
+- **⚙️ Multi-tool execution** — Runs news APIs (NewsAPI + Google News), DuckDuckGo web search, DuckDuckGo news, and Crawl4AI deep-scraping in parallel. Tools are selected per-run based on topic freshness and mode.
+- **🔗 Evidence normaliser** — Deduplicates by URL, scores each item for credibility and relevance, and merges all sources into a unified evidence bank.
+- **📝 Synthesiser** — An LLM reads up to 12 evidence items and produces a structured `ResearchSynthesis` (summary, key points, contradictions, implications, gaps, confidence score).
+- **🧑‍⚖️ Independent LLM Judge** — A *separate* LLM call reads the raw evidence snippets and scores the synthesis on factual grounding, topic relevance, specificity, and coverage breadth — catching hallucinations the synthesiser might introduce.
+- **🔒 Combined confidence gate** — `combined = llm_judge × 0.35 + source_score × 0.65`. If below **0.60**, the loop fires again with a different query variant, accumulating new evidence on top of existing sources. Up to 2 retry loops. Every iteration is saved to disk.
 
-### Angle Engine
+### 🎯 Angle Engine
 
 Three to five content angles are generated from the research synthesis. Each angle has:
 
@@ -68,45 +68,45 @@ Three to five content angles are generated from the research synthesis. Each ang
 
 The evaluator scores each angle on specificity, emotional resonance, uniqueness, and grounding. In `auto` mode the top 3 are selected automatically. In `manual` mode you pick via the API.
 
-### Content Engine
+### ✍️ Content Engine
 
 For each selected angle, the system generates a full 12-slide carousel:
 
 | Slide Type  | What It Does                                                                                     |
 | ----------- | ------------------------------------------------------------------------------------------------ |
-| `hook`    | 6-9 word headline that stops the scroll                                                          |
-| `content` | Dense insight slide: title + body + 3-5 concrete bullet points                                   |
-| `stat`    | One shocking number with a Chart.js visualisation (bar / column / donut / line / radar / funnel) |
-| `quote`   | Pull-quote from research with 2-3 key takeaways                                                  |
-| `engage`  | Mid-carousel follow prompt (appears around slide 5-7)                                            |
-| `cta`     | Exactly 2 per carousel — one mid-deck (punchy), one closing (comprehensive)                     |
+| 🪝 `hook`    | 6-9 word headline that stops the scroll                                                          |
+| 📖 `content` | Dense insight slide: title + body + 3-5 concrete bullet points                                   |
+| 📊 `stat`    | One shocking number with a Chart.js visualisation (bar / column / donut / line / radar / funnel) |
+| 💬 `quote`   | Pull-quote from research with 2-3 key takeaways                                                  |
+| 👋 `engage`  | Mid-carousel follow prompt (appears around slide 5-7)                                            |
+| 📣 `cta`     | Exactly 2 per carousel — one mid-deck (punchy), one closing (comprehensive)                     |
 
 Arc is enforced: `hook → intro-content → stats → engage → early-cta → body-content → quote → final-cta`
 
 The LLM also assigns each slide an **image source and query**:
 
-- `ddgs` — Real web images (news photos, specific people, events, places). Query is written journalist-style: `"Udhayanidhi Stalin Deputy CM Tamil Nadu 2024"`
-- `pexels` — High-quality stock photography (abstract concepts, office, technology). Query is written stock-style: `"artificial intelligence neural network"`
-- `none` — No image (stat / cta / engage slides use colour cards)
+- 🌐 `ddgs` — Real web images (news photos, specific people, events, places). Query is written journalist-style: `"Udhayanidhi Stalin Deputy CM Tamil Nadu 2024"`
+- 📸 `pexels` — High-quality stock photography (abstract concepts, office, technology). Query is written stock-style: `"artificial intelligence neural network"`
+- 🎨 `none` — No image (stat / cta / engage slides use colour cards)
 
-### Render Engine
+### 🎨 Render Engine
 
 HTML templates (Jinja2) → Playwright headless Chromium → 2160px screenshot → Pillow LANCZOS downscale to **1080×1080 PNG**.
 
 Two visual themes:
 
-- **Aurora** — Dark background, high contrast. Used for: Anger, Fear, Urgency, Controversy, Surprise topics.
-- **Lumina** — Light and clean. Used for: Hope, Inspiration, Curiosity topics.
+- 🌑 **Aurora** — Dark background, high contrast. Used for: Anger, Fear, Urgency, Controversy, Surprise topics.
+- ☀️ **Lumina** — Light and clean. Used for: Hope, Inspiration, Curiosity topics.
 
 Content slides adapt their layout to the downloaded image's aspect ratio:
 
-- Portrait / square image → Layout 0: left text, right portrait card
-- Landscape image (alternating) → Layout 1: text top, image bottom / Layout 2: image top, text bottom
-- No image → Full-width text-only layout (no skeleton placeholder)
+- 🖼️ Portrait / square image → Layout 0: left text, right portrait card
+- 🏞️ Landscape image (alternating) → Layout 1: text top, image bottom / Layout 2: image top, text bottom
+- 📝 No image → Full-width text-only layout (no skeleton placeholder)
 
 ---
 
-## Output Structure
+## 📁 Output Structure
 
 Every pipeline run produces a complete, versioned output folder:
 
@@ -125,7 +125,7 @@ outputs/<run_id>/
     │   ├── image_assets.json   ← Per-slide image source, URL, local path
     │   ├── images/             ← Downloaded images (slide_01.jpg … slide_12.jpg)
     │   ├── slides/             ← Rendered HTML (slide_01.html … slide_12.html)
-    │   └── png/                ← Final carousel images (slide_01.png … slide_12.png) ← PUBLISH THESE
+    │   └── png/                ← ✅ Final carousel images (slide_01.png … slide_12.png) ← PUBLISH THESE
     ├── angle_1/
     └── angle_2/
 ```
@@ -134,7 +134,7 @@ The `png/` folders are your deliverables. Everything else is the audit trail.
 
 ---
 
-## Getting Started
+## 🛠️ Getting Started
 
 ### Prerequisites
 
@@ -157,9 +157,27 @@ uv run playwright install chromium
 cp .env.example .env
 ```
 
+### 🔑 Environment Variables (`.env`)
+
+```bash
+# Required — LLM provider (Claude via HAI Proxy is the default)
+HAI_PROXY_API_KEY=your_key_here
+HAI_PROXY_URL=http://localhost:6655/anthropic
+LLM_MODEL=anthropic--claude-4.5-sonnet
+
+# Optional — additional news sources
+NEWSAPI_API_KEY=your_newsapi_key       # newsapi.org — adds 100 articles/day free tier
+PEXELS_API_KEY=your_pexels_key         # pexels.com — higher quality stock images
+
+# Optional — switch LLM provider
+LLM_PROVIDER=claude                    # claude | openai | gemini
+OPENAI_API_KEY=...
+GEMINI_API_KEY=...
+```
+
 ---
 
-## Running the Pipeline
+## ▶️ Running the Pipeline
 
 ### The One Command You Need
 
@@ -171,7 +189,7 @@ That's it. Everything else has sensible defaults.
 
 ---
 
-### All Flags and Modes
+### 🏳️ All Flags and Modes
 
 ```
 uv run python -m apps.cli.run_workflow <topic> [options]
@@ -186,54 +204,54 @@ uv run python -m apps.cli.run_workflow <topic> [options]
 
 ---
 
-### `--mode` — Research Depth
+### `--mode` — 🔍 Research Depth
 
 Controls how many tools are used, how many query variants are generated, and how many refinement loops are allowed.
 
 ```bash
-# Quick — fast turnaround, fewer sources, 1 tool pass
+# ⚡ Quick — fast turnaround, fewer sources, 1 tool pass
 # Good for: trending topics, well-covered subjects, testing
 uv run python -m apps.cli.run_workflow "ChatGPT vs Gemini 2026" --mode quick
 
-# Standard — default, balanced depth and speed
+# ⚖️ Standard — default, balanced depth and speed
 # Good for: most use cases
 uv run python -m apps.cli.run_workflow "Rise of agentic AI in enterprise software"
 
-# Deep — maximum research, all tools, full retry budget
+# 🔬 Deep — maximum research, all tools, full retry budget
 # Good for: complex topics, niche subjects, investigative content
 uv run python -m apps.cli.run_workflow "How central banks are responding to AI-driven deflation" --mode deep
 ```
 
 ---
 
-### `--freshness` — Information Freshness Signal
+### `--freshness` — 🕐 Information Freshness Signal
 
 Tells the query preprocessor and router how to prioritise sources.
 
 ```bash
-# breaking — last 48 hours only; routes to news APIs first
+# 🔴 breaking — last 48 hours only; routes to news APIs first
 # Good for: breaking news, announcements, earnings, live events
 uv run python -m apps.cli.run_workflow "Apple WWDC 2026 announcements" --freshness breaking
 
-# recent — last few months; balanced news + web search
+# 🟡 recent — last few months; balanced news + web search
 # Good for: trends, product launches, ongoing stories (DEFAULT)
 uv run python -m apps.cli.run_workflow "Tesla FSD adoption rates 2026" --freshness recent
 
-# evergreen — historical/structural topics; web search + deep crawl
+# 🟢 evergreen — historical/structural topics; web search + deep crawl
 # Good for: explainers, "how it works", timeless concepts
 uv run python -m apps.cli.run_workflow "Why most startups fail in year 3" --freshness evergreen
 ```
 
 ---
 
-### `--angle-mode` — Angle Selection
+### `--angle-mode` — 🎯 Angle Selection
 
 ```bash
-# auto — LLM picks the top 3 angles from 5 candidates (default)
+# 🤖 auto — LLM picks the top 3 angles from 5 candidates (default)
 # Best for: unattended runs, batch production
 uv run python -m apps.cli.run_workflow "The loneliness epidemic" --angle-mode auto
 
-# manual — Pipeline pauses after generating angles; you select via the API
+# 🙋 manual — Pipeline pauses after generating angles; you select via the API
 # Best for: when you want editorial control over the angle before committing
 # After running, call: POST /api/v1/angles/{run_id}/select with your chosen indices
 uv run python -m apps.cli.run_workflow "Why Gen Z is leaving big tech" --angle-mode manual
@@ -241,48 +259,48 @@ uv run python -m apps.cli.run_workflow "Why Gen Z is leaving big tech" --angle-m
 
 ---
 
-### `--image-source` — Image Tool Override
+### `--image-source` — 🖼️ Image Tool Override
 
 By default the LLM decides per-slide which tool to use (real photo vs stock). Override when you want consistency.
 
 ```bash
-# auto — LLM decides per slide: ddgs for real people/events, pexels for concepts (DEFAULT)
+# 🧠 auto — LLM decides per slide: ddgs for real people/events, pexels for concepts (DEFAULT)
 uv run python -m apps.cli.run_workflow "Sam Altman's OpenAI journey" --image-source auto
 
-# pexels — force all slides to Pexels stock photography
+# 📸 pexels — force all slides to Pexels stock photography
 # Best for: brand-safe content, abstract topics, no recognisable faces wanted
 uv run python -m apps.cli.run_workflow "The future of remote work" --image-source pexels
 
-# ddgs — force all slides to DuckDuckGo web images
+# 🌐 ddgs — force all slides to DuckDuckGo web images
 # Best for: news-heavy topics, real events, specific public figures
 uv run python -m apps.cli.run_workflow "India vs Pakistan ICC World Cup 2026" --image-source ddgs
 ```
 
 ---
 
-### Common Combinations
+### 🔥 Common Combinations
 
 ```bash
-# Breaking news carousel — fast, fresh, web images
+# 📰 Breaking news carousel — fast, fresh, web images
 uv run python -m apps.cli.run_workflow "RBI rate cut May 2026" \
   --mode quick --freshness breaking --image-source ddgs
 
-# Deep evergreen explainer — thorough research, stock images, human angle review
+# 📚 Deep evergreen explainer — thorough research, stock images, human angle review
 uv run python -m apps.cli.run_workflow "Why compounding works and most people miss it" \
   --mode deep --freshness evergreen --angle-mode manual --image-source pexels
 
-# Standard political/investigative topic
+# 🗳️ Standard political/investigative topic
 uv run python -m apps.cli.run_workflow "Dirty politics of DMK in Tamil Nadu" \
   --mode standard --freshness recent --image-source ddgs
 
-# Tech product launch — quick + recent
+# 💡 Tech product launch — quick + recent
 uv run python -m apps.cli.run_workflow "SAP Joule AI agent capabilities 2026" \
   --mode quick --freshness recent
 ```
 
 ---
 
-## REST API
+## 🌐 REST API
 
 Start the server:
 
@@ -296,12 +314,12 @@ Interactive docs available at: `http://localhost:8000/docs`
 
 | Method   | Endpoint                           | Description                               |
 | -------- | ---------------------------------- | ----------------------------------------- |
-| `GET`  | `/health`                        | Health check                              |
-| `POST` | `/api/v1/research/run`           | Run research only                         |
-| `POST` | `/api/v1/angles/run`             | Run angle generation (requires synthesis) |
-| `POST` | `/api/v1/angles/{run_id}/select` | Submit manual angle selection             |
-| `POST` | `/api/v1/content/run`            | Run content generation (requires angles)  |
-| `POST` | `/api/v1/pipeline/run`           | Run full pipeline end-to-end              |
+| `GET`  | `/health`                        | ✅ Health check                            |
+| `POST` | `/api/v1/research/run`           | 🔬 Run research only                       |
+| `POST` | `/api/v1/angles/run`             | 🎯 Run angle generation (requires synthesis) |
+| `POST` | `/api/v1/angles/{run_id}/select` | 🙋 Submit manual angle selection           |
+| `POST` | `/api/v1/content/run`            | ✍️ Run content generation (requires angles) |
+| `POST` | `/api/v1/pipeline/run`           | 🚀 Run full pipeline end-to-end            |
 
 ### Full Pipeline via API
 
@@ -332,19 +350,19 @@ curl -X POST http://localhost:8000/api/v1/research/run \
 
 ---
 
-## How the Quality Gate Works
+## 🔒 How the Quality Gate Works
 
 Every research run is scored before proceeding to content:
 
 ```
-Source Score  = 0.5 × (sources / 8)  +  0.5 × (unique_domains / 4)
-LLM Score     = independent judge reads raw evidence → scores factual_grounding,
-                topic_relevance, specificity, coverage_breadth → overall_score
+📊 Source Score  = 0.5 × (sources / 8)  +  0.5 × (unique_domains / 4)
+🧑‍⚖️ LLM Score     = independent judge reads raw evidence → scores factual_grounding,
+                   topic_relevance, specificity, coverage_breadth → overall_score
 
-Combined      = LLM_score × 0.35  +  source_score × 0.65
+⚡ Combined      = LLM_score × 0.35  +  source_score × 0.65
 
-If combined < 0.60  →  retry with next query variant, accumulate more evidence
-If combined ≥ 0.60  →  proceed to angle generation
+🔁 If combined < 0.60  →  retry with next query variant, accumulate more evidence
+✅ If combined ≥ 0.60  →  proceed to angle generation
 ```
 
 The final `research_result.json` shows the full iteration history:
@@ -366,7 +384,7 @@ The final `research_result.json` shows the full iteration history:
 
 ---
 
-## Architecture
+## 🏗️ Architecture
 
 ```
 backend/
@@ -390,8 +408,8 @@ backend/
 │   ├── schemas/workflow_state.py    ← TypedDict state definitions
 │   ├── orchestration/contracts.py  ← All Pydantic request/response models
 │   └── templates/carousel/         ← Jinja2 HTML slide templates
-│       ├── aurora/                  ← Dark theme (Anger/Fear/Urgency topics)
-│       └── lumina/                  ← Light theme (Hope/Inspiration topics)
+│       ├── aurora/                  ← 🌑 Dark theme (Anger/Fear/Urgency topics)
+│       └── lumina/                  ← ☀️ Light theme (Hope/Inspiration topics)
 ├── infra/
 │   ├── llm/                 ← Provider-agnostic LLM adapters (Claude, OpenAI, Gemini)
 │   ├── logging.py           ← Structlog structured logging
@@ -399,26 +417,26 @@ backend/
 └── configs/settings.py      ← All tunable parameters (Pydantic Settings)
 ```
 
-### Key Settings (`configs/settings.py`)
+### ⚙️ Key Settings (`configs/settings.py`)
 
 | Setting                             | Default               | What It Controls                               |
 | ----------------------------------- | --------------------- | ---------------------------------------------- |
-| `research_max_refinement_loops`   | `2`                 | Max retry loops if confidence < threshold      |
-| `research_quality_min_confidence` | `0.60`              | Combined confidence threshold to pass research |
-| `research_quality_min_sources`    | `3`                 | Minimum evidence items required                |
-| `research_max_tool_calls`         | `6`                 | Budget cap on total tool executions            |
-| `content_max_slides`              | `12`                | Hard cap on slides per carousel                |
-| `content_min_slides`              | `4`                 | Minimum slides to generate                     |
-| `llm_model`                       | `claude-4.5-sonnet` | LLM model for all agents                       |
-| `llm_temperature`                 | `1.0`               | Generation temperature                         |
+| `research_max_refinement_loops`   | `2`                 | 🔁 Max retry loops if confidence < threshold    |
+| `research_quality_min_confidence` | `0.60`              | 🔒 Combined confidence threshold to pass research |
+| `research_quality_min_sources`    | `3`                 | 📰 Minimum evidence items required              |
+| `research_max_tool_calls`         | `6`                 | ⚡ Budget cap on total tool executions           |
+| `content_max_slides`              | `12`                | 🎨 Hard cap on slides per carousel              |
+| `content_min_slides`              | `4`                 | 📋 Minimum slides to generate                   |
+| `llm_model`                       | `claude-4.5-sonnet` | 🤖 LLM model for all agents                     |
+| `llm_temperature`                 | `1.0`               | 🌡️ Generation temperature                       |
 
 All settings can be overridden via environment variables (uppercase, no prefix).
 
 ---
 
-## Real Examples
+## 🧪 Real Examples
 
-### Example 1 — Tech topic, standard run
+### Example 1 — 💼 Tech topic, standard run
 
 ```bash
 uv run python -m apps.cli.run_workflow \
@@ -427,7 +445,7 @@ uv run python -m apps.cli.run_workflow \
 
 Result: 22 sources, confidence 0.902, 3 angles, 36 slides (3 × 12), SAP Sapphire 2026 content, Pexels stock images for tech concepts.
 
-### Example 2 — Political topic, DDGS images
+### Example 2 — 🗳️ Political topic, DDGS images
 
 ```bash
 uv run python -m apps.cli.run_workflow \
@@ -437,7 +455,7 @@ uv run python -m apps.cli.run_workflow \
 
 Result: Real photos of Udhayanidhi, Stalin, protest scenes. Research grounded in news articles.
 
-### Example 3 — Agentic AI deep dive
+### Example 3 — 🤖 Agentic AI deep dive
 
 ```bash
 uv run python -m apps.cli.run_workflow \
@@ -449,46 +467,48 @@ Result: Confidence 0.9545 (LLM=0.87, sources=1.0), GitLab restructuring cited, S
 
 ---
 
-## Extending the System
+## 🔧 Extending the System
 
-### Add a new slide type
+### ➕ Add a new slide type
 
 1. Add enum value to `SlideType` in `contracts.py`
 2. Add handling in `slide_generation.txt` prompt
 3. Create `<type>.html.j2` in both `aurora/` and `lumina/` template folders
 
-### Add a new research tool
+### ➕ Add a new research tool
 
 1. Implement tool class in `core/tools/`
 2. Add tool name to `research_allowed_tools` in settings
 3. Handle it in `executor.py` and `normalizer.py`
 
-### Change the carousel theme logic
+### 🎨 Change the carousel theme logic
 
 Edit `_TEMPLATE_MAP` in `carousel_generator.py` — maps emotional hook strings to theme folder names.
 
-### Edit any prompt
+### 📝 Edit any prompt
 
 All prompts live as plain `.txt` files in `core/prompts/templates/`. Edit them directly — no code changes needed.
 
 ---
 
-## Tech Stack
+## 🧰 Tech Stack
 
 | Layer            | Technology                                           |
 | ---------------- | ---------------------------------------------------- |
-| Orchestration    | LangGraph (StateGraph)                               |
-| LLM              | Claude (Anthropic) via HAI Proxy · OpenAI · Gemini |
-| Web Search       | DuckDuckGo Search (DDGS)                             |
-| News             | NewsAPI · Google News RSS                           |
-| Web Scraping     | Crawl4AI (MCP server)                                |
-| Image Search     | Pexels API · DuckDuckGo Images                      |
-| Templating       | Jinja2                                               |
-| Rendering        | Playwright (headless Chromium)                       |
-| Image Processing | Pillow                                               |
-| API              | FastAPI + Uvicorn                                    |
-| Validation       | Pydantic v2                                          |
-| Logging          | Structlog                                            |
-| Runtime          | Python 3.12 · uv                                    |
+| 🔄 Orchestration    | LangGraph (StateGraph)                               |
+| 🤖 LLM              | Claude (Anthropic) via HAI Proxy · OpenAI · Gemini |
+| 🔍 Web Search       | DuckDuckGo Search (DDGS)                             |
+| 📰 News             | NewsAPI · Google News RSS                           |
+| 🕷️ Web Scraping     | Crawl4AI (MCP server)                                |
+| 🖼️ Image Search     | Pexels API · DuckDuckGo Images                      |
+| 🧩 Templating       | Jinja2                                               |
+| 📸 Rendering        | Playwright (headless Chromium)                       |
+| 🖼️ Image Processing | Pillow                                               |
+| 🌐 API              | FastAPI + Uvicorn                                    |
+| ✅ Validation       | Pydantic v2                                          |
+| 📋 Logging          | Structlog                                            |
+| ⚡ Runtime          | Python 3.12 · uv                                    |
 
 ---
+
+*🤖 Built with LangGraph + Claude. Every output is research-grounded, source-cited, and audit-trailed.*
