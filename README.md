@@ -2,7 +2,7 @@
 
 > **From a single topic to a publish-ready carousel — fully automated, research-grounded, and visually stunning.**
 
-You type a topic. The system does everything else.
+You type a topic. The system does everything else — from the terminal **or** from a browser-based production studio.
 
 In minutes you get: deep research across the live web, multiple content angles crafted for maximum engagement, 12-slide carousels rendered as pixel-perfect 1080×1080 PNGs, captions, hashtags, and a full audit trail. No templates to fill. No copy to write. No stock photo browsing.
 
@@ -140,22 +140,38 @@ The `png/` folders are your deliverables. Everything else is the audit trail.
 
 - Python 3.12+
 - [`uv`](https://docs.astral.sh/uv/) package manager
+- Node.js 20+ and [`pnpm`](https://pnpm.io/) (for the frontend)
 - Playwright Chromium
 
 ```bash
 # Clone and enter
 git clone <repo-url>
-cd Multi-Agent-Content-Producer/backend
+cd Multi-Agent-Content-Producer
 
-# Install dependencies
+# ── Backend ──────────────────────────────────────────────────────────
+cd backend
 uv sync
-
-# Install Playwright browser
 uv run playwright install chromium
+cp .env.example .env   # fill in your API keys
 
-# Copy and fill env
-cp .env.example .env
+# ── Frontend ─────────────────────────────────────────────────────────
+cd ../frontend
+pnpm install
 ```
+
+### Running the Full Stack
+
+```bash
+# Terminal 1 — Backend API
+cd backend
+uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+# Terminal 2 — Frontend
+cd frontend
+pnpm dev
+```
+
+Open `http://localhost:3000` for the Studio UI, or `http://localhost:8000/docs` for the raw API.
 
 ### 🔑 Environment Variables (`.env`)
 
@@ -300,6 +316,56 @@ uv run python -m apps.cli.run_workflow "SAP Joule AI agent capabilities 2026" \
 
 ---
 
+## 🖥️ Studio AI — Browser Interface
+
+The frontend is a full production control room that exposes every pipeline capability in a sleek, dark-themed UI. No terminal required.
+
+### Pages
+
+| Route | Description |
+|---|---|
+| `/pipeline` | **Main Studio** — topic input, all flags, live stage progress, HITL angle selector, Instagram carousel preview |
+| `/research` | **Research Explorer** — run research in isolation, inspect evidence, confidence scores, and synthesis |
+| `/images` | **Visual Intelligence** — search Pexels and DuckDuckGo Images with AI-refined queries |
+| `/news` | **Signal Monitor** — cross-reference news across Google News, NewsAPI, and DuckDuckGo with time filters |
+| `/chat` | **LLM Interface** — direct conversation with the pipeline's LLM for brainstorming and query refinement |
+
+### Frontend Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript 5 |
+| Styling | Tailwind CSS v4 |
+| Animation | Framer Motion 12 |
+| State | Redux Toolkit 2 |
+| Icons | Lucide React |
+
+### Starting the Frontend
+
+```bash
+cd frontend
+pnpm install
+pnpm dev
+# → http://localhost:3000
+```
+
+The frontend connects to the backend at `http://localhost:8000`. Start the backend first (see below).
+
+### What the Studio Looks Like
+
+**Pipeline Page** — Type a topic, choose depth and freshness, hit Produce. Watch Research, Angle, and Content stages light up one by one. In manual angle mode a full-screen modal pauses the run so you can pick which angles to develop. Once content is done, the Instagram carousel preview loads with swipeable slides, caption, and hashtags.
+
+**Research Page** — Runs the research graph standalone. Shows confidence score, LLM/source score breakdown, synthesis summary, and expandable evidence cards colour-coded by source type (news/web/crawl).
+
+**Images and News** — Standalone search tools backed by the same APIs used internally by the pipeline, with AI query refinement applied before every search.
+
+**Chat** — System persona presets (Content Strategist, Research Analyst, Copywriter) plus a persistent message history that survives page navigation.
+
+→ Full frontend documentation: [`Docs/content-orchestrator/FRONTEND.md`](Docs/content-orchestrator/FRONTEND.md)
+
+---
+
 ## 🌐 REST API
 
 Start the server:
@@ -320,6 +386,10 @@ Interactive docs available at: `http://localhost:8000/docs`
 | `POST` | `/api/v1/angles/{run_id}/select` | 🙋 Submit manual angle selection           |
 | `POST` | `/api/v1/content/run`            | ✍️ Run content generation (requires angles) |
 | `POST` | `/api/v1/pipeline/run`           | 🚀 Run full pipeline end-to-end            |
+| `POST` | `/api/v1/tools/query-refine`     | 🧠 AI query preprocessing                  |
+| `POST` | `/api/v1/tools/images`           | 🖼️ Image search (Pexels / DDGS)            |
+| `POST` | `/api/v1/tools/news`             | 📰 News search (Google / NewsAPI / DDGS)   |
+| `POST` | `/api/v1/chat/`                  | 💬 Direct LLM chat with message history    |
 
 ### Full Pipeline via API
 
@@ -387,34 +457,41 @@ The final `research_result.json` shows the full iteration history:
 ## 🏗️ Architecture
 
 ```
-backend/
-├── apps/
-│   ├── api/v1/              ← FastAPI routers (research, angles, content, pipeline)
-│   └── cli/run_workflow.py  ← CLI entry point
-├── core/
-│   ├── graphs/              ← LangGraph StateGraph definitions
-│   │   ├── research_graph.py
-│   │   ├── angle_graph.py
-│   │   └── content_graph.py
-│   ├── nodes/               ← Pipeline stage entry points (research, angle, content)
-│   ├── orchestrators/
-│   │   ├── research/        ← router, executor, normalizer, synthesizer, evaluator
-│   │   ├── angle/           ← generator, evaluator, auto_selector, finalizer
-│   │   └── content/         ← slide_generator, reorder, image_fetcher,
-│   │                           carousel_generator, caption_generator, finalizer
-│   ├── prompts/
-│   │   ├── system_prompts.py        ← Agent personas + date-aware context
-│   │   └── templates/               ← Editable .txt prompt templates
-│   ├── schemas/workflow_state.py    ← TypedDict state definitions
-│   ├── orchestration/contracts.py  ← All Pydantic request/response models
-│   └── templates/carousel/         ← Jinja2 HTML slide templates
-│       ├── aurora/                  ← 🌑 Dark theme (Anger/Fear/Urgency topics)
-│       └── lumina/                  ← ☀️ Light theme (Hope/Inspiration topics)
-├── infra/
-│   ├── llm/                 ← Provider-agnostic LLM adapters (Claude, OpenAI, Gemini)
-│   ├── logging.py           ← Structlog structured logging
-│   └── output_manager.py    ← Versioned output file management
-└── configs/settings.py      ← All tunable parameters (Pydantic Settings)
+Multi-Agent-Content-Producer/
+├── frontend/                   ← Next.js 16 Studio UI
+│   ├── app/                    ← App Router pages (pipeline, research, images, news, chat)
+│   ├── components/             ← Pipeline components + UI primitives
+│   ├── store/                  ← Redux Toolkit (pipeline, chat, history slices)
+│   └── lib/api.ts              ← Typed fetch client
+│
+└── backend/
+    ├── apps/
+    │   ├── api/v1/              ← FastAPI routers (research, angles, content, pipeline, tools, chat)
+    │   └── cli/run_workflow.py  ← CLI entry point
+    ├── core/
+    │   ├── graphs/              ← LangGraph StateGraph definitions
+    │   │   ├── research_graph.py
+    │   │   ├── angle_graph.py
+    │   │   └── content_graph.py
+    │   ├── nodes/               ← Pipeline stage entry points (research, angle, content)
+    │   ├── orchestrators/
+    │   │   ├── research/        ← router, executor, normalizer, synthesizer, evaluator
+    │   │   ├── angle/           ← generator, evaluator, auto_selector, finalizer
+    │   │   └── content/         ← slide_generator, reorder, image_fetcher,
+    │   │                           carousel_generator, caption_generator, finalizer
+    │   ├── prompts/
+    │   │   ├── system_prompts.py        ← Agent personas + date-aware context
+    │   │   └── templates/               ← Editable .txt prompt templates
+    │   ├── schemas/workflow_state.py    ← TypedDict state definitions
+    │   ├── orchestration/contracts.py  ← All Pydantic request/response models
+    │   └── templates/carousel/         ← Jinja2 HTML slide templates
+    │       ├── aurora/                  ← 🌑 Dark theme (Anger/Fear/Urgency topics)
+    │       └── lumina/                  ← ☀️ Light theme (Hope/Inspiration topics)
+    ├── infra/
+    │   ├── llm/                 ← Provider-agnostic LLM adapters (Claude, OpenAI, Gemini)
+    │   ├── logging.py           ← Structlog structured logging
+    │   └── output_manager.py    ← Versioned output file management
+    └── configs/settings.py      ← All tunable parameters (Pydantic Settings)
 ```
 
 ### ⚙️ Key Settings (`configs/settings.py`)
@@ -495,6 +572,7 @@ All prompts live as plain `.txt` files in `core/prompts/templates/`. Edit them d
 
 | Layer            | Technology                                           |
 | ---------------- | ---------------------------------------------------- |
+| 🖥️ Frontend        | Next.js 16 · Redux Toolkit · Framer Motion · Tailwind v4 |
 | 🔄 Orchestration    | LangGraph (StateGraph)                               |
 | 🤖 LLM              | Claude (Anthropic) via HAI Proxy · OpenAI · Gemini |
 | 🔍 Web Search       | DuckDuckGo Search (DDGS)                             |
@@ -510,5 +588,3 @@ All prompts live as plain `.txt` files in `core/prompts/templates/`. Edit them d
 | ⚡ Runtime          | Python 3.12 · uv                                    |
 
 ---
-
-*🤖 Built with LangGraph + Claude. Every output is research-grounded, source-cited, and audit-trailed.*
