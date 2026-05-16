@@ -6,6 +6,36 @@
 
 ---
 
+## 2026-05-16 - Session 17: Frontend Modernization & Redux State Management
+
+**Decision:** Refactored the monolithic frontend into a modular, premium-grade SPA using Redux Toolkit for persistent state management and Framer Motion for high-fidelity animations.
+
+**Why:**
+- Monolithic page structure was unmaintainable and caused state loss on navigation.
+- Needed a "premium" feel to match the sophisticated multi-agent backend.
+- Global state was required to track pipeline progress, chat history, and research data across the application.
+
+**Key Implementation:**
+1. **Redux Toolkit Architecture**:
+   - `pipelineSlice`: Tracks active production runs, research results, and stage statuses.
+   - `chatSlice`: Manages persistent AI assistant conversations.
+   - `historySlice`: Persists completed runs to `localStorage` for cross-session recovery.
+2. **Modular Component System**:
+   - Broke down `pipeline/page.tsx` into independent, reactive components: `PipelineProgress`, `AngleSelector` (HITL Modal), `InstagramPreview`, `ResearchSummary`, and `PipelineConfig`.
+   - Created `PremiumCard` and `Modal` UI primitives with glassmorphism and motion presets.
+3. **High-Fidelity UI overhaul**:
+   - Integrated **Framer Motion** for stage transitions and interactive states.
+   - Modernized all application pages (**Pipeline**, **Research**, **Images**, **News**, **Chat**) with a unified "Studio AI" aesthetic.
+   - Updated `Sidebar` with active-state layout animations.
+4. **State Persistence**:
+   - Redux state ensures that production progress is not lost when switching between research, chat, and pipeline views.
+
+**Impact:** Dramatically improved UX, eliminated data loss during navigation, and established a scalable frontend architecture for future agentic features.
+
+**Status:** ✅ Complete
+
+---
+
 ## 2026-05-15 - Session 16: LLM Research Evaluator + Refinement Loop Hardening
 
 **Decision:** Three layered improvements to the research quality pipeline — independent LLM judge, weight rebalance, and proper evidence accumulation across refinement iterations.
@@ -783,4 +813,4 @@ For in-depth analysis, see:
 
 ---
 
-_Last updated: 2026-05-15 (Session 16)_
+_Last updated: 2026-05-16 (Session 17)_

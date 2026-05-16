@@ -205,6 +205,8 @@ class ContentResponse(BaseModel):
     angles_processed: list[int] = Field(default_factory=list, description="Indices of angles that have been processed for content generation")
     output_paths: list[str] = Field(default_factory=list, description="List of output paths for the generated content")
     carousel_paths: list[list[str]] = Field(default_factory=list, description="Per-angle list of PNG paths: carousel_paths[i] = slide PNGs for angle i")
+    captions: list[str] = Field(default_factory=list, description="Per-angle caption text")
+    hashtags_per_angle: list[list[str]] = Field(default_factory=list, description="Per-angle hashtag lists")
     errors: list[str] = Field(default_factory=list)
 
 class CaptionOutput(BaseModel):

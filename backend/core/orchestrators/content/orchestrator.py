@@ -25,6 +25,8 @@ class ContentOrchestrator:
         output_paths: list[str] = []
         angles_processed: list[int] = []
         all_errors: list[str] = []
+        captions: list[str] = []
+        hashtags_per_angle: list[list[str]] = []
 
         for idx, angle in enumerate(request.selected_angles):
             logger.info("content_processing_angle", run_id=run_id, angle_index=idx)
@@ -47,6 +49,8 @@ class ContentOrchestrator:
                 result = await self._graph.ainvoke(initial)
                 png_paths = result.get("slide_png_paths", [])
                 all_png_paths.append(png_paths)
+                captions.append(result.get("caption", ""))
+                hashtags_per_angle.append(result.get("hashtags", []))
                 if result.get("output_path"):
                     output_paths.append(result["output_path"])
                 angles_processed.append(idx)
@@ -61,6 +65,8 @@ class ContentOrchestrator:
                 logger.error("content_angle_failed", run_id=run_id, angle_index=idx, error=str(e))
                 all_errors.append(f"Angle {idx} failed: {str(e)}")
                 all_png_paths.append([])
+                captions.append("")
+                hashtags_per_angle.append([])
 
         status = RunStatus.SUCCESS if not all_errors else (
             RunStatus.PARTIAL_SUCCESS if angles_processed else RunStatus.FAILED
@@ -72,5 +78,7 @@ class ContentOrchestrator:
             angles_processed=angles_processed,
             output_paths=output_paths,
             carousel_paths=all_png_paths,
+            captions=captions,
+            hashtags_per_angle=hashtags_per_angle,
             errors=all_errors,
         )
