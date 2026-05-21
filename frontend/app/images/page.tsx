@@ -8,7 +8,6 @@ import {
   ExternalLink,
   AlertCircle,
   Camera,
-  Image as ImageIconSimple,
   Grid
 } from "lucide-react";
 import {
@@ -19,7 +18,17 @@ import {
   DDGSImage,
 } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
-import { PremiumCard } from "@/components/ui/PremiumCard";
+
+function getBentoSpan(width?: number, height?: number, index: number = 0): { rowSpan: number; colSpan: number } {
+  if (!width || !height) return { rowSpan: 1, colSpan: 1 };
+  const ratio = width / height;
+  
+  if (ratio > 1.5) return { rowSpan: 1, colSpan: 2 }; // Wide
+  if (ratio < 0.8) return { rowSpan: 2, colSpan: 1 }; // Tall
+  if (ratio >= 0.8 && ratio <= 1.5 && index % 5 === 0) return { rowSpan: 2, colSpan: 2 }; // Large square
+  
+  return { rowSpan: 1, colSpan: 1 }; // Normal square
+}
 
 export default function ImagesPage() {
   const [query, setQuery] = useState("");
@@ -55,7 +64,11 @@ export default function ImagesPage() {
         source,
         max_results: maxResults,
       });
-      setResult(res);
+      if (!res.success && res.error) {
+        setError(res.error);
+      } else {
+        setResult(res);
+      }
     } catch (e: any) {
       setError(e.message || "Search failed");
     } finally {
@@ -112,7 +125,7 @@ export default function ImagesPage() {
 
         {/* Search Bar */}
         <div className="relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-violet-600/20 to-fuchsia-600/20 blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
+          <div className="absolute -inset-1 bg-linear-to-r from-violet-600/20 to-fuchsia-600/20 blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
           <div className="relative flex gap-4 p-2 bg-zinc-900/50 backdrop-blur-2xl border border-zinc-800 rounded-[2.5rem] shadow-2xl">
             <div className="flex-1 flex items-center px-6">
               <Search size={20} className="text-zinc-600 group-focus-within:text-violet-500 transition-colors" />
@@ -128,7 +141,7 @@ export default function ImagesPage() {
             <button
               onClick={handleSearch}
               disabled={isLoading || !query.trim()}
-              className="px-10 py-4 rounded-[2rem] bg-violet-600 hover:bg-violet-500 disabled:opacity-20 disabled:cursor-not-allowed text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-violet-600/20 active:scale-95 shrink-0"
+              className="px-10 py-4 rounded-4xl bg-violet-600 hover:bg-violet-500 disabled:opacity-20 disabled:cursor-not-allowed text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-violet-600/20 active:scale-95 shrink-0"
             >
               {isLoading ? <Loader2 size={18} className="animate-spin" /> : "Fetch Assets"}
             </button>
@@ -141,7 +154,7 @@ export default function ImagesPage() {
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="p-6 bg-red-500/5 border border-red-500/20 rounded-[2rem] flex items-center gap-4 text-red-500"
+              className="p-6 bg-red-500/5 border border-red-500/20 rounded-4xl flex items-center gap-4 text-red-500"
             >
               <AlertCircle size={20} />
               <p className="text-sm font-bold">{error}</p>
@@ -181,9 +194,17 @@ export default function ImagesPage() {
           )}
 
           {loading && (
-            <motion.div key="loading" className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-              {Array.from({ length: 10 }).map((_, i) => (
-                <div key={i} className="aspect-square rounded-[2rem] bg-zinc-900/50 border border-zinc-800 animate-pulse" />
+            <motion.div
+              key="loading"
+              className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+              style={{ gridAutoRows: "200px" }}
+            >
+              {Array.from({ length: 12 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="rounded-3xl bg-zinc-900/50 border border-zinc-800 animate-pulse"
+                  style={{ gridRowEnd: i % 5 === 0 ? "span 2" : "span 1" }}
+                />
               ))}
             </motion.div>
           )}
@@ -195,59 +216,80 @@ export default function ImagesPage() {
                 <div className="flex-1 h-px bg-zinc-900" />
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+              <div
+                className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+                style={{ gridAutoRows: "200px" }}
+              >
                 {source === "pexels" ? (
-                  pexelsPhotos.map((photo) => (
-                    <motion.div
-                      key={photo.id}
-                      whileHover={{ y: -8, scale: 1.02 }}
-                      className="group relative aspect-square rounded-[2rem] overflow-hidden bg-zinc-900 border border-zinc-800/50 shadow-lg"
-                    >
-                      <img
-                        src={photo.src.medium}
-                        alt={photo.photographer}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity p-6 flex flex-col justify-end gap-2 backdrop-blur-[2px]">
-                        <p className="text-[10px] font-black text-white uppercase tracking-widest">{photo.photographer}</p>
-                        <a
-                          href={photo.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 text-[9px] font-black text-violet-400 uppercase tracking-widest hover:text-white transition-colors"
-                        >
-                          <Camera size={10} />
-                          Pexels Assets
-                        </a>
-                      </div>
-                    </motion.div>
-                  ))
+                  pexelsPhotos.map((photo, i) => {
+                    const { rowSpan, colSpan } = getBentoSpan(photo.width, photo.height, i);
+                    return (
+                      <motion.div
+                        key={photo.id}
+                        whileHover={{ scale: 1.02 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                        className="group relative rounded-3xl overflow-hidden bg-zinc-900 border border-zinc-800/50 shadow-lg"
+                        style={{
+                          gridRowEnd: `span ${rowSpan}`,
+                          gridColumnEnd: colSpan === 2 ? "span 2" : undefined,
+                        }}
+                      >
+                        <img
+                          src={photo.src.large2x || photo.src.large || photo.src.medium}
+                          alt={photo.photographer}
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity p-5 flex flex-col justify-end gap-1.5">
+                          <p className="text-[10px] font-black text-white uppercase tracking-widest">{photo.photographer}</p>
+                          <a
+                            href={photo.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-[9px] font-black text-violet-400 uppercase tracking-widest hover:text-white transition-colors"
+                          >
+                            <Camera size={10} />
+                            Pexels
+                          </a>
+                        </div>
+                      </motion.div>
+                    );
+                  })
                 ) : (
-                  ddgsImages.map((img, i) => (
-                    <motion.div
-                      key={i}
-                      whileHover={{ y: -8, scale: 1.02 }}
-                      className="group relative aspect-square rounded-[2rem] overflow-hidden bg-zinc-900 border border-zinc-800/50 shadow-lg"
-                    >
-                      <img
-                        src={img.image}
-                        alt={img.title}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity p-6 flex flex-col justify-end gap-2 backdrop-blur-[2px]">
-                        <p className="text-[10px] font-black text-white uppercase tracking-widest truncate">{img.title}</p>
-                        <a
-                          href={img.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 text-[9px] font-black text-violet-400 uppercase tracking-widest hover:text-white transition-colors"
-                        >
-                          <ExternalLink size={10} />
-                          Web Source
-                        </a>
-                      </div>
-                    </motion.div>
-                  ))
+                  ddgsImages.map((img, i) => {
+                    const { rowSpan, colSpan } = getBentoSpan(img.width, img.height, i);
+                    return (
+                      <motion.div
+                        key={i}
+                        whileHover={{ scale: 1.02 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                        className="group relative rounded-3xl overflow-hidden bg-zinc-900 border border-zinc-800/50 shadow-lg"
+                        style={{
+                          gridRowEnd: `span ${rowSpan}`,
+                          gridColumnEnd: colSpan === 2 ? "span 2" : undefined,
+                        }}
+                      >
+                        <img
+                          src={img.image}
+                          alt={img.title}
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity p-5 flex flex-col justify-end gap-1.5">
+                          <p className="text-[10px] font-black text-white uppercase tracking-widest truncate">{img.title}</p>
+                          {img.url && (
+                            <a
+                              href={img.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 text-[9px] font-black text-violet-400 uppercase tracking-widest hover:text-white transition-colors"
+                            >
+                              <ExternalLink size={10} />
+                              Source
+                            </a>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                  })
                 )}
               </div>
             </motion.div>

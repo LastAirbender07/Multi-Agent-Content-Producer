@@ -160,8 +160,7 @@ class DDGSSearch(BaseTool):
                     region=region,
                     safesearch=safesearch,
                     timelimit=timelimit,
-                    max_results=max_results,
-                    backend=backend
+                    max_results=max_results
                 ))
             )
 
@@ -228,8 +227,7 @@ class DDGSSearch(BaseTool):
                     query=query,
                     region=region,
                     safesearch=safesearch,
-                    max_results=max_results,
-                    backend=backend
+                    max_results=max_results
                 ))
             )
 

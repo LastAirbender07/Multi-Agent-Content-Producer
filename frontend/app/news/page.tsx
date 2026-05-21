@@ -5,8 +5,6 @@ import {
   Search,
   Loader2,
   Sparkles,
-  ExternalLink,
-  Calendar,
   AlertCircle,
   Clock,
   ArrowUpRight,
@@ -130,11 +128,10 @@ function NewsCard({ article, index }: { article: NewsArticle; index: number }) {
 export default function NewsPage() {
   const [query, setQuery] = useState("");
   const [source, setSource] = useState<"google" | "newsapi" | "ddgs">("google");
-  const [maxResults, setMaxResults] = useState(10);
+  const maxResults = 10;
   const [when, setWhen] = useState("7d");
   const [refining, setRefining] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [processed, setProcessed] = useState<ProcessedQuery | null>(null);
   const [result, setResult] = useState<NewsSearchResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -142,13 +139,11 @@ export default function NewsPage() {
     if (!query.trim()) return;
     setError(null);
     setResult(null);
-    setProcessed(null);
 
     setRefining(true);
     let pq: ProcessedQuery | null = null;
     try {
       pq = await api.refineQuery(query);
-      setProcessed(pq);
     } catch {
       /* non-fatal */
     } finally {
@@ -163,7 +158,11 @@ export default function NewsPage() {
         max_results: maxResults,
         when,
       });
-      setResult(res);
+      if (!res.success && res.error) {
+        setError(res.error);
+      } else {
+        setResult(res);
+      }
     } catch (e: any) {
       setError(e.message || "Search failed");
     } finally {
@@ -222,7 +221,7 @@ export default function NewsPage() {
 
         {/* Search Bar */}
         <div className="relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-violet-600/20 to-fuchsia-600/20 blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
+          <div className="absolute -inset-1 bg-linear-to-r from-violet-600/20 to-fuchsia-600/20 blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
           <div className="relative flex gap-4 p-2 bg-zinc-900/50 backdrop-blur-2xl border border-zinc-800 rounded-[2.5rem] shadow-2xl">
             <div className="flex-1 flex items-center px-6">
               <Search size={20} className="text-zinc-600 group-focus-within:text-violet-500 transition-colors" />
@@ -238,7 +237,7 @@ export default function NewsPage() {
             <button
               onClick={handleSearch}
               disabled={isLoading || !query.trim()}
-              className="px-10 py-4 rounded-[2rem] bg-violet-600 hover:bg-violet-500 disabled:opacity-20 disabled:cursor-not-allowed text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-violet-600/20 active:scale-95 shrink-0"
+              className="px-10 py-4 rounded-4xl bg-violet-600 hover:bg-violet-500 disabled:opacity-20 disabled:cursor-not-allowed text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-violet-600/20 active:scale-95 shrink-0"
             >
               {isLoading ? <Loader2 size={18} className="animate-spin" /> : "Fetch Signals"}
             </button>
@@ -248,7 +247,7 @@ export default function NewsPage() {
         {/* Status & Results */}
         <AnimatePresence mode="wait">
           {error && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 bg-red-500/5 border border-red-500/20 rounded-[2rem] flex items-center gap-4 text-red-500">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 bg-red-500/5 border border-red-500/20 rounded-4xl flex items-center gap-4 text-red-500">
               <AlertCircle size={20} />
               <p className="text-sm font-bold">{error}</p>
             </motion.div>

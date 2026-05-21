@@ -39,10 +39,15 @@ export default function PipelinePage() {
 
   // Sync with Angle Modal
   useEffect(() => {
-    if (angleMode === "manual" && stages.angle.status === "done" && !contentResult) {
+    if (
+      angleMode === "manual" &&
+      stages.angle.status === "done" &&
+      stages.content.status === "idle" &&
+      !contentResult
+    ) {
       setShowAngleModal(true);
     }
-  }, [stages.angle.status, angleMode, contentResult]);
+  }, [stages.angle.status, stages.content.status, angleMode, contentResult]);
 
   // Save to history when complete
   useEffect(() => {

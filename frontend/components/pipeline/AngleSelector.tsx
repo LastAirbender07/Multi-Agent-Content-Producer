@@ -27,15 +27,14 @@ export function AngleSelector({ open, onClose }: Props) {
   async function handleConfirm() {
     if (!angleResult || !researchResult) return;
     onClose();
-    
-    dispatch(setStageStatus({ stage: "angle", status: "running" }));
+
+    // Mark content running immediately — prevents the pipeline page useEffect
+    // from seeing angle=done + content=idle and reopening this modal.
+    dispatch(setStageStatus({ stage: "content", status: "running" }));
     try {
       const resumedAngle = await api.selectAngles(angleResult.run_id, selected);
       dispatch(setAngleResult(resumedAngle));
       dispatch(setStageStatus({ stage: "angle", status: "done" }));
-
-      // Run content stage
-      dispatch(setStageStatus({ stage: "content", status: "running" }));
       const contentRes = await api.runContent({
         run_id: resumedAngle.run_id,
         topic,
@@ -63,7 +62,7 @@ export function AngleSelector({ open, onClose }: Props) {
   };
 
   return (
-    <Modal open={open} onClose={() => {}} title="Choose Your Narrative" wide>
+    <Modal open={open} onClose={onClose} title="Choose Your Narrative" wide>
       <div className="space-y-6">
         <div className="flex items-center gap-3 p-4 bg-violet-500/5 rounded-2xl border border-violet-500/10">
           <Sparkles className="text-violet-400" size={20} />
