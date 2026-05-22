@@ -15,6 +15,9 @@ import { motion, AnimatePresence } from "framer-motion";
 const BACKEND = "http://localhost:8000";
 
 function slideImageUrl(path: string): string {
+  const marker = "/outputs/";
+  const idx = path.indexOf(marker);
+  if (idx !== -1) return `${BACKEND}${path.slice(idx)}`;
   return `${BACKEND}/${path.replace(/^\//, "")}`;
 }
 

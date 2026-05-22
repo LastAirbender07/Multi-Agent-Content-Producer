@@ -6,7 +6,78 @@
 
 ---
 
-## 2026-05-16 - Session 17: Frontend Modernization & Redux State Management
+## 2026-05-22 - Sessions 18–20: 5-Bug Sprint + Architectural Refactor + Playwright Tests
+
+**Decision:** Fixed 5 product bugs, resolved 6 architectural concerns raised during review, and built a full Playwright test suite (backend curl + 19 frontend tests — all passing).
+
+---
+
+**Bug 1 — Pipeline page: collapsible stage cards, angle re-open, carousel image URL fix**
+
+- `frontend/app/pipeline/page.tsx` — Replaced static layout with 3 collapsible Stage Cards (chevron toggle, `openSections: Set<"research"|"angle"|"content">`). Auto-expands on stage completion via `useEffect` wrapped in `startTransition()` (React 19 requirement — avoids "setState inside effect" lint error). Stage 2 card shows "Open Angle Selector" button when manual mode + angle done + content idle.
+- `frontend/components/pipeline/InstagramPreview.tsx` — Fixed `slideImageUrl()`: backend stores absolute system paths (`/Users/.../backend/outputs/...`). Previous code prepended `http://localhost:8000/` to the full path, producing a broken URL. Fix: extract everything from `/outputs/` onwards and prepend the backend base URL.
+- Added `showLlmKnowledge` collapsible section in Stage 1 card that renders the LLM background knowledge evidence item (identified by `source_type === "llm_knowledge"`).
+
+---
+
+**Bug 2 — Images page: multi-select + local download**
+
+- `frontend/app/images/page.tsx` — Added `selected: Set<number>` state, per-card checkbox overlay (violet when selected, hidden until hover or in select mode), floating action bar with `AnimatePresence` (count badge, Download, X clear). Selection is NOT auto-cleared on success — clearing it immediately batches with `setDownloadStatus("done")` causing the bar to vanish before "Saved to" is visible (React 18 automatic batching bug found during Playwright testing).
+- `backend/core/tools/Image/image_downloader.py` (NEW) — Canonical async download implementation using `httpx`, sanitised filenames, collision avoidance. Resolves `save_dir` from `settings.image_download_path` if empty.
+- `backend/core/tools/schemas/image_schema.py` (NEW) — `PexelsPhoto`, `ImageSearchRequest/Response`, `ImageDownloadRequest/Response` extracted here (separation of concerns).
+- `backend/apps/api/v1/tools.py` — Thin route handler; delegates to `image_downloader.py`. Schema imports from `core/tools/schemas/`.
+- `backend/apps/api/v1/schemas.py` (NEW) — API-level request/response models for query-refine, news.
+
+---
+
+**Bug 3 — Research: LLM per-article scoring, always-on tools, min 2 iterations, LLM background knowledge**
+
+- `backend/core/orchestrators/research/evidence_scorer.py` (NEW) — Single batched LLM call scores up to 25 evidence items at once using `evidence_scoring.txt` prompt. Parses JSON float array, clamps to [0,1], re-sorts all evidence by `relevance_score` descending. Non-fatal on failure.
+- `backend/core/orchestrators/research/normalizer.py` — Removed naive word-overlap `_compute_relevance()`; all items get neutral `relevance_score=0.5` as placeholder for the scorer. `credibility_score` still reflects source type (news_api=0.8, crawl=0.7, ddgs=0.6, web=0.4).
+- `backend/core/orchestrators/research/llm_knowledge.py` (NEW) — Runs once (skips on `loop_count > 0`). Asks LLM for background knowledge, creates 1 synthetic `Evidence` item with `source_type="llm_knowledge"`, `relevance_score=0.5`. Prompt in `core/prompts/templates/llm_knowledge.txt`.
+- `backend/core/orchestration/policies/routing.py` — Always runs all 3 tools (`news_api`, `ddgs_news`, `ddgs_text`) regardless of freshness. Freshness is a signal for the synthesiser, not a tool gate.
+- `backend/core/graphs/research_graph.py` — Pipeline order: `intake → route → llm_knowledge → execute_tools → normalize → score_evidence → synthesize → evaluate`. Min 2 iterations: `should_continue_after_evaluation` returns `"refine"` when `loop_count == 0`.
+- `backend/core/orchestrators/research/evaluator.py` — Coverage denominator 8→15, diversity denominator 4→8 (harder to saturate with 3 always-on tools). Weights rebalanced to `llm_score × 0.50 + source_score × 0.50`.
+- `backend/configs/settings.py` — `research_quality_min_confidence` raised 0.60→0.72; `image_download_path` added.
+
+---
+
+**Bug 4 — CTA slides: enforce exactly 2**
+
+- `backend/core/orchestrators/content/slide_generator.py` — `_enforce_cta_constraint()` post-processor: if LLM outputs >2 CTAs, keeps the middle-range CTA and the final CTA, discards the rest.
+- `backend/core/prompts/templates/slide_generation.txt` — Rule 3 strengthened: "Outputting more than 2 CTA slides will invalidate the entire response."
+
+---
+
+**Bug 5 — Datetime: remove hardcoded banner, create metadata helper**
+
+- `backend/core/tools/metadata_helper.py` (NEW) — `get_llm_metadata_block()` returns a `=== CONTEXT METADATA ===` block with UTC date, time, day-of-week, quarter. Called at request time (not import time).
+- `backend/core/prompts/system_prompts.py` — Removed `_date_banner()` and its `from datetime import date` import. `get_system_prompt()` now prepends `get_llm_metadata_block()` instead.
+- Dead MCP servers deleted: `datetime_server.py` (replaced by metadata_helper) and `image_downloader_server.py` (replaced by image_downloader.py service) — both were dead code with no callers in the DAG pipeline.
+
+---
+
+**Architectural refactors (Session 19 review):**
+
+- `backend/apps/api/v1/tools.py` — All inline schema classes and business logic removed. Handlers are now thin: validate → delegate → respond (≤5 lines each).
+- `backend/core/prompts/templates/llm_knowledge.txt` (NEW) — Moved inline `_PROMPT` string out of `llm_knowledge.py`.
+- `backend/core/prompts/templates/evidence_scoring.txt` (NEW) — Batch scoring prompt with 6-point anchor scale.
+- `backend/configs/settings.py` — `research_allowed_tools` remains as a tool-executor gate; `llm_knowledge` is a graph node (not a tool), so it doesn't belong there.
+
+---
+
+**Playwright test suite (`backend/tests/test_frontend.py`) — 19/19 passing:**
+
+- Added `pytest`, `pytest-timeout`, `pytest-asyncio` to `pyproject.toml` dependencies.
+- `page_with_mock` fixture: intercepts `**/tools/query-refine` and returns instantly — avoids ~10s LLM call per test and HAI proxy rate-limiting mid-suite. One real E2E test (`test_full_e2e_with_real_refine`) exercises the actual LLM path.
+- Uses `document.body.textContent` (not `innerText`) for news result detection — the "Intel: N Articles" `<h3>` has CSS `text-transform: uppercase`, so `innerText` returns "INTEL:" but `textContent` returns the DOM string "Intel:" correctly.
+- 3 bug fixes discovered during testing: (1) download auto-clear batching (see Bug 2 above), (2) news source tab labelled "DDG" not "DuckDuckGo", (3) pipeline page "Topic" selector ambiguous — use exact "Target Topic".
+
+**Status:** ✅ Complete — 19 Playwright tests passing, all 8 backend API endpoints verified via curl.
+
+---
+
+
 
 **Decision:** Refactored the monolithic frontend into a modular, premium-grade SPA using Redux Toolkit for persistent state management and Framer Motion for high-fidelity animations.
 
@@ -813,4 +884,4 @@ For in-depth analysis, see:
 
 ---
 
-_Last updated: 2026-05-16 (Session 17)_
+_Last updated: 2026-05-22 (Session 20)_

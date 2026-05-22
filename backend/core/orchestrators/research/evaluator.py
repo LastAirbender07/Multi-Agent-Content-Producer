@@ -25,8 +25,12 @@ def _source_identifier(e) -> str:
 
 
 def _compute_source_score(evidence: list, source_ids: set) -> float:
-    coverage = min(1.0, len(evidence) / 8.0)
-    diversity = min(1.0, len(source_ids) / 4.0)
+    # With 3 tools always running, source counts will be high.
+    # Use higher denominators so the score stays meaningful.
+    # Coverage: saturates at 15 items (was 8)
+    # Diversity: saturates at 8 unique domains (was 4)
+    coverage = min(1.0, len(evidence) / 15.0)
+    diversity = min(1.0, len(source_ids) / 8.0)
     return round(0.5 * coverage + 0.5 * diversity, 4)
 
 
@@ -124,7 +128,9 @@ async def evaluate_node(state: ResearchGraphState) -> dict:
         # Run LLM judge
         llm_eval = await _run_llm_judge(topic, synthesis, evidence)
         llm_score = round(llm_eval.overall_score, 4)
-        combined = round(llm_score * 0.35 + source_score * 0.65, 4)
+        # LLM and source signals weighted equally now that LLM scoring is
+        # per-article (more signal) and sources are always high-volume.
+        combined = round(llm_score * 0.50 + source_score * 0.50, 4)
 
         passed = combined >= MIN_COMBINED_CONFIDENCE
         should_refine = not passed
@@ -132,13 +138,13 @@ async def evaluate_node(state: ResearchGraphState) -> dict:
         if passed:
             reason = (
                 f"Passed. Combined confidence: {combined:.2f} "
-                f"(LLM={llm_score:.2f}×0.35 + sources={source_score:.2f}×0.65). "
+                f"(LLM={llm_score:.2f}×0.50 + sources={source_score:.2f}×0.50). "
                 f"Judge: {llm_eval.reasoning[:120]}"
             )
         else:
             reason = (
                 f"Below threshold ({combined:.2f} < {MIN_COMBINED_CONFIDENCE}). "
-                f"LLM={llm_score:.2f}×0.35, sources={source_score:.2f}×0.65. "
+                f"LLM={llm_score:.2f}×0.50, sources={source_score:.2f}×0.50. "
                 f"Judge: {llm_eval.reasoning[:120]}"
             )
 

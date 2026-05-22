@@ -65,7 +65,7 @@ funnel:        {{"labels": ["Stage1","Stage2","Stage3"], "values": [100, 72, 8]}
 STRICT RULES:
 1. First slide MUST be type=hook
 2. Include exactly ONE type=engage slide (mid-carousel, around position 5-7)
-3. Generate EXACTLY 2 type=cta slides — NO EXCEPTIONS. One at approximately slide 6 (early, punchy), one as the final slide (comprehensive close). If you only generate 1 CTA the output is invalid.
+3. Generate EXACTLY 2 type=cta slides — NO EXCEPTIONS. One at approximately slide 6 (early, punchy), one as the final slide (comprehensive close). If you only generate 1 CTA the output is invalid. Outputting more than 2 CTA slides will also invalidate the entire response.
 4. content slides MUST have 3-5 bullets
 5. stat slides MUST have chart_type and chart_data — leave bullets as []
 6. quote slides MUST have 2-3 bullets as key insights/takeaways

@@ -1,15 +1,5 @@
-from datetime import date
 from enum import Enum
-
-
-def _date_banner() -> str:
-    today = date.today()
-    return (
-        f"TODAY'S DATE: {today.strftime('%d %B %Y')} ({today.isoformat()})\n"
-        "Use this to accurately classify events as past, present, or future. "
-        "Treat anything before today as historical, anything after today as future/planned. "
-        "When citing data, always prefer the most recent available up to today's date.\n"
-    )
+from core.tools.metadata_helper import get_llm_metadata_block
 
 
 class SystemPrompts(str, Enum):
@@ -101,7 +91,7 @@ Avoid:
 def get_system_prompt(agent_type: str) -> str:
     try:
         body = SystemPrompts[agent_type.upper()].value
-        return _date_banner() + "\n" + body
+        return get_llm_metadata_block() + "\n" + body
     except KeyError:
         raise ValueError(f"Invalid agent type: {agent_type}")
     

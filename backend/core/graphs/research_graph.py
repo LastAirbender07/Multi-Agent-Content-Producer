@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
 from langgraph.graph import START, END, StateGraph
 from core.orchestrators.research.evaluator import evaluate_node
+from core.orchestrators.research.evidence_scorer import score_evidence_node
 from core.orchestrators.research.executor import execute_tools_node
+from core.orchestrators.research.llm_knowledge import llm_knowledge_node
 from core.orchestrators.research.normalizer import normalize_evidence_node
 from core.orchestrators.research.router import route_node
 from core.orchestrators.research.synthesizer import synthesize_node
@@ -69,14 +71,17 @@ async def finalize_partial_node(state: ResearchGraphState) -> dict:
     }
 
 def should_continue_after_evaluation(state: ResearchGraphState) -> str:
+    loop_count = state.get("loop_count", 0)
     evaluation = state.get("evaluation")
+    request = state["request"]
+    budget = request.budget
+
+    # Always run at least 2 tool-execution cycles
+    if loop_count == 0:
+        return "refine"
 
     if evaluation and evaluation.passed:
         return "finalize"
-
-    loop_count = state.get("loop_count", 0)
-    request = state["request"]
-    budget = request.budget
 
     if evaluation and evaluation.should_refine and loop_count < budget.max_refinement_loops:
         return "refine"
@@ -88,8 +93,10 @@ def build_research_graph() -> StateGraph:
 
     graph.add_node("intake", intake_node)
     graph.add_node("route", route_node)
+    graph.add_node("llm_knowledge", llm_knowledge_node)
     graph.add_node("execute_tools", execute_tools_node)
     graph.add_node("normalize", normalize_evidence_node)
+    graph.add_node("score_evidence", score_evidence_node)
     graph.add_node("synthesize", synthesize_node)
     graph.add_node("evaluate", evaluate_node)
     graph.add_node("refine", refine_node)
@@ -98,9 +105,11 @@ def build_research_graph() -> StateGraph:
 
     graph.add_edge(START, "intake")
     graph.add_edge("intake", "route")
-    graph.add_edge("route", "execute_tools")
+    graph.add_edge("route", "llm_knowledge")
+    graph.add_edge("llm_knowledge", "execute_tools")
     graph.add_edge("execute_tools", "normalize")
-    graph.add_edge("normalize", "synthesize")
+    graph.add_edge("normalize", "score_evidence")
+    graph.add_edge("score_evidence", "synthesize")
     graph.add_edge("synthesize", "evaluate")
 
     graph.add_conditional_edges(

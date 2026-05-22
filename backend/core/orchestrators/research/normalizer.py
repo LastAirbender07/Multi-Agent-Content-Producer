@@ -1,4 +1,3 @@
-import hashlib
 from datetime import datetime, timezone
 from core.orchestration.contracts import Evidence
 from core.schemas.workflow_state import ResearchGraphState
@@ -6,9 +5,15 @@ from infra.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 async def normalize_evidence_node(state: ResearchGraphState) -> dict:
+    """
+    Deduplicates and accumulates raw tool outputs into Evidence items.
+    relevance_score is set to a neutral 0.5 here — the score_evidence_node
+    replaces it with LLM-judged semantic scores in the next step.
+    credibility_score reflects source quality and is set here based on source type.
+    """
     raw_outputs = state.get("raw_tool_outputs", {})
-    # Accumulate: start from evidence collected in previous iterations
     existing_evidence: list[Evidence] = list(state.get("evidence", []))
     seen_urls: set[str] = {str(e.url) for e in existing_evidence}
     evidence: list[Evidence] = list(existing_evidence)
@@ -30,7 +35,7 @@ async def normalize_evidence_node(state: ResearchGraphState) -> dict:
                 snippet=item.body,
                 retrieval_time=now,
                 credibility_score=0.4,
-                relevance_score=0.6,
+                relevance_score=0.5,
             ))
 
     # DDGS news results
@@ -51,10 +56,10 @@ async def normalize_evidence_node(state: ResearchGraphState) -> dict:
                 source_name=item.source,
                 retrieval_time=now,
                 credibility_score=0.6,
-                relevance_score=0.75,
+                relevance_score=0.5,
             ))
 
-    # News API results (merged NewsSearchOutput from both NewsAPI + GoogleNewsAPI)
+    # News API results
     news_api_results = raw_outputs.get("news_api")
     if news_api_results and getattr(news_api_results, "success", False):
         for item in news_api_results.articles:
@@ -73,12 +78,11 @@ async def normalize_evidence_node(state: ResearchGraphState) -> dict:
                 source_name=item.source_name,
                 retrieval_time=now,
                 credibility_score=0.8,
-                relevance_score=0.85,
+                relevance_score=0.5,
             ))
 
     # Crawl4AI results
-    crawl4ai_results = raw_outputs.get("crawl4ai", [])
-    for item in crawl4ai_results:
+    for item in raw_outputs.get("crawl4ai", []):
         if not getattr(item, "success", False) or not item.content:
             continue
         url = str(item.content.url)
@@ -95,16 +99,16 @@ async def normalize_evidence_node(state: ResearchGraphState) -> dict:
             extracted_content=markdown,
             retrieval_time=now,
             credibility_score=0.7,
-            relevance_score=0.8,
+            relevance_score=0.5,
         ))
 
-    evidence = sorted(evidence, key=lambda x: x.relevance_score, reverse=True)
     new_count = len(evidence) - len(existing_evidence)
-    logger.info("normalize_completed", run_id=state.get("run_id"), evidence_count=len(evidence), new_items=new_count)
+    logger.info("normalize_completed", run_id=state.get("run_id"),
+                evidence_count=len(evidence), new_items=new_count)
 
     return {
         "evidence": evidence,
         "messages": state.get("messages", []) + [
             f"Evidence normalization: {len(evidence)} total ({new_count} new this iteration)."
-        ]
+        ],
     }

@@ -1,0 +1,61 @@
+from datetime import datetime, timezone
+from langchain_core.messages import HumanMessage, SystemMessage
+from core.orchestration.contracts import Evidence
+from core.prompts.prompt_loader import load_prompt
+from core.prompts.system_prompts import get_system_prompt
+from core.schemas.workflow_state import ResearchGraphState
+from infra.llm.langchain_adapter import get_langchain_llm
+from infra.logging import get_logger
+
+logger = get_logger(__name__)
+
+
+async def llm_knowledge_node(state: ResearchGraphState) -> dict:
+    """
+    Injects LLM background knowledge as a synthetic evidence item.
+    Only runs on the first iteration (loop_count == 0).
+    """
+    if state.get("loop_count", 0) > 0:
+        return {}
+
+    request = state["request"]
+    topic = request.topic
+
+    try:
+        llm = get_langchain_llm()
+        system_prompt = get_system_prompt("research")
+        user_prompt = load_prompt("llm_knowledge", topic=topic)
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_prompt),
+        ]
+        response = await llm.ainvoke(messages)
+        content = response.content if hasattr(response, "content") else str(response)
+
+        now = datetime.now(timezone.utc)
+        item = Evidence(
+            evidence=content,
+            source_type="llm_knowledge",
+            title=f"LLM Background Knowledge: {topic}",
+            url=f"llm://background/{topic.replace(' ', '_')}",
+            snippet=content[:400],
+            retrieval_time=now,
+            credibility_score=0.5,
+            relevance_score=0.5,
+        )
+
+        existing: list[Evidence] = list(state.get("evidence", []))
+        existing.insert(0, item)
+
+        logger.info("llm_knowledge_node_completed", run_id=state.get("run_id"), chars=len(content))
+        return {
+            "evidence": existing,
+            "messages": state.get("messages", []) + ["LLM background knowledge injected as synthetic evidence."],
+        }
+
+    except Exception as e:
+        logger.exception("llm_knowledge_node_error", run_id=state.get("run_id"), error=str(e))
+        return {
+            "errors": state.get("errors", []) + [f"LLM knowledge node error: {str(e)}"],
+            "messages": state.get("messages", []) + ["LLM knowledge node failed; continuing without it."],
+        }

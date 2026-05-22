@@ -55,7 +55,7 @@ class SkippedTool(BaseModel):
 
 class Evidence(BaseModel):
     evidence: str = Field(..., description="The evidence collected during the research run")
-    source_type: Literal["news", "web_search", "crawl"] = Field(..., description="The type of source from which the evidence was collected")
+    source_type: Literal["news", "web_search", "crawl", "llm_knowledge"] = Field(..., description="The type of source from which the evidence was collected")
     title: str = Field(..., description="Title of the source from which the evidence was collected")
     url: str = Field(..., description="URL of the source from which the evidence was collected")
     snippet: Optional[str] = Field(default=None, description="Optional snippet of the evidence collected")

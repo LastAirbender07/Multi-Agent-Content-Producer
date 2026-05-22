@@ -3,6 +3,8 @@ from core.orchestration.contracts import ResearchRequest, RoutePlan
 class DeterministicResearchRoutingPolicy:
     """
     Decides which tools to run based on the request.
+    All three core tools (news_api, ddgs_news, ddgs_text) always run to ensure
+    maximum evidence coverage regardless of freshness setting.
     """
 
     def create_plan(self, request: ResearchRequest) -> RoutePlan:
@@ -14,30 +16,22 @@ class DeterministicResearchRoutingPolicy:
             if clean_urls:
                 plan.selected_tools.append("crawl4ai")
                 plan.crawl_urls = clean_urls
-                plan.rationale.append("Explicit URLs provided, so using crawl4ai to crawl them directly.")
+                plan.rationale.append("Explicit URLs provided; using crawl4ai to crawl them directly.")
 
-        if request.freshness in {"breaking", "recent"}:
-            if "news_api" not in plan.selected_tools:
-                plan.selected_tools.append("news_api")
-                plan.rationale.append(f"Freshness requirement is '{request.freshness}', so including news_api for up-to-date information.")
-            if 'ddgs_news' not in plan.selected_tools:
-                plan.selected_tools.append('ddgs_news')
-                plan.rationale.append(f"Freshness requirement is '{request.freshness}', so including ddgs_news for up-to-date information.")
-        else:
-            # Evergreen -> web search
-            if "ddgs_text" not in plan.selected_tools:
-                plan.selected_tools.append("ddgs_text")
-                plan.rationale.append("Freshness requirement is 'evergreen', so including ddgs_text for comprehensive web search.")
+        # Always run all three core search tools for broad, consistent coverage
+        for tool, reason in [
+            ("news_api",   "Always included for structured news coverage."),
+            ("ddgs_news",  "Always included for real-time news coverage."),
+            ("ddgs_text",  "Always included for general web search coverage."),
+        ]:
+            if tool not in plan.selected_tools:
+                plan.selected_tools.append(tool)
+                plan.rationale.append(reason)
 
         # Claim verification -> crawl top candidates
         if request.needs_claim_verification and "crawl4ai" not in plan.selected_tools:
             plan.selected_tools.append("crawl4ai")
-            plan.rationale.append("Claim verification is required, so including crawl4ai to crawl top candidate URLs.")
-
-        # Always have atleast one text search if none selected yet
-        if not plan.selected_tools:
-            plan.selected_tools = ["ddgs_text", "news_api"]
-            plan.rationale.append("No specific tool requirements, so defaulting to ddgs_text and news_api for broad coverage.")
+            plan.rationale.append("Claim verification required; including crawl4ai.")
 
         if request.preprocessed_queries:
             plan.query_variants = request.preprocessed_queries
@@ -49,5 +43,3 @@ class DeterministicResearchRoutingPolicy:
                 f"{request.topic} expert perspectives research",
             ]
         return plan
-    
-    

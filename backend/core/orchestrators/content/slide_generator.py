@@ -8,6 +8,16 @@ from infra.logging import get_logger
 
 logger = get_logger(__name__)
 
+
+def _enforce_cta_constraint(slides: list[dict]) -> list[dict]:
+    cta_idxs = [i for i, s in enumerate(slides) if s.get("type") == "cta"]
+    if len(cta_idxs) <= 2:
+        return slides
+    # Keep one mid-position CTA and the very last CTA
+    keep = {cta_idxs[len(cta_idxs) // 2], cta_idxs[-1]}
+    return [s for i, s in enumerate(slides) if s.get("type") != "cta" or i in keep]
+
+
 async def generate_slides_node(state: ContentGraphState) -> dict:
     request = ContentRequest.model_validate(state["request"])
     angle = state["angle"]
@@ -35,6 +45,7 @@ async def generate_slides_node(state: ContentGraphState) -> dict:
 
         slides = result.slides
         slides_dicts = validate_and_fix_slides([s.model_dump() for s in slides])
+        slides_dicts = _enforce_cta_constraint(slides_dicts)
         if len(slides_dicts) > request.max_slides:
             logger.warning(f"Generated {len(slides_dicts)} slides, which exceeds the requested maximum of {request.max_slides}. Truncating to fit.")
             slides_dicts = slides_dicts[:request.max_slides]

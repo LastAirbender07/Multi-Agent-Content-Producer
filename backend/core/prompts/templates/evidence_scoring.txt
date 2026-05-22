@@ -1,0 +1,18 @@
+You are evaluating the relevance of research evidence items to a specific topic.
+
+TOPIC: {topic}
+
+Score each numbered evidence item on a scale from 0.0 to 1.0:
+  1.0 — directly addresses the topic with specific facts, figures, or named entities
+  0.8 — clearly related, contributes concrete context or data
+  0.6 — related, provides useful background or partial coverage
+  0.4 — tangentially related, low informational value for this topic
+  0.2 — barely related, mostly off-topic
+  0.0 — completely irrelevant
+
+EVIDENCE ITEMS:
+{evidence_block}
+
+Return EXACTLY {item_count} scores as a JSON list of floats in the same order as the items above.
+Example for 4 items: [0.9, 0.6, 0.2, 0.8]
+Do not include explanations — only the JSON array.

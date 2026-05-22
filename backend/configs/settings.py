@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     research_max_crawl_urls: int = 5
     research_max_refinement_loops: int = 2
     research_quality_min_sources: int = 3
-    research_quality_min_confidence: float = 0.6
+    research_quality_min_confidence: float = 0.72
     research_output_dirs: str = "outputs"
     research_allowed_tools: list[str] = ["news_api", "ddgs_text", "ddgs_news", "crawl4ai"]
 
@@ -61,6 +61,7 @@ class Settings(BaseSettings):
 
     # Content Orchestrator Settings
     pexels_api_key: Optional[str] = None
+    image_download_path: str = "outputs/downloads/images"
 
     content_max_slides: int = 12
     content_min_slides: int = 4
