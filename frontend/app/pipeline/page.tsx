@@ -224,7 +224,10 @@ export default function PipelinePage() {
   const [showAngleModal, setShowAngleModal] = useState(false);
   const [showLlmKnowledge, setShowLlmKnowledge] = useState(false);
   const [activeCarousel, setActiveCarousel] = useState(0);
+  const [mounted, setMounted] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setMounted(true); }, []);
 
   const handleCarouselScroll = useCallback(() => {
     const el = carouselRef.current;
@@ -629,7 +632,7 @@ export default function PipelinePage() {
                 </StageCard>
 
                 {/* ── Recent runs ─────────────────────────────────── */}
-                {runs.length > 0 && (
+                {mounted && runs.length > 0 && (
                   <div className="space-y-3 pt-2">
                     <div className="flex items-center gap-2 px-1">
                       <History size={13} className="text-zinc-600" />
@@ -666,7 +669,7 @@ export default function PipelinePage() {
           </AnimatePresence>
 
           {/* Recent runs — always visible when history exists */}
-          {!hasAnyResult && !isAnyRunning && runs.length > 0 && (
+          {!hasAnyResult && !isAnyRunning && mounted && runs.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}

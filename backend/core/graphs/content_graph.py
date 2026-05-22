@@ -6,6 +6,7 @@ from core.orchestrators.content.finalizer import finalize_content_node
 from core.orchestrators.content.image_fetcher import fetch_images_node
 from core.orchestrators.content.reorder import reorder_slides_node
 from core.orchestrators.content.slide_generator import generate_slides_node
+from core.orchestrators.content.slide_validator import validate_content_node
 from core.schemas.workflow_state import ContentGraphState
 
 
@@ -20,6 +21,7 @@ def build_content_graph() -> StateGraph:
 
     graph.add_node("generate_slides", generate_slides_node)
     graph.add_node("reorder", reorder_slides_node)
+    graph.add_node("validate_content", validate_content_node)
     graph.add_node("generate_caption", generate_caption_node)
     graph.add_node("fetch_images", fetch_images_node)
     graph.add_node("render_slides", render_slides_node)
@@ -32,7 +34,8 @@ def build_content_graph() -> StateGraph:
         _route_after_generate,
         {"reorder": "reorder", "finalize": "finalize"},
     )
-    graph.add_edge("reorder", "generate_caption")
+    graph.add_edge("reorder", "validate_content")
+    graph.add_edge("validate_content", "generate_caption")
     graph.add_edge("generate_caption", "fetch_images")
     graph.add_edge("fetch_images", "render_slides")
     graph.add_edge("render_slides", "screenshot_slides")

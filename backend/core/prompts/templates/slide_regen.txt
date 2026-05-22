@@ -1,0 +1,24 @@
+Topic: {topic}
+Angle: {angle_statement}
+
+The slide below FAILED a relevance check. Rewrite it so that:
+- It is directly relevant to the topic and angle
+- It flows naturally from the previous slide and into the next slide
+- It keeps the same slide type ("{slide_type}")
+- It is concise and punchy (carousel format)
+
+Previous slide:
+{prev_slide}
+
+FAILING slide (rewrite this):
+{current_slide}
+
+Next slide:
+{next_slide}
+
+Return ONLY a JSON object with these keys (same schema as input).
+For type "content": {{"title": "...", "body": "...", "bullets": ["..."]}}
+For type "hook": {{"title": "...", "body": "..."}}
+For type "stat": {{"title": "...", "stat_value": "...", "stat_label": "..."}}
+For type "engage": {{"title": "...", "body": "..."}}
+No explanation, no markdown fences.

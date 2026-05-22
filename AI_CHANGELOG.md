@@ -6,6 +6,66 @@
 
 ---
 
+## 2026-05-22 - Session 22: Carousel Validation Framework + Bug Fixes
+
+**Decision:** Implemented a post-generation validation pipeline (new LangGraph node) that enforces slide structure, filters irrelevant content, strengthens image/graph quality. Then diagnosed three production bugs from a live run and fixed them.
+
+---
+
+**Change 1 — New `validate_content` node in content graph**
+
+- `backend/core/graphs/content_graph.py` — Added `validate_content_node` between `reorder` and `generate_caption`. Graph order: `generate_slides → reorder → validate_content → generate_caption → fetch_images → render_slides → screenshot_slides → finalize`.
+- `backend/core/orchestrators/content/slide_generator.py` — Removed old `_enforce_cta_constraint()` (superseded by new node).
+
+---
+
+**Change 2 — Slide structure enforcement (engage + CTA)**
+
+- `backend/core/orchestrators/content/slide_validator.py` (**NEW**) — `_enforce_cta_count_and_position()` enforces the rule:
+  - **≥10 slides**: 1 `engage` slide at midpoint + 1 `cta` at end. Any extra CTAs or engage slides are stripped. If LLM's `engage` already exists it is reused; otherwise `_make_engage_slide()` synthesises one. Same for `cta` via `_make_cta_slide()`.
+  - **<10 slides**: 1 `cta` at end only. Any LLM-generated `engage` slides are removed.
+  - All slides renumbered 1..N after repositioning.
+- **Bug fixed (same-dict alias)**: Previous logic used `ctas[len//2]` for mid which equals `ctas[-1]` when `len==2` → same Python dict object at both positions → renumber loop made both slide_number=N. Fixed by always using `ctas[0]` for mid and `ctas[-1]` for end.
+- **Bug fixed (extra visual CTA)**: `engage` type renders identically to `cta` (gradient, centred text, action button). Old logic synthesised a mid-CTA even when an `engage` already existed → 3 CTA-looking slides. New rule makes `engage` the intentional mid-CTA for long decks; separate `cta` type is end-only.
+
+---
+
+**Change 3 — Content relevance validation (LLM batch + single-slide regen)**
+
+- `backend/core/orchestrators/content/slide_validator.py` — `_check_slide_relevance()`: single LLM call over all slides as JSON; returns failing `slide_number`s. CTA slides always exempt. `_regen_single_slide()`: rewrites one failing slide using prev/next context; 1 attempt max, keeps original on failure.
+- `backend/core/prompts/templates/slide_relevance_check.txt` (**NEW**) — batch relevance prompt; returns `{"irrelevant": [slide_numbers]}`.
+- `backend/core/prompts/templates/slide_regen.txt` (**NEW**) — single-slide regen prompt with prev/current/next context.
+
+---
+
+**Change 4 — Image selection: CJK disqualification + query relevance scoring**
+
+- `backend/core/orchestrators/content/image_fetcher.py` — Added `_has_cjk(text)` (CJK Unified Ideographs, Hiragana+Katakana, Hangul Unicode ranges). Updated `_score_image(img, query="")`: CJK in title or URL → score `-99.0` (disqualified). Query relevance bonus: word-match hits × 1.5, capped at +4.0.
+
+---
+
+**Change 5 — Graph/stat validation strengthening**
+
+- `backend/core/orchestrators/content/graph_validator.py` — `validate_and_fix_slides()` now also: (1) clears `stat_value` to `None` if it contains no digit (`"Many"` → `null`); (2) defaults `stat_label` to `"Key Statistic"` when `stat_value` is set but label is empty; (3) nulls out chart when all labels are single characters (LLM placeholder A/B/C data).
+
+---
+
+**Change 6 — Stat slide empty space fix**
+
+- `backend/core/templates/carousel/aurora/stat.html.j2` + `lumina/stat.html.j2` — Changed `.stat-wrapper` from `justify-content: flex-start` to `{{ 'flex-start' if slide.chart_data else 'center' }}`. Stat slides with no chart were rendering content pinned to the top with the bottom 2/3 empty black. Now centers content vertically when no chart is present.
+
+---
+
+**Tests**
+
+- `backend/tests/test_validation_framework.py` (**NEW**) — 44 unit tests covering all new logic: CJK detection (8), slide structure enforcement (11), async validate_content_node (4), image scoring (9), graph validator (12). All passing in ~0.4s (no LLM calls; async node tests use mocked LLM).
+
+---
+
+**Status:** ✅ Complete — 6 backend changes, 2 new prompt templates, 44 new tests all passing.
+
+---
+
 ## 2026-05-22 - Session 21: 4-Feature Sprint (Image Search, Chat, Prev Runs, Carousel UX)
 
 **Decision:** Implemented 4 UX/product improvements based on user feedback, plus 3 follow-up polish fixes on the Recent Runs section and carousel navigation.

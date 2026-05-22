@@ -61,8 +61,23 @@ async def _search_ddgs(query: str, max_results: int = 15) -> list[dict]:
     return []
 
 
-def _score_image(img: dict) -> float:
-    """Score an image candidate — same source wins; bigger and squarer is better."""
+def _has_cjk(text: str) -> bool:
+    return any(
+        "一" <= c <= "鿿"   # CJK Unified Ideographs
+        or "぀" <= c <= "ヿ"  # Hiragana + Katakana
+        or "가" <= c <= "힯"  # Hangul
+        for c in text
+    )
+
+
+def _score_image(img: dict, query: str = "") -> float:
+    """Score an image candidate — bigger, squarer, query-relevant wins; CJK disqualifies."""
+    title = img.get("title", "") or ""
+    url = img.get("url", "") or ""
+
+    if _has_cjk(title + url):
+        return -99.0
+
     score = 10.0
     w = img.get("width", 0)
     h = img.get("height", 0)
@@ -72,6 +87,13 @@ def _score_image(img: dict) -> float:
         ratio = w / h
         if 0.75 <= ratio <= 1.33:
             score += 3.0
+
+    if query:
+        query_words = {w.lower() for w in query.split() if len(w) > 2}
+        title_lower = title.lower()
+        hits = sum(1 for w in query_words if w in title_lower)
+        score += min(hits * 1.5, 4.0)
+
     return score
 
 
@@ -172,7 +194,7 @@ async def fetch_images_node(state: ContentGraphState) -> dict:
             image_assets.append(ImageAsset(slide_number=slide_num, source="colour").model_dump())
             continue
 
-        ranked = sorted(results, key=_score_image, reverse=True)
+        ranked = sorted(results, key=lambda img: _score_image(img, query), reverse=True)
         best = ranked[0]
 
         download_url = best.get("src", {}).get("large2x") or best.get("url", "")

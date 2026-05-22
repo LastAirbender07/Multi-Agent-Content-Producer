@@ -57,18 +57,52 @@ def _is_valid_chart(slide: dict) -> bool:
 def validate_and_fix_slides(slides: list[dict]) -> list[dict]:
     """
     Null out chart_type/chart_data on stat slides with invalid or nonsensical charts.
+    Also enforces stat_value/stat_label integrity.
     The stat template already handles null chart_data gracefully (no chart rendered).
     """
     result = []
     for slide in slides:
-        if slide.get("type") == "stat" and slide.get("chart_type"):
-            if not _is_valid_chart(slide):
+        if slide.get("type") == "stat":
+            stat_value = slide.get("stat_value")
+            stat_label = slide.get("stat_label")
+
+            # stat_value must contain at least one digit; otherwise clear it
+            if stat_value is not None and not any(c.isdigit() for c in str(stat_value)):
                 logger.warning(
-                    "chart_invalidated",
+                    "stat_value_no_digit",
                     slide_number=slide.get("slide_number"),
-                    chart_type=slide.get("chart_type"),
-                    reason="failed validation",
+                    stat_value=stat_value,
                 )
-                slide = {**slide, "chart_type": None, "chart_data": None}
+                slide = {**slide, "stat_value": None}
+                stat_value = None
+
+            # stat_label must not be empty when stat_value is set
+            if stat_value is not None and not stat_label:
+                logger.warning(
+                    "stat_label_filled",
+                    slide_number=slide.get("slide_number"),
+                )
+                slide = {**slide, "stat_label": "Key Statistic"}
+
+            # Chart validation
+            if slide.get("chart_type"):
+                # Reject charts where all labels are single characters (placeholder data)
+                chart_data = slide.get("chart_data") or {}
+                labels = chart_data.get("labels", [])
+                if labels and all(len(str(lbl)) <= 1 for lbl in labels):
+                    logger.warning(
+                        "chart_generic_labels",
+                        slide_number=slide.get("slide_number"),
+                        labels=labels,
+                    )
+                    slide = {**slide, "chart_type": None, "chart_data": None}
+                elif not _is_valid_chart(slide):
+                    logger.warning(
+                        "chart_invalidated",
+                        slide_number=slide.get("slide_number"),
+                        chart_type=slide.get("chart_type"),
+                        reason="failed validation",
+                    )
+                    slide = {**slide, "chart_type": None, "chart_data": None}
         result.append(slide)
     return result

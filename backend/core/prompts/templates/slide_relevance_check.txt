@@ -1,0 +1,17 @@
+Topic: {topic}
+Angle: {angle_statement}
+
+Below are all slides in this carousel (JSON array).
+For each slide, judge TWO things:
+1. Is this slide individually relevant to the topic + angle?
+2. Does it flow coherently with the slide immediately before AND after it?
+
+A slide FAILS if it is off-topic, contradicts the angle, or feels jarring/disconnected between its neighbours.
+CTA slides (type="cta") are always considered relevant — never flag them.
+
+Slides:
+{slides_json}
+
+Return ONLY a JSON object. No explanation, no markdown fences.
+Format: {{"irrelevant": [<slide_number_int>, ...]}}
+If all slides pass, return: {{"irrelevant": []}}

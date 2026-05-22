@@ -5,7 +5,7 @@
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 72px;
     display: flex; flex-direction: column;
-    justify-content: flex-start;
+    justify-content: {{ 'flex-start' if slide.chart_data else 'center' }};
     padding: 52px 64px 32px;
     gap: 18px;
 }
