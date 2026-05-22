@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from infra.llm.langchain_adapter import get_langchain_llm
 from infra.logging import get_logger
+from core.tools.metadata_helper import get_llm_metadata_block
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -16,10 +17,7 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: list[ChatMessage] = Field(..., min_length=1)
-    system: Optional[str] = Field(
-        default="You are a helpful AI assistant. Be concise, clear, and accurate.",
-        description="System prompt"
-    )
+    system: Optional[str] = Field(default=None, description="Ignored — metadata block is always used")
 
 
 class ChatResponse(BaseModel):
@@ -31,9 +29,7 @@ class ChatResponse(BaseModel):
 async def chat(request: ChatRequest) -> ChatResponse:
     try:
         llm = get_langchain_llm()
-        lc_messages = []
-        if request.system:
-            lc_messages.append(SystemMessage(content=request.system))
+        lc_messages = [SystemMessage(content=get_llm_metadata_block())]
         for m in request.messages:
             if m.role == "user":
                 lc_messages.append(HumanMessage(content=m.content))

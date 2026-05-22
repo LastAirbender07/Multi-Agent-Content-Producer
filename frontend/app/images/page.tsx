@@ -14,10 +14,10 @@ import {
   X,
   CheckSquare,
   FolderOpen,
+  Tag,
 } from "lucide-react";
 import {
   api,
-  ProcessedQuery,
   ImageSearchResponse,
   PexelsPhoto,
   DDGSImage,
@@ -41,9 +41,8 @@ export default function ImagesPage() {
   const [query, setQuery] = useState("");
   const [source, setSource] = useState<"pexels" | "ddgs">("pexels");
   const [maxResults, setMaxResults] = useState(15);
-  const [refining, setRefining] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [processed, setProcessed] = useState<ProcessedQuery | null>(null);
+  const [imageTags, setImageTags] = useState<string[]>([]);
   const [result, setResult] = useState<ImageSearchResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,29 +56,27 @@ export default function ImagesPage() {
     if (!query.trim()) return;
     setError(null);
     setResult(null);
-    setProcessed(null);
+    setImageTags([]);
     setSelected(new Set());
     setDownloadStatus("idle");
     setDownloadError(null);
 
-    setRefining(true);
-    let pq: ProcessedQuery | null = null;
-    try {
-      pq = await api.refineQuery(query);
-      setProcessed(pq);
-    } catch {
-      /* non-fatal */
-    } finally {
-      setRefining(false);
-    }
+    // Fire tags fetch concurrently (non-blocking — updates UI when ready)
+    api.fetchImageTags(query).then((r) => setImageTags(r.tags)).catch(() => {});
 
     setLoading(true);
     try {
-      const res = await api.searchImages({
-        query: pq?.cleaned_topic || query,
-        source,
-        max_results: maxResults,
-      });
+      const searchBody =
+        source === "ddgs"
+          ? {
+              query,
+              source: "ddgs" as const,
+              max_results: maxResults,
+              queries: [query, `${query} photo`, `${query} ${new Date().getFullYear()}`],
+            }
+          : { query, source: "pexels" as const, max_results: maxResults };
+
+      const res = await api.searchImages(searchBody);
       if (!res.success && res.error) {
         setError(res.error);
       } else {
@@ -151,7 +148,6 @@ export default function ImagesPage() {
     }
   }
 
-  const isLoading = refining || loading;
   const pexelsPhotos: PexelsPhoto[] = result?.pexels_photos ?? [];
   const ddgsImages: DDGSImage[] = result?.ddgs_images ?? [];
   const totalImages = source === "pexels" ? pexelsPhotos.length : ddgsImages.length;
@@ -217,13 +213,45 @@ export default function ImagesPage() {
             </div>
             <button
               onClick={handleSearch}
-              disabled={isLoading || !query.trim()}
+              disabled={loading || !query.trim()}
               className="px-10 py-4 rounded-4xl bg-violet-600 hover:bg-violet-500 disabled:opacity-20 disabled:cursor-not-allowed text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-violet-600/20 active:scale-95 shrink-0"
             >
-              {isLoading ? <Loader2 size={18} className="animate-spin" /> : "Fetch Assets"}
+              {loading ? <Loader2 size={18} className="animate-spin" /> : "Fetch Assets"}
             </button>
           </div>
         </div>
+
+        {/* Entity tag chips */}
+        <AnimatePresence>
+          {imageTags.length > 0 && (
+            <motion.div
+              key="tags"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-wrap gap-2 px-2"
+            >
+              <div className="flex items-center gap-1.5 text-[10px] font-black text-zinc-600 uppercase tracking-widest">
+                <Tag size={11} />
+                Tags:
+              </div>
+              {imageTags.map((tag) => (
+                <div
+                  key={tag}
+                  className="px-3 py-1 bg-zinc-900 border border-zinc-800 rounded-full text-[10px] font-bold text-zinc-400"
+                >
+                  {tag}
+                </div>
+              ))}
+              {source === "ddgs" && (
+                <div className="px-3 py-1 bg-violet-500/10 border border-violet-500/20 rounded-full text-[10px] font-bold text-violet-400">
+                  <Sparkles size={9} className="inline mr-1" />
+                  3-variant search + LLM filter
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Status & Results */}
         <AnimatePresence mode="wait">
@@ -238,27 +266,7 @@ export default function ImagesPage() {
             </motion.div>
           )}
 
-          {refining && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-3 px-2">
-              <Sparkles size={16} className="text-violet-500 animate-pulse" />
-              <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">AI Agent: Refining concept for high-relevance matches...</span>
-            </motion.div>
-          )}
-
-          {processed && !loading && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-wrap gap-2 px-2">
-              <div className="px-4 py-1.5 bg-violet-500/10 border border-violet-500/20 rounded-full text-[10px] font-black text-violet-400 uppercase tracking-widest">
-                Refined: {processed.cleaned_topic}
-              </div>
-              {processed.entities.map(e => (
-                <div key={e} className="px-4 py-1.5 bg-zinc-900 border border-zinc-800 rounded-full text-[10px] font-black text-zinc-500 uppercase tracking-widest">
-                  {e}
-                </div>
-              ))}
-            </motion.div>
-          )}
-
-          {!isLoading && !result && !error && (
+          {!loading && !result && !error && (
             <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-32 flex flex-col items-center justify-center text-center">
               <div className="w-24 h-24 rounded-[2.5rem] bg-zinc-950 border border-zinc-900 flex items-center justify-center mb-8 shadow-2xl">
                 <Grid size={40} className="text-zinc-800" />
@@ -331,7 +339,6 @@ export default function ImagesPage() {
                           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                         />
 
-                        {/* Selection checkbox */}
                         <div className={`absolute top-3 left-3 w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all ${
                           isSelected
                             ? "bg-violet-600 border-violet-600 shadow-lg shadow-violet-600/40"
@@ -380,7 +387,6 @@ export default function ImagesPage() {
                           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                         />
 
-                        {/* Selection checkbox */}
                         <div className={`absolute top-3 left-3 w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all ${
                           isSelected
                             ? "bg-violet-600 border-violet-600 shadow-lg shadow-violet-600/40"
@@ -425,12 +431,10 @@ export default function ImagesPage() {
             className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50"
           >
             <div className="flex items-center gap-3 px-5 py-3.5 bg-zinc-900/95 backdrop-blur-2xl border border-zinc-700 rounded-4xl shadow-2xl shadow-black/60">
-              {/* Count badge */}
               <div className="px-3 py-1.5 bg-violet-600 rounded-xl text-xs font-black text-white">
                 {selected.size} selected
               </div>
 
-              {/* Download status message */}
               {downloadStatus === "done" && (
                 <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1.5">
                   <Check size={12} strokeWidth={3} />
@@ -445,7 +449,6 @@ export default function ImagesPage() {
               )}
 
               <div className="flex items-center gap-2 ml-1">
-                {/* Download button */}
                 <button
                   onClick={handleDownload}
                   disabled={downloadStatus === "saving"}
@@ -461,7 +464,6 @@ export default function ImagesPage() {
                   {downloadStatus === "saving" ? "Saving…" : downloadStatus === "done" ? "Saved" : "Download"}
                 </button>
 
-                {/* Clear selection */}
                 <button
                   onClick={clearSelection}
                   className="w-8 h-8 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 rounded-xl text-zinc-400 hover:text-white transition-all"

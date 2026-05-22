@@ -1,5 +1,6 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { ResearchResponse, AngleResponse, ContentResponse, Angle } from "@/lib/api";
+import { PipelineRun } from "./historySlice";
 
 export type StageStatus = "idle" | "running" | "done" | "error";
 
@@ -88,6 +89,18 @@ export const pipelineSlice = createSlice({
     resetPipeline: (state) => {
       return { ...initialState, topic: state.topic }; // Keep topic but reset rest
     },
+    loadRun: (state, action: PayloadAction<PipelineRun>) => {
+      const run = action.payload;
+      state.topic = run.topic;
+      state.runId = run.runId;
+      state.researchResult = run.researchResult ?? null;
+      state.angleResult = run.angleResult ?? null;
+      state.contentResult = run.contentResult ?? null;
+      state.stages.research.status = run.researchResult ? "done" : "idle";
+      state.stages.angle.status = run.angleResult ? "done" : "idle";
+      state.stages.content.status = run.contentResult ? "done" : "idle";
+      state.errors = [];
+    },
   },
 });
 
@@ -103,6 +116,7 @@ export const {
   setContentResult,
   setErrors,
   resetPipeline,
+  loadRun,
 } = pipelineSlice.actions;
 
 export default pipelineSlice.reducer;

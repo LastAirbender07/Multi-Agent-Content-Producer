@@ -6,6 +6,51 @@
 
 ---
 
+## 2026-05-22 - Session 21: 4-Feature Sprint (Image Search, Chat, Prev Runs, Carousel UX)
+
+**Decision:** Implemented 4 UX/product improvements based on user feedback, plus 3 follow-up polish fixes on the Recent Runs section and carousel navigation.
+
+---
+
+**Feature 1 — Image search: raw query + entity tags + DDGS multi-query + LLM filter**
+
+- `backend/core/tools/schemas/image_schema.py` — Added `queries: Optional[list[str]]` field to `ImageSearchRequest` for multi-query DDGS.
+- `backend/apps/api/v1/tools.py` — Added `POST /tools/images/tags` endpoint: heuristic entity extractor (`_extract_tags()`), groups consecutive title-cased tokens as named entities, no LLM call, instant response. Added `_ddgs_multi_search()`: runs 3 query variants in parallel via `asyncio.gather`, deduplicates by image URL, then runs a single LLM relevance filter (drops results < 0.4 relevance) using inline prompt. Falls back gracefully if LLM filter fails.
+- `frontend/lib/api.ts` — Added `fetchImageTags()` method; added optional `queries?: string[]` to `ImageSearchBody`.
+- `frontend/app/images/page.tsx` — Removed `api.refineQuery()` entirely (was producing research-optimised long strings like "Indian cricketer Virat Kohli's career…" which broke Pexels/DDGS results). Tags fetch fires concurrently (non-blocking, updates chip strip when ready). Pexels uses raw `query`. DDGS sends `queries: [query, "${query} photo", "${query} ${year}"]`. Removed `ProcessedQuery`, `refining`, `processed` states; removed `Sparkles` AI refinement status bar.
+
+---
+
+**Feature 2 — Chat: metadata-only system prompt**
+
+- `backend/apps/api/v1/chat.py` — Always prepends `get_llm_metadata_block()` as `SystemMessage`; ignores `request.system` field (kept in schema for backward compat). Removed configurable system prompt.
+- `frontend/app/chat/page.tsx` — Removed `SYSTEM_PRESETS` array, `system` state, `showSystemEdit` state, preset tab selector UI, and `system` field from `api.chat()` call. Chat is now a clean single-purpose assistant with date/time context injected server-side.
+
+---
+
+**Feature 3 — Previous runs: click to load into stage cards**
+
+- `frontend/store/slices/pipelineSlice.ts` — Added `loadRun` reducer (imports `PipelineRun` from `historySlice`): repopulates `topic`, `runId`, all 3 results, and stage statuses from a saved run. Resets `errors`.
+- `frontend/app/pipeline/page.tsx` — Run cards changed from non-interactive `<div>` to `<button>`. Clicking dispatches `loadRun(run)` + calls `setOpenSections` to auto-expand only sections that have saved data. Recent Runs section moved **outside** the `(hasAnyResult || isAnyRunning)` guard so it's always visible on the idle page (shows up to 5 runs). While a pipeline is active, a condensed version (3 runs) remains inside the stage cards area.
+
+---
+
+**Feature 4 — Carousel: horizontal snap + one-at-a-time + nav indicators**
+
+- `frontend/app/pipeline/page.tsx` — Stage 3 carousel changed to horizontal snap scroll (`overflow-x-auto snap-x snap-mandatory`). Each angle's carousel item is `snap-start shrink-0 w-full flex justify-center` — fills full container width so only one carousel is visible at a time. Added navigation bar below track (only when `total > 1`): prev/next chevron buttons (disabled at boundaries), dot indicators (active = violet pill `w-5 h-2`, inactive = grey circle `w-2 h-2`, clickable to jump), and "N / total" counter. Active index tracked via `onScroll → Math.round(scrollLeft / offsetWidth)` stored in `activeCarousel` state with `useRef` on the scroll container.
+- `frontend/components/pipeline/InstagramPreview.tsx` — Caption truncated at 125 chars with inline "…more" / "less" toggle. `captionExpanded` state per post. When collapsed shows first 125 chars; expansion wraps vertically (no horizontal growth).
+
+---
+
+**Follow-up polish (same session):**
+
+- `RunCard` component extracted in `pipeline/page.tsx`: shows first 90 chars of topic, then "…more" inline — expansion wraps to multiple lines vertically (no horizontal resize). `e.stopPropagation()` on toggle prevents accidental `loadRun` dispatch. `TOPIC_PREVIEW = 90` (topics ≤ 90 chars show no toggle).
+- Carousel `activeCarousel` resets to 0 when a new run is loaded (stage cards re-render).
+
+**Status:** ✅ Complete — all 4 features implemented and verified.
+
+---
+
 ## 2026-05-22 - Sessions 18–20: 5-Bug Sprint + Architectural Refactor + Playwright Tests
 
 **Decision:** Fixed 5 product bugs, resolved 6 architectural concerns raised during review, and built a full Playwright test suite (backend curl + 19 frontend tests — all passing).

@@ -1,10 +1,12 @@
 "use client";
-import { useState, useEffect, startTransition } from "react";
+import { useState, useEffect, startTransition, useRef, useCallback } from "react";
 import {
   AlertCircle,
   CheckCircle,
   XCircle,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   FlaskConical,
   Target,
   Image as ImageIcon,
@@ -18,7 +20,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { addRun } from "@/store/slices/historySlice";
-import { StageStatus } from "@/store/slices/pipelineSlice";
+import { StageStatus, loadRun } from "@/store/slices/pipelineSlice";
 
 import { PipelineConfig } from "@/components/pipeline/PipelineConfig";
 import { AngleSelector } from "@/components/pipeline/AngleSelector";
@@ -155,6 +157,61 @@ function StageCard({
 
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
+// ─── Run card ──────────────────────────────────────────────────────────────────
+
+const TOPIC_PREVIEW = 90;
+
+function RunCard({
+  run,
+  onLoad,
+}: {
+  run: { runId: string; topic: string; timestamp: string };
+  onLoad: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const needsTruncation = run.topic.length > TOPIC_PREVIEW;
+  const visibleTopic =
+    expanded || !needsTruncation ? run.topic : run.topic.slice(0, TOPIC_PREVIEW);
+
+  return (
+    <button
+      onClick={onLoad}
+      className="flex items-start justify-between px-4 py-3 bg-zinc-900/40 border border-zinc-800/50 rounded-2xl hover:border-violet-500/30 hover:bg-zinc-900/70 transition-colors text-left group w-full"
+    >
+      <div className="min-w-0 flex-1 pr-3">
+        <p className="text-xs font-bold text-zinc-300 group-hover:text-white transition-colors wrap-break-word">
+          {visibleTopic}
+          {needsTruncation && !expanded && (
+            <span
+              className="text-zinc-500 font-semibold cursor-pointer hover:text-violet-400 ml-0.5"
+              onClick={(e) => { e.stopPropagation(); setExpanded(true); }}
+            >
+              {" …more"}
+            </span>
+          )}
+          {needsTruncation && expanded && (
+            <span
+              className="text-zinc-500 font-semibold cursor-pointer hover:text-violet-400 ml-1"
+              onClick={(e) => { e.stopPropagation(); setExpanded(false); }}
+            >
+              {" less"}
+            </span>
+          )}
+        </p>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <Clock size={9} className="text-zinc-600" />
+          <p className="text-[10px] text-zinc-600">
+            {new Date(run.timestamp).toLocaleDateString()}
+          </p>
+        </div>
+      </div>
+      <Sparkles size={12} className="text-zinc-700 group-hover:text-violet-400 shrink-0 mt-0.5 transition-colors" />
+    </button>
+  );
+}
+
+// ─── Page ──────────────────────────────────────────────────────────────────────
+
 export default function PipelinePage() {
   const dispatch = useAppDispatch();
   const { stages, researchResult, angleResult, contentResult, errors, angleMode, runId, topic } =
@@ -166,6 +223,20 @@ export default function PipelinePage() {
   );
   const [showAngleModal, setShowAngleModal] = useState(false);
   const [showLlmKnowledge, setShowLlmKnowledge] = useState(false);
+  const [activeCarousel, setActiveCarousel] = useState(0);
+  const carouselRef = useRef<HTMLDivElement>(null);
+
+  const handleCarouselScroll = useCallback(() => {
+    const el = carouselRef.current;
+    if (!el) return;
+    setActiveCarousel(Math.round(el.scrollLeft / el.offsetWidth));
+  }, []);
+
+  function scrollCarousel(dir: "prev" | "next") {
+    const el = carouselRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir === "next" ? el.offsetWidth : -el.offsetWidth, behavior: "smooth" });
+  }
 
   function toggle(s: "research" | "angle" | "content") {
     setOpenSections((prev) => {
@@ -465,32 +536,87 @@ export default function PipelinePage() {
                       </div>
                     )}
 
-                    {contentResult && contentResult.carousel_paths.length > 0 && (
-                      <div className="flex flex-wrap gap-10 justify-center">
-                        {contentResult.carousel_paths.map((slides, angleIdx) => {
-                          const angle = angleResult?.selected_angles[angleIdx];
-                          const caption =
-                            contentResult.captions?.[angleIdx] || angle?.statement || "";
-                          const hashtags =
-                            contentResult.hashtags_per_angle?.[angleIdx] || [];
-                          return (
-                            <motion.div
-                              key={angleIdx}
-                              initial={{ opacity: 0, scale: 0.9 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              transition={{ delay: angleIdx * 0.1 }}
-                            >
-                              <InstagramPost
-                                slides={slides}
-                                caption={caption}
-                                hashtags={hashtags}
-                                angleStatement={angle?.statement || ""}
-                              />
-                            </motion.div>
-                          );
-                        })}
-                      </div>
-                    )}
+                    {contentResult && contentResult.carousel_paths.length > 0 && (() => {
+                      const total = contentResult.carousel_paths.length;
+                      return (
+                        <div className="space-y-4">
+                          {/* Scroll track */}
+                          <div
+                            ref={carouselRef}
+                            onScroll={handleCarouselScroll}
+                            className="overflow-x-auto snap-x snap-mandatory scroll-smooth flex pb-2"
+                          >
+                            {contentResult.carousel_paths.map((slides, angleIdx) => {
+                              const angle = angleResult?.selected_angles[angleIdx];
+                              const caption =
+                                contentResult.captions?.[angleIdx] || angle?.statement || "";
+                              const hashtags =
+                                contentResult.hashtags_per_angle?.[angleIdx] || [];
+                              return (
+                                <motion.div
+                                  key={angleIdx}
+                                  initial={{ opacity: 0, scale: 0.9 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  transition={{ delay: angleIdx * 0.1 }}
+                                  className="snap-start shrink-0 w-full flex justify-center"
+                                >
+                                  <InstagramPost
+                                    slides={slides}
+                                    caption={caption}
+                                    hashtags={hashtags}
+                                    angleStatement={angle?.statement || ""}
+                                  />
+                                </motion.div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Navigation bar */}
+                          {total > 1 && (
+                            <div className="flex items-center justify-center gap-4">
+                              <button
+                                onClick={() => scrollCarousel("prev")}
+                                disabled={activeCarousel === 0}
+                                className="w-7 h-7 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-400 hover:text-white hover:border-violet-500/50 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
+                              >
+                                <ChevronLeft size={14} />
+                              </button>
+
+                              <div className="flex items-center gap-2">
+                                {Array.from({ length: total }).map((_, i) => (
+                                  <button
+                                    key={i}
+                                    onClick={() => {
+                                      carouselRef.current?.scrollTo({
+                                        left: i * (carouselRef.current?.offsetWidth ?? 0),
+                                        behavior: "smooth",
+                                      });
+                                    }}
+                                    className={`rounded-full transition-all duration-300 ${
+                                      i === activeCarousel
+                                        ? "w-5 h-2 bg-violet-500"
+                                        : "w-2 h-2 bg-zinc-700 hover:bg-zinc-500"
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+
+                              <button
+                                onClick={() => scrollCarousel("next")}
+                                disabled={activeCarousel === total - 1}
+                                className="w-7 h-7 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-400 hover:text-white hover:border-violet-500/50 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
+                              >
+                                <ChevronRight size={14} />
+                              </button>
+
+                              <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest ml-1">
+                                {activeCarousel + 1} / {total}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {contentResult && contentResult.carousel_paths.length === 0 && (
                       <div className="py-8 text-center">
@@ -513,21 +639,24 @@ export default function PipelinePage() {
                     </div>
                     <div className="grid gap-2">
                       {runs.slice(0, 3).map((run) => (
-                        <div
+                        <RunCard
                           key={run.runId}
-                          className="flex items-center justify-between px-4 py-3 bg-zinc-900/40 border border-zinc-800/50 rounded-2xl hover:border-zinc-700 transition-colors"
-                        >
-                          <div className="min-w-0">
-                            <p className="text-xs font-bold text-zinc-300 truncate">{run.topic}</p>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <Clock size={9} className="text-zinc-600" />
-                              <p className="text-[10px] text-zinc-600">
-                                {new Date(run.timestamp).toLocaleDateString()}
-                              </p>
-                            </div>
-                          </div>
-                          <Sparkles size={12} className="text-zinc-700 shrink-0 ml-3" />
-                        </div>
+                          run={run}
+                          onLoad={() => {
+                            dispatch(loadRun(run));
+                            startTransition(() =>
+                              setOpenSections(
+                                new Set(
+                                  (["research", "angle", "content"] as const).filter((s) =>
+                                    s === "research" ? !!run.researchResult :
+                                    s === "angle" ? !!run.angleResult :
+                                    !!run.contentResult
+                                  )
+                                )
+                              )
+                            );
+                          }}
+                        />
                       ))}
                     </div>
                   </div>
@@ -535,6 +664,44 @@ export default function PipelinePage() {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Recent runs — always visible when history exists */}
+          {!hasAnyResult && !isAnyRunning && runs.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-3"
+            >
+              <div className="flex items-center gap-2 px-1">
+                <History size={13} className="text-zinc-600" />
+                <h4 className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em]">
+                  Recent Runs
+                </h4>
+              </div>
+              <div className="grid gap-2">
+                {runs.slice(0, 5).map((run) => (
+                  <RunCard
+                    key={run.runId}
+                    run={run}
+                    onLoad={() => {
+                      dispatch(loadRun(run));
+                      startTransition(() =>
+                        setOpenSections(
+                          new Set(
+                            (["research", "angle", "content"] as const).filter((s) =>
+                              s === "research" ? !!run.researchResult :
+                              s === "angle" ? !!run.angleResult :
+                              !!run.contentResult
+                            )
+                          )
+                        )
+                      );
+                    }}
+                  />
+                ))}
+              </div>
+            </motion.div>
+          )}
         </div>
 
         {/* Angle Selector Modal */}

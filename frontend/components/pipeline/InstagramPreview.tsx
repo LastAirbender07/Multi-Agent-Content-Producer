@@ -33,7 +33,12 @@ export function InstagramPost({
   angleStatement: string;
 }) {
   const [idx, setIdx] = useState(0);
+  const [captionExpanded, setCaptionExpanded] = useState(false);
   const total = slides.length;
+  const PREVIEW_LEN = 125;
+  const captionTruncated = caption.length > PREVIEW_LEN;
+  const visibleCaption =
+    captionExpanded || !captionTruncated ? caption : caption.slice(0, PREVIEW_LEN);
 
   return (
     <div className="flex flex-col gap-4 w-[380px]">
@@ -140,9 +145,31 @@ export function InstagramPost({
 
         {/* Caption */}
         <div className="px-5 pb-6 space-y-2">
-          <p className="text-xs text-zinc-900 leading-snug">
+          <p className="text-xs text-zinc-900 leading-snug whitespace-pre-line">
             <span className="font-black">content_studio </span>
-            {caption}
+            {visibleCaption}
+            {captionTruncated && !captionExpanded && (
+              <span>
+                {"… "}
+                <button
+                  className="text-zinc-500 font-semibold hover:text-zinc-700"
+                  onClick={() => setCaptionExpanded(true)}
+                >
+                  more
+                </button>
+              </span>
+            )}
+            {captionTruncated && captionExpanded && (
+              <>
+                {" "}
+                <button
+                  className="text-zinc-500 font-semibold hover:text-zinc-700"
+                  onClick={() => setCaptionExpanded(false)}
+                >
+                  less
+                </button>
+              </>
+            )}
           </p>
           {hashtags.length > 0 && (
             <p className="text-[11px] font-bold text-blue-600 hover:underline cursor-pointer">

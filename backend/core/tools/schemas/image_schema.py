@@ -17,6 +17,7 @@ class ImageSearchRequest(BaseModel):
     query: str = Field(..., min_length=1)
     source: Literal["pexels", "ddgs"] = Field(default="pexels")
     max_results: int = Field(default=15, ge=1, le=50)
+    queries: Optional[list[str]] = Field(default=None, description="Multiple query variants for DDGS multi-search")
 
 
 class ImageSearchResponse(BaseModel):
