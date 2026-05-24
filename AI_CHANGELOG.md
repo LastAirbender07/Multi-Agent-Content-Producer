@@ -989,4 +989,78 @@ For in-depth analysis, see:
 
 ---
 
-_Last updated: 2026-05-22 (Session 20)_
+## 2026-05-24 - Session 23: LLM-Only Research Mode + E2E Playwright Tests
+
+**Decision:** Added a toggle-gated LLM-only research mode that bypasses all web tools — the LLM drafts research from its training knowledge and the user refines it iteratively before triggering angle + content generation. Built a full Playwright E2E suite (20 tests) to cover the feature. Also fixed two carry-over bugs (JWT expiry, run history limit).
+
+---
+
+**Bug Fix 1 — JWT expiry in `llm_knowledge_node`**
+
+- `backend/core/orchestrators/research/llm_knowledge.py` — Removed `get_langchain_llm()` (LangChain client cached with `@lru_cache()`, bakes JWT at first call — after expiry the cached client fails silently). Switched to `LLMFactory.get_client()` which re-instantiates cleanly on server restart. Same fix pattern used by the content pipeline.
+
+---
+
+**Bug Fix 2 — Recent runs capped at 3/5 items**
+
+- `frontend/app/pipeline/page.tsx` — Removed `.slice(0, 3)` / `.slice(0, 5)` from both RunCard render sites. Added `max-h-120 overflow-y-auto pr-0.5` scrollable container so all historical runs are accessible.
+
+---
+
+**Feature — LLM-only research mode**
+
+**Motivation:** Web research sometimes deviates the narrative (e.g. wanted a carousel exposing a politician's past controversies → web tools returned his generic official bio instead). LLM-only mode lets the user force a specific angle from the start and iteratively sharpen the research brief before generating content.
+
+**Data flow:**
+```
+Toggle ON → "Draft Research" → POST /research/llm-draft → ResearchResponse (saved to disk)
+  ↓ Stage 1 shows synthesis + key_points + evidence chips
+  ↓ [User types feedback] → "Refine with LLM" → POST /research/llm-refine → updated ResearchResponse
+  ↓ [Repeat any number of times — run_id stays constant]
+  ↓ "Satisfied → Generate Angles" → normal angle + content waterfall (unchanged)
+```
+
+**Backend — 2 new endpoints + orchestrator:**
+
+- `backend/core/prompts/templates/llm_research_draft.txt` (NEW) — Generates 8–12 evidence items with `source_type: "llm_knowledge"` in a single JSON blob. Uses `{{n}}` (double-escaped) so `load_prompt`'s `str.format()` doesn't choke on URL sequence numbers.
+- `backend/core/prompts/templates/llm_research_refine.txt` (NEW) — Refines existing synthesis + evidence based on user feedback. Same double-escape pattern.
+- `backend/core/orchestrators/research/llm_drafter.py` (NEW) — `draft_research()` + `refine_research()`. Both use `LLMFactory.get_client()`. `refine_research` keeps the same `run_id` from the current result (overwrites saved files). Both save via `RunOutputManager` to `outputs/{run_id}/research/` (same schema as web research).
+- `backend/apps/api/v1/research.py` — Added `LLMDraftRequest`, `LLMRefineRequest` Pydantic models and `POST /research/llm-draft`, `POST /research/llm-refine` endpoints.
+
+**Frontend — Redux state, API layer, toggle + refine panel:**
+
+- `frontend/store/slices/pipelineSlice.ts` — Added `llmResearchMode: boolean` to `PipelineState` interface, `initialState` (`false`), and `setLlmResearchMode` reducer + export.
+  - **Bug fix:** `resetPipeline` previously reset `llmResearchMode` to `false` (from `initialState`), so after clicking "Draft Research" the LLM mode flag was gone before the result arrived — `LlmRefinePanel` and "Generate Angles" button never rendered. Fixed by preserving `llmResearchMode` through reset: `{ ...initialState, topic: state.topic, llmResearchMode: state.llmResearchMode }`.
+- `frontend/lib/api.ts` — Added `llmDraftResearch()` and `llmRefineResearch()` methods.
+- `frontend/components/pipeline/PipelineConfig.tsx` — Toggle (`role="switch"` + `aria-label="LLM-only mode"` + `aria-checked`), hint text, hidden Research Depth / Advanced settings in LLM mode. `handleRun` branches: LLM mode → `api.llmDraftResearch()` → dispatch result → stop (no waterfall). Added `handleGenerateAngles()` which runs the same angle+content waterfall from the saved `researchResult`. "Satisfied → Generate Angles" outlined violet button appears only when `llmResearchMode && stages.research.status === "done" && stages.angle.status === "idle"`.
+- `frontend/app/pipeline/page.tsx` — Added `LlmRefinePanel` component (feedback textarea + "Refine with LLM" button, clears textarea on success). Rendered in Stage 1 card body when `llmResearchMode && stages.research.status === "done" && researchResult`.
+
+---
+
+**Toggle UI fix**
+
+The pill toggle thumb was overflowing the track in ON state and looked off-centre in OFF state. Root cause: `absolute` positioned thumb with no explicit `left` + no `overflow-hidden` on the track.
+
+Rewrote to the standard Headless UI / Tailwind UI pattern:
+- Track: `inline-flex h-6 w-11 border-2 border-transparent` (24×44px; 2px padding all sides makes inner = 20×40px)
+- Thumb: `inline-block h-5 w-5` (20×20px; flows naturally from left edge)
+- OFF: `translate-x-0` / ON: `translate-x-5` (0 or 20px — exactly fills the 40px inner width)
+
+---
+
+**E2E Playwright suite — 20/20 passing**
+
+- `frontend/playwright.config.ts` (NEW) — Chromium only, `baseURL: http://localhost:3000`, headless, workers: 1.
+- `frontend/e2e/llm-research-mode.spec.ts` (NEW) — 20 tests across 5 describe blocks. All backend calls intercepted via `page.route()` — no live LLM calls needed.
+  - Toggle UI (6 tests): visibility, default OFF, label switching, Research Depth hidden in LLM mode, hint text.
+  - Draft Flow (4 tests): synthesis appears after draft, request body contains topic, Generate Angles button appears, not shown in normal mode.
+  - Refine Panel (7 tests): panel visible after draft, button disabled when empty, enables after typing, refine call + synthesis update, request body validation, textarea clears on success, multiple refines keep same `run_id`.
+  - Generate Angles Flow (2 tests): angle API called, correct `run_id` forwarded.
+  - Normal pipeline (1 test): `/research/run` used when LLM mode OFF.
+- Selector fixes: `goToPipeline` uses `getByRole("heading", { name: "Pipeline", level: 1 })` (avoids strict-mode violation on multiple "Pipeline" text nodes). Two tests that matched 4 `/REFINED/i` elements use `.first()`.
+
+**Status:** ✅ Complete — 2 bugs fixed, full LLM-only research mode (backend + frontend), toggle UI corrected, 20/20 Playwright tests passing.
+
+---
+
+_Last updated: 2026-05-24 (Session 23)_

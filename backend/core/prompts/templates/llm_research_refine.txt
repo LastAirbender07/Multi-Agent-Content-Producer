@@ -1,0 +1,43 @@
+You are refining research content based on specific user feedback.
+
+Topic: {topic}
+User feedback: {feedback}
+
+Current synthesis:
+{synthesis_json}
+
+Current evidence items (title + excerpt):
+{evidence_summary}
+
+Update the research to fully address the user's feedback:
+- Modify evidence items that need updating to align with the feedback direction
+- Add new evidence items to cover aspects the user wants emphasised
+- Remove or rewrite evidence items that conflict with the desired focus
+- Update the synthesis summary, key_points, and implications to reflect the refined angle
+- Keep evidence items that are still relevant and aligned with the new direction
+
+Return ONLY a valid JSON object. No preamble, no markdown fences, no commentary.
+
+{{
+  "synthesis": {{
+    "summary": "Updated 3-5 paragraph synthesis reflecting the refined research direction...",
+    "key_points": ["Updated 5-8 specific, concrete bullet points aligned with the feedback..."],
+    "contradictions": ["Updated contradictions or tensions..."],
+    "implications": ["Updated implications aligned with the refined direction..."],
+    "confidence_score": 0.85,
+    "gaps": ["Updated gaps in the refined research..."]
+  }},
+  "evidence": [
+    {{
+      "evidence": "Detailed factual paragraph for this aspect...",
+      "source_type": "llm_knowledge",
+      "title": "Descriptive title for this evidence point",
+      "url": "llm://knowledge/{topic_slug}/{{n}}",
+      "snippet": "First 200 characters of the evidence field...",
+      "credibility_score": 0.80,
+      "relevance_score": 0.90
+    }}
+  ]
+}}
+
+Generate 8-12 evidence items covering distinct aspects. Be specific — names, dates, figures, locations.

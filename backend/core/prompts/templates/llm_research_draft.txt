@@ -1,0 +1,47 @@
+You are a research analyst generating structured research for a social media carousel post.
+
+Topic: {topic}
+{context_block}
+Generate deeply researched, opinionated content on this topic from your training knowledge.
+Think like an investigative journalist who knows this subject inside-out.
+Be specific — cite approximate dates, figures, names, and places where known.
+Do NOT hedge with "I think" or "may" — write declaratively about what is known.
+
+Return ONLY a valid JSON object. No preamble, no markdown fences, no commentary.
+
+{{
+  "synthesis": {{
+    "summary": "3-5 paragraph factual synthesis. Cover the core narrative arc, key actors, timeline of significant events, and why this matters. Include specific names, dates, and figures.",
+    "key_points": [
+      "5-8 concrete, specific bullet points — each with a name, figure, date, or concrete detail",
+      "Example: 'In 2019, [Person X] acquired 200 acres in [Location] at below-market rates while holding position Y'"
+    ],
+    "contradictions": ["Any conflicting narratives, disputed claims, or tensions within the topic"],
+    "implications": ["Why this matters — consequences for stakeholders, what it reveals about systemic issues, broader impact"],
+    "confidence_score": 0.85,
+    "gaps": ["What additional documentation, data, or sources would strengthen this research"]
+  }},
+  "evidence": [
+    {{
+      "evidence": "Detailed factual paragraph covering one specific aspect of the topic. 150-300 words. Be concrete.",
+      "source_type": "llm_knowledge",
+      "title": "Descriptive title for this evidence point — what aspect does it cover?",
+      "url": "llm://knowledge/{topic_slug}/1",
+      "snippet": "First 200 characters of the evidence field above...",
+      "credibility_score": 0.80,
+      "relevance_score": 0.90
+    }}
+  ]
+}}
+
+Generate 8-12 evidence items. Each item MUST cover a distinct, non-overlapping aspect of the topic:
+- Background and context
+- Key events and their timeline
+- Key actors/figures and their roles
+- Specific controversies or incidents
+- Financial, legal, or institutional dimensions
+- Public reaction and media coverage
+- Systemic/structural implications
+- Consequences and outcomes
+
+Keep each evidence item focused on one specific aspect. Do not repeat the same information across items.

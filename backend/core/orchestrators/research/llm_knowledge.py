@@ -1,10 +1,9 @@
 from datetime import datetime, timezone
-from langchain_core.messages import HumanMessage, SystemMessage
 from core.orchestration.contracts import Evidence
 from core.prompts.prompt_loader import load_prompt
 from core.prompts.system_prompts import get_system_prompt
 from core.schemas.workflow_state import ResearchGraphState
-from infra.llm.langchain_adapter import get_langchain_llm
+from infra.llm.factory import LLMFactory
 from infra.logging import get_logger
 
 logger = get_logger(__name__)
@@ -22,15 +21,11 @@ async def llm_knowledge_node(state: ResearchGraphState) -> dict:
     topic = request.topic
 
     try:
-        llm = get_langchain_llm()
+        llm = await LLMFactory.get_client()
         system_prompt = get_system_prompt("research")
         user_prompt = load_prompt("llm_knowledge", topic=topic)
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt),
-        ]
-        response = await llm.ainvoke(messages)
-        content = response.content if hasattr(response, "content") else str(response)
+        response = await llm.generate(prompt=user_prompt, system_prompt=system_prompt)
+        content = response.content
 
         now = datetime.now(timezone.utc)
         item = Evidence(

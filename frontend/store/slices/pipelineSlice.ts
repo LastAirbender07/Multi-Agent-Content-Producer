@@ -15,6 +15,7 @@ interface PipelineState {
   freshness: "breaking" | "recent" | "evergreen";
   angleMode: "auto" | "manual";
   imageSource: "auto" | "pexels" | "ddgs";
+  llmResearchMode: boolean;
   
   stages: {
     research: StageState;
@@ -36,6 +37,7 @@ const initialState: PipelineState = {
   freshness: "recent",
   angleMode: "manual",
   imageSource: "auto",
+  llmResearchMode: false,
   
   stages: {
     research: { status: "idle", result: null },
@@ -70,6 +72,9 @@ export const pipelineSlice = createSlice({
     setImageSource: (state, action: PayloadAction<PipelineState["imageSource"]>) => {
       state.imageSource = action.payload;
     },
+    setLlmResearchMode: (state, action: PayloadAction<boolean>) => {
+      state.llmResearchMode = action.payload;
+    },
     setStageStatus: (state, action: PayloadAction<{ stage: keyof PipelineState["stages"]; status: StageStatus }>) => {
       state.stages[action.payload.stage].status = action.payload.status;
     },
@@ -87,7 +92,7 @@ export const pipelineSlice = createSlice({
       state.errors = action.payload;
     },
     resetPipeline: (state) => {
-      return { ...initialState, topic: state.topic }; // Keep topic but reset rest
+      return { ...initialState, topic: state.topic, llmResearchMode: state.llmResearchMode };
     },
     loadRun: (state, action: PayloadAction<PipelineRun>) => {
       const run = action.payload;
@@ -110,6 +115,7 @@ export const {
   setFreshness,
   setAngleMode,
   setImageSource,
+  setLlmResearchMode,
   setStageStatus,
   setResearchResult,
   setAngleResult,

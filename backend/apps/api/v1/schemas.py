@@ -32,3 +32,15 @@ class NewsSearchResponse(BaseModel):
     total_results: int
     articles: list[NewsArticleOut] = []
     error: Optional[str] = None
+
+
+class LLMDraftRequest(BaseModel):
+    topic: str
+    context: str | None = None
+    run_id: str | None = None
+
+
+class LLMRefineRequest(BaseModel):
+    topic: str
+    current_result: dict
+    feedback: str
