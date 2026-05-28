@@ -62,6 +62,8 @@ summary = await llm.generate_structured(
 - ✅ Complex workflows with branches/loops
 - ✅ LangChain ecosystem integrations
 
+> ⚠️ **JWT expiry caveat:** `get_langchain_llm()` uses `@lru_cache()`, which bakes the HAI Proxy JWT token into the client instance at first call. If the JWT expires between calls (common in long-running processes or infrequently-used graph nodes), the cached client will fail silently or return 401 errors. For nodes that are called infrequently or in long-lived processes, prefer `LLMFactory.get_client()` instead — it re-instantiates cleanly on server restart.
+
 **Example:**
 ```python
 from infra.llm.langchain_adapter import get_langchain_llm

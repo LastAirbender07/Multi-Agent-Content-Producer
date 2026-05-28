@@ -1,15 +1,12 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from core.orchestration.contracts import AngleRequest, AngleResponse, ResearchSynthesis
+from core.orchestration.contracts import AngleRequest, AngleResponse
 from core.orchestrators.angle.orchestrator import AngleOrchestrator
+from apps.api.v1.schemas import AngleSelectRequest
 
 router = APIRouter(prefix="/angle", tags=["angle"])
 
 _orchestrator = AngleOrchestrator()
 
-
-class AngleSelectRequest(BaseModel):
-    angle_indices: list[int]
 
 
 @router.post("/run", response_model=AngleResponse)

@@ -56,7 +56,8 @@ The research stage isn't a single API call. It's a multi-tool pipeline with a qu
 - **🔗 Evidence normaliser** — Deduplicates by URL, scores each item for credibility and relevance, and merges all sources into a unified evidence bank.
 - **📝 Synthesiser** — An LLM reads up to 12 evidence items and produces a structured `ResearchSynthesis` (summary, key points, contradictions, implications, gaps, confidence score).
 - **🧑‍⚖️ Independent LLM Judge** — A *separate* LLM call reads the raw evidence snippets and scores the synthesis on factual grounding, topic relevance, specificity, and coverage breadth — catching hallucinations the synthesiser might introduce.
-- **🔒 Combined confidence gate** — `combined = llm_judge × 0.35 + source_score × 0.65`. If below **0.60**, the loop fires again with a different query variant, accumulating new evidence on top of existing sources. Up to 2 retry loops. Every iteration is saved to disk.
+- **🔒 Combined confidence gate** — `combined = llm_judge × 0.60 + source_score × 0.40`. If below **0.72**, the loop fires again with a different query variant, accumulating new evidence on top of existing sources. Up to 2 retry loops. Every iteration is saved to disk.
+- **🤖 LLM-only research mode** — Toggle in the Studio UI to bypass all web tools and generate a research stub purely from LLM training knowledge. The user then iteratively refines the brief ("focus on land acquisition controversies, ignore the generic bio") before triggering angle + content generation. Produces the same `ResearchResponse` schema so all downstream nodes work unchanged.
 
 ### 🎯 Angle Engine
 
@@ -82,6 +83,11 @@ For each selected angle, the system generates a full 12-slide carousel:
 | 📣 `cta`     | Exactly 2 per carousel — one mid-deck (punchy), one closing (comprehensive)                     |
 
 Arc is enforced: `hook → intro-content → stats → engage → early-cta → body-content → quote → final-cta`
+
+A **slide validator** runs after reordering:
+- **Structure enforcement** — ≥10 slides: exactly 1 `engage` at midpoint + 1 `cta` at end. <10 slides: 1 `cta` only. Extras are stripped and slides are renumbered.
+- **Relevance check** — A batched LLM call flags slides that drift off-topic; failing slides are rewritten with surrounding context.
+- **Graph validator** — Nulls out invalid chart data (mismatched labels/values, all-identical values, year-as-absolute, non-numeric values) so stat slides degrade gracefully to value-only cards rather than crashing.
 
 The LLM also assigns each slide an **image source and query**:
 
@@ -360,7 +366,7 @@ The frontend connects to the backend at `http://localhost:8000`. Start the backe
 
 **Images and News** — Standalone search tools backed by the same APIs used internally by the pipeline, with AI query refinement applied before every search.
 
-**Chat** — System persona presets (Content Strategist, Research Analyst, Copywriter) plus a persistent message history that survives page navigation.
+**Chat** — Direct conversation with the pipeline's LLM. System prompt is automatically enriched with current date/time context. Persistent message history that survives page navigation.
 
 → Full frontend documentation: [`Docs/content-orchestrator/FRONTEND.md`](Docs/content-orchestrator/FRONTEND.md)
 
@@ -381,13 +387,17 @@ Interactive docs available at: `http://localhost:8000/docs`
 | Method   | Endpoint                           | Description                               |
 | -------- | ---------------------------------- | ----------------------------------------- |
 | `GET`  | `/health`                        | ✅ Health check                            |
-| `POST` | `/api/v1/research/run`           | 🔬 Run research only                       |
-| `POST` | `/api/v1/angles/run`             | 🎯 Run angle generation (requires synthesis) |
-| `POST` | `/api/v1/angles/{run_id}/select` | 🙋 Submit manual angle selection           |
+| `POST` | `/api/v1/research/run`           | 🔬 Run web research only                   |
+| `POST` | `/api/v1/research/llm-draft`     | 🤖 LLM-only research draft                 |
+| `POST` | `/api/v1/research/llm-refine`    | ✏️ Refine LLM research with feedback       |
+| `POST` | `/api/v1/angle/run`              | 🎯 Run angle generation (requires synthesis) |
+| `POST` | `/api/v1/angle/{run_id}/select`  | 🙋 Submit manual angle selection           |
 | `POST` | `/api/v1/content/run`            | ✍️ Run content generation (requires angles) |
 | `POST` | `/api/v1/pipeline/run`           | 🚀 Run full pipeline end-to-end            |
 | `POST` | `/api/v1/tools/query-refine`     | 🧠 AI query preprocessing                  |
 | `POST` | `/api/v1/tools/images`           | 🖼️ Image search (Pexels / DDGS)            |
+| `POST` | `/api/v1/tools/images/tags`      | 🏷️ Extract entity tags from a query        |
+| `POST` | `/api/v1/tools/images/download`  | ⬇️ Download images to local disk           |
 | `POST` | `/api/v1/tools/news`             | 📰 News search (Google / NewsAPI / DDGS)   |
 | `POST` | `/api/v1/chat/`                  | 💬 Direct LLM chat with message history    |
 
@@ -429,10 +439,10 @@ Every research run is scored before proceeding to content:
 🧑‍⚖️ LLM Score     = independent judge reads raw evidence → scores factual_grounding,
                    topic_relevance, specificity, coverage_breadth → overall_score
 
-⚡ Combined      = LLM_score × 0.35  +  source_score × 0.65
+⚡ Combined      = LLM_score × 0.60  +  source_score × 0.40
 
-🔁 If combined < 0.60  →  retry with next query variant, accumulate more evidence
-✅ If combined ≥ 0.60  →  proceed to angle generation
+🔁 If combined < 0.72  →  retry with next query variant, accumulate more evidence
+✅ If combined ≥ 0.72  →  proceed to angle generation
 ```
 
 The final `research_result.json` shows the full iteration history:
@@ -499,7 +509,7 @@ Multi-Agent-Content-Producer/
 | Setting                             | Default               | What It Controls                               |
 | ----------------------------------- | --------------------- | ---------------------------------------------- |
 | `research_max_refinement_loops`   | `2`                 | 🔁 Max retry loops if confidence < threshold    |
-| `research_quality_min_confidence` | `0.60`              | 🔒 Combined confidence threshold to pass research |
+| `research_quality_min_confidence` | `0.72`              | 🔒 Combined confidence threshold to pass research |
 | `research_quality_min_sources`    | `3`                 | 📰 Minimum evidence items required              |
 | `research_max_tool_calls`         | `6`                 | ⚡ Budget cap on total tool executions           |
 | `content_max_slides`              | `12`                | 🎨 Hard cap on slides per carousel              |

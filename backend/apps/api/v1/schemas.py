@@ -44,3 +44,30 @@ class LLMRefineRequest(BaseModel):
     topic: str
     current_result: dict
     feedback: str
+
+
+class AngleSelectRequest(BaseModel):
+    angle_indices: list[int]
+
+
+class ChatMessage(BaseModel):
+    role: str = Field(..., description="user or assistant")
+    content: str
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage] = Field(..., min_length=1)
+    system: Optional[str] = Field(default=None, description="Ignored — metadata block is always used")
+
+
+class ChatResponse(BaseModel):
+    reply: str
+    error: Optional[str] = None
+
+
+class ImageTagsRequest(BaseModel):
+    query: str
+
+
+class ImageTagsResponse(BaseModel):
+    tags: list[str]

@@ -1,5 +1,4 @@
 from fastapi import APIRouter
-from pydantic import BaseModel
 from core.orchestrators.research.query_preprocessor import QueryPreprocessor, ProcessedQuery
 from core.tools.Search.ddgs_search import DDGSSearch
 from core.tools.News.news_api import GoogleNewsAPI, NewsAPI
@@ -9,7 +8,10 @@ from core.tools.schemas.image_schema import (
     ImageDownloadRequest, ImageDownloadResponse,
 )
 from core.tools.Image.image_downloader import download_images as _download_images
-from apps.api.v1.schemas import QueryRefineRequest, NewsSearchRequest, NewsArticleOut, NewsSearchResponse
+from apps.api.v1.schemas import (
+    QueryRefineRequest, NewsSearchRequest, NewsArticleOut, NewsSearchResponse,
+    ImageTagsRequest, ImageTagsResponse,
+)
 from configs.settings import get_settings
 from infra.logging import get_logger
 from infra.llm.langchain_adapter import get_langchain_llm
@@ -32,14 +34,6 @@ async def refine_query(request: QueryRefineRequest) -> ProcessedQuery:
 
 
 # ── Image Tags ────────────────────────────────────────────────────────────────
-
-class ImageTagsRequest(BaseModel):
-    query: str
-
-
-class ImageTagsResponse(BaseModel):
-    tags: list[str]
-
 
 def _extract_tags(query: str) -> list[str]:
     """Heuristic entity extraction — no LLM, instant response."""

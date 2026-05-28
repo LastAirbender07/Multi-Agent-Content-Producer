@@ -84,34 +84,65 @@ frontend/
 
 The page is composed from five sub-components, each owning a slice of the experience:
 
+#### Stage cards (Research / Angle / Content)
+Each pipeline stage renders as a collapsible `StageCard` with:
+- Chevron toggle header — shows stage number, icon, title, status badge
+- Auto-expands via `useEffect` + `startTransition` when `stages.X.status === "done"`
+- Collapses all when pipeline resets (all stages idle)
+- Running state shows spinner; done state shows full results
+
+**Stage 1 (Research):** Shows `ResearchSummary` component. In LLM mode also shows `LlmRefinePanel`.
+
+**Stage 2 (Angle):** Shows all generated angles with selected/unselected state. In manual mode shows "Open Angle Selector" button to re-open the HITL modal.
+
+**Stage 3 (Content):** Shows carousels in horizontal snap scroll — one carousel visible at a time with previous/next chevrons, dot indicators (active = violet pill), and "N / total" counter. Only renders when `contentResult` is available.
+
+#### `RunCard` + run history
+- While a run is active: recent runs shown below stage cards (all runs, scrollable)
+- Idle page: recent runs shown in the main area
+- Each `RunCard` shows: first 90 chars of topic with "…more" inline expansion, formatted timestamp
+- Clicking a card dispatches `loadRun(run)` which restores all stage results and auto-expands relevant stage cards
+
 #### `PipelineConfig`
 Left-side configuration panel. Reads and writes the `pipeline` Redux slice.
 - **Topic** textarea (supports multi-line)
-- **Mode** toggle: Quick / Standard / Deep
-- **Freshness** toggle: Breaking / Recent / Evergreen
+- **Research Source** toggle: Web research (default) / LLM-only mode
+  - When LLM mode is ON: Research Depth and Advanced settings are hidden; button label changes to "Draft Research"; a "Satisfied → Generate Angles" outlined button appears after the draft completes
+- **Mode** toggle (web mode only): Quick / Standard / Deep
 - **Angle mode** toggle: Auto / Manual
-- **Image source** toggle: Auto / Pexels / DDGS
-- **Advanced settings** (collapsible): Max Tools, Max Sources, Max Loops, Max Slides
-- **"Produce Content"** button — triggers the full orchestration sequence
+- **Advanced settings** (collapsible, web mode only): Max Tools, Max Sources, Max Loops, Max Slides
+- **"Produce Content" / "Draft Research"** button — triggers the appropriate flow
 
 The orchestration logic lives entirely in `PipelineConfig`:
+
+**Web mode flow:**
 ```
 handleRun()
   → resetPipeline()
   → setStageStatus(research, running)
   → api.runResearch() → dispatch setResearchResult
   → setStageStatus(research, done) / error
-
   → setStageStatus(angle, running)
   → api.runAngles() → dispatch setAngleResult
   → setStageStatus(angle, done) / error
-  
   [if angleMode === manual → parent page shows AngleSelector modal]
   [if angleMode === auto → continue immediately]
-  
   → setStageStatus(content, running)
   → api.runContent() → dispatch setContentResult
   → setStageStatus(content, done) / error
+```
+
+**LLM-only mode flow:**
+```
+handleRun()   [button label: "Draft Research"]
+  → resetPipeline()  (preserves llmResearchMode)
+  → setStageStatus(research, running)
+  → api.llmDraftResearch({ topic }) → dispatch setResearchResult
+  → setStageStatus(research, done)
+  → STOP — user refines in Stage 1 card, then clicks "Satisfied → Generate Angles"
+
+handleGenerateAngles()
+  → same angle + content waterfall as above
 ```
 
 #### `PipelineProgress`
@@ -120,6 +151,12 @@ Three `StageIndicator` rows: Research, Angle, Content.
 - Running: violet ring with **breathing pulse** (`animate={{ scale: [1, 1.1, 1] }}`, 1.5s repeat)
 - Done: emerald checkmark with `layoutId="active-glow"` shared element animation
 - Error: red X
+
+#### `LlmRefinePanel` (inline in `pipeline/page.tsx`)
+Rendered inside Stage 1 card when `llmResearchMode && stages.research.status === "done" && researchResult`.
+- Feedback textarea (3 rows) with placeholder: "e.g. Focus on land acquisition controversies in 2019, ignore generic political career overview"
+- "Refine with LLM" button — calls `api.llmRefineResearch({ topic, current_result, feedback })`, dispatches `setResearchResult(updated)`, clears textarea on success
+- Disabled when feedback is empty or a refine is in progress
 
 #### `AngleSelector` (HITL Modal)
 Full-screen modal that pauses the pipeline for human angle selection.
@@ -215,7 +252,7 @@ Shows after content completes. Pixel-accurate Instagram UI mockup:
 
 **What was implemented:**
 - Redux-managed message history (`chatSlice`) — messages persist across page navigation
-- System persona presets (pills): Default / Content Strategist / Research Analyst / Copywriter — each injects a different system prompt
+- System prompt is automatically enriched server-side with the current date/time/day/quarter via `get_llm_metadata_block()` — the `system` field in `ChatRequest` is accepted but ignored
 - Empty state: 4 starter prompt chips for immediate engagement
 - Message rendering: user messages right-aligned (violet), AI messages left-aligned (zinc card)
 - `AnimatePresence` fade-in for each new message
@@ -236,6 +273,7 @@ store
 │   ├── freshness: "breaking" | "recent" | "evergreen"
 │   ├── angleMode: "auto" | "manual"
 │   ├── imageSource: "auto" | "pexels" | "ddgs"
+│   ├── llmResearchMode: boolean          ← LLM-only research toggle
 │   ├── stages: { research, angle, content } → StageStatus
 │   ├── researchResult: ResearchResponse | null
 │   ├── angleResult: AngleResponse | null
@@ -255,6 +293,8 @@ store
 
 `StageStatus = "idle" | "running" | "done" | "error"`
 
+`resetPipeline` preserves `topic` and `llmResearchMode` — both must survive the pipeline reset that fires at the start of a new run.
+
 The `historySlice` loads from `localStorage` on init and saves to `pipeline_history` on every `addRun` dispatch. Deduplicates by `runId`, keeps 20 entries max, newest first.
 
 ---
@@ -264,14 +304,18 @@ The `historySlice` loads from `localStorage` on init and saves to `pipeline_hist
 All backend calls go through a single typed `api` object. The base URL is `http://localhost:8000/api/v1`.
 
 ```typescript
-api.refineQuery(query)                → POST /tools/query-refine
-api.searchImages({ query, source, max_results })  → POST /tools/images
+api.refineQuery(query)                          → POST /tools/query-refine
+api.searchImages({ query, source, queries? })   → POST /tools/images
+api.fetchImageTags(query)                       → POST /tools/images/tags
+api.downloadImages({ urls, save_dir? })         → POST /tools/images/download
 api.searchNews({ query, source, when, max_results }) → POST /tools/news
-api.runResearch(body)                 → POST /research/run
-api.runAngles(body)                   → POST /angles/run
-api.selectAngles({ run_id, selected_indices }) → POST /angles/{run_id}/select
-api.runContent(body)                  → POST /content/run
-api.chat({ messages, system })        → POST /chat/
+api.runResearch(body)                           → POST /research/run
+api.llmDraftResearch({ topic, context?, run_id? })   → POST /research/llm-draft
+api.llmRefineResearch({ topic, current_result, feedback }) → POST /research/llm-refine
+api.runAngle(body)                              → POST /angle/run
+api.selectAngles(runId, indices)                → POST /angle/{run_id}/select
+api.runContent(body)                            → POST /content/run
+api.chat({ messages })                          → POST /chat/
 ```
 
 All TypeScript interfaces mirror the backend Pydantic models exactly. `ContentResponse` includes `captions: string[]` and `hashtags_per_angle: string[][]` for the Instagram preview.
@@ -383,3 +427,35 @@ Each page has its own loading pattern:
 
 ### Stage Glow Transition
 The active running stage in `PipelineProgress` uses `layoutId="active-glow"` so the violet glow element animates smoothly from Research to Angle to Content as each stage completes — a shared element transition that communicates sequential progress without any explicit JS orchestration.
+
+---
+
+## Playwright E2E Tests
+
+```
+frontend/
+├── playwright.config.ts          ← Chromium only, baseURL http://localhost:3000, headless
+└── e2e/
+    └── llm-research-mode.spec.ts ← 20 tests covering LLM-only research mode (Session 23)
+```
+
+All backend calls are intercepted with `page.route()` so tests are deterministic and require no live LLM backend.
+
+**Test suites (20 tests total):**
+
+| Suite | Tests |
+|---|---|
+| Toggle UI | visible, default OFF, label changes, Research Depth hidden, hint text |
+| Draft Flow | synthesis appears, request body, Generate Angles button, not shown in web mode |
+| Refine Panel | panel visible, button disabled when empty, enables on typing, refine updates synthesis, request body, textarea clears, multiple refines keep same run_id |
+| Generate Angles Flow | angle API called, correct run_id forwarded |
+| Normal pipeline | `/research/run` used when LLM mode OFF |
+
+**Running the tests:**
+```bash
+cd frontend
+# Start the dev server first (tests need it)
+node_modules/.bin/next dev --port 3000 &
+# Run all E2E tests
+node_modules/.bin/playwright test e2e/llm-research-mode.spec.ts
+```
