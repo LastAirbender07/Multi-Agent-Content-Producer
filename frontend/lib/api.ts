@@ -37,6 +37,10 @@ export const api = {
   // Content
   runContent: (body: ContentRequestBody) =>
     post<ContentResponse>("/content/run", body),
+  getBlogPostMd: (runId: string) =>
+    fetch(`${BASE}/content/${runId}/blog-post`).then(r => { if (!r.ok) throw new Error(r.statusText); return r.text(); }),
+  getBlogPostHtml: (runId: string) =>
+    fetch(`${BASE}/content/${runId}/blog-post.html`).then(r => { if (!r.ok) throw new Error(r.statusText); return r.text(); }),
 
   // Images
   searchImages: (body: ImageSearchBody) =>
@@ -187,6 +191,8 @@ export interface ContentResponse {
   captions: string[];
   hashtags_per_angle: string[][];
   errors: string[];
+  blog_post_path: string;
+  blog_post_html_path: string;
 }
 
 export interface ImageSearchBody {

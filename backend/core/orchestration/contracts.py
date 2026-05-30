@@ -210,6 +210,8 @@ class ContentResponse(BaseModel):
     captions: list[str] = Field(default_factory=list, description="Per-angle caption text")
     hashtags_per_angle: list[list[str]] = Field(default_factory=list, description="Per-angle hashtag lists")
     errors: list[str] = Field(default_factory=list)
+    blog_post_path: str = Field(default="", description="Path to generated blog_post.md on disk")
+    blog_post_html_path: str = Field(default="", description="Path to generated blog_post.html on disk")
 
 class CaptionOutput(BaseModel):
     caption: str = Field(..., description="Generated caption text for the content")

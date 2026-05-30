@@ -1,0 +1,76 @@
+You are a senior journalist and content strategist. Write a complete, engaging blog article.
+The article will be published on Medium, Substack, and Blogger with real images already embedded.
+Your output is ONLY the prose body sections — image placement markers and citation blocks are injected by code, not you.
+
+TOPIC: {topic}
+DATE: {current_date}
+EMOTIONAL TONE: {primary_emotional_hook}
+
+RESEARCH SUMMARY:
+{research_summary}
+
+KEY POINTS (expand each into a rich paragraph):
+{key_points_block}
+
+CONTRADICTIONS / NUANCE:
+{contradictions_block}
+
+ANGLE 1 — {angle_1_statement}
+Slides content: {angle_1_slides}
+
+ANGLE 2 — {angle_2_statement}
+Slides content: {angle_2_slides}
+
+ANGLE 3 — {angle_3_statement}
+Slides content: {angle_3_slides}
+
+IMPLICATIONS:
+{implications_block}
+
+---
+
+Write these sections and NOTHING else. Return valid Markdown. No preamble, no "here is the article".
+
+## [TITLE]
+(One punchy, SEO-optimised title for the topic. 8-12 words.)
+
+## [SUBTITLE]
+(One sentence that creates urgency or curiosity. No full stop.)
+
+## [INTRO]
+(2-3 sentences: the hook. Why this matters right now. Do not repeat the title.)
+
+## [BACKGROUND]
+(2-3 paragraphs: context, history, what most people get wrong.)
+
+## [FINDING: {key_point_1_short}]
+(1-2 paragraphs expanding key point 1 with specific claims.)
+
+## [FINDING: {key_point_2_short}]
+(1-2 paragraphs expanding key point 2.)
+
+## [FINDING: {key_point_3_short}]
+(1-2 paragraphs expanding key point 3.)
+
+## [ANGLE: {angle_1_heading}]
+(2-3 paragraphs exploring angle 1. Use the slide content as your evidence base.)
+
+## [ANGLE: {angle_2_heading}]
+(2-3 paragraphs exploring angle 2.)
+
+## [ANGLE: {angle_3_heading}]
+(2-3 paragraphs exploring angle 3.)
+
+## [IMPLICATIONS]
+(2 paragraphs: so what? What should the reader do or think differently? Be direct.)
+
+## [CONCLUSION]
+(2-3 sentences: memorable close. Reinforce the main thesis. End with a question or call to action.)
+
+RULES:
+- 1100-1600 words total
+- Tone must match: {primary_emotional_hook}
+- No bullet lists in prose sections — paragraphs only
+- Do NOT write "[IMAGE]", "[CITATION]" or any placeholder markers — those are injected by code
+- Do NOT mention carousel, slides, or Instagram
+- Bold key facts and statistics inline where appropriate

@@ -6,7 +6,87 @@
 
 ---
 
+## 2026-05-30 - Session 26: Blog Post Export (Markdown + HTML + In-App Preview)
+
+**Decision:** Auto-generate a publish-ready blog article at the end of every content run. Produces `blog_post.md` (Medium/Substack/Ghost) and `blog_post.html` (Wix/Blogger/standalone) with real images, inline citations, stat pull-quotes, and a branded footer. Accessible from the frontend via a full-screen preview modal + two download buttons.
+
+---
+
+**Change 1 — `markdown` dependency**
+
+- `backend/pyproject.toml` — Added `"markdown>=3.5"`. Installed v3.10.2 via `uv sync`.
+
+---
+
+**Change 2 — Prompt template**
+
+- `backend/core/prompts/templates/blog_post.txt` (NEW) — 19-variable template. LLM writes prose sections only; image injection, pull-quotes, and citations are assembled by Python code afterwards. Section markers (`## [TITLE]`, `## [FINDING: {key_point_1_short}]`, `## [ANGLE: {angle_1_heading}]`) are parsed by regex in `_assemble_markdown`. Rules enforce 1100-1600 words, no bullet lists in prose, no mentions of "carousel" or "slides".
+
+---
+
+**Change 3 — `blog_post_generator.py`** (NEW)
+
+`backend/core/orchestrators/content/blog_post_generator.py`
+
+- `BlogAssets` dataclass — carries `topic`, `synthesis`, `evidence`, `all_angle_slides`, `run_id`, `outputs_root`, `is_llm_only`.
+- `_pick_section_images()` — one image per angle section; picks first non-colour asset from `image_assets.json`, uses `original_url` (CDN) if available, falls back to localhost URL, falls back to first PNG screenshot.
+- `_img_url()` — CDN URL first, `localhost:8000/outputs/...` fallback.
+- `_assemble_markdown()` — splices hero image after first blockquote (subtitle), section images before each `## [ANGLE:` heading, stat pull-quotes (`> **value** — label`) after each `## [FINDING:` heading, then appends either ⚠️ LLM callout (is_llm_only) or `## References` block (web evidence).
+- `_build_citations_md()` — top 15 real-URL evidence items, filters `llm://` URLs.
+- `_stat_pull_quotes()` — extracts stat slides with `stat_value`, capped at 4.
+- `_markdown_to_html()` — uses `markdown` lib with `extra`, `tables`, `toc` extensions; wraps in full styled HTML (serif font, violet accent, responsive, tag chips). Footer: `@TheOpinionBoard`.
+- `generate_blog_post(assets)` → `(markdown_str, html_str)` — calls LLM via `LLMFactory.get_client()` (no JWT risk), assembles markdown, converts to HTML, loads hashtags from `carousel.json` for tag chips.
+
+**Bugs fixed vs original plan:**
+1. `synthesis` was built only from `ContentRequest.research_summary + key_points` — missing `implications`, `contradictions`, `gaps`. Fixed: load full `research_result.json` from disk and parse complete synthesis dict.
+2. HTML footer said "Content Studio AI" — corrected to `@TheOpinionBoard`.
+3. `markdown` package wasn't installed — added to `pyproject.toml`.
+
+---
+
+**Change 4 — `ContentOrchestrator` wiring**
+
+`backend/core/orchestrators/content/orchestrator.py` — Added `_BACKEND_ROOT` + `_OUTPUTS_ROOT` at module level (pattern from `finalizer.py`). During the angle loop, collects `all_slides_per_angle` and `all_image_assets_per_angle`. After the loop: loads `research_result.json` for full synthesis + evidence, builds `BlogAssets`, calls `generate_blog_post`, saves `.md` and `.html` via `RunOutputManager(".", ...)`. Entire block is `try/except` — blog failure never breaks the carousel response.
+
+---
+
+**Change 5 — `ContentResponse` schema + API endpoints**
+
+- `backend/core/orchestration/contracts.py` — Added `blog_post_path: str = ""` and `blog_post_html_path: str = ""` to `ContentResponse`. Additive, default empty — no breaking changes to existing callers.
+- `backend/apps/api/v1/content.py` — Added `GET /content/{run_id}/blog-post` (`PlainTextResponse`) and `GET /content/{run_id}/blog-post.html` (`HTMLResponse`). Both serve from `outputs/{run_id}/blog_post.*`, 404 if not found.
+
+---
+
+**Change 6 — Frontend**
+
+- `frontend/lib/api.ts` — Added `getBlogPostMd(runId)` and `getBlogPostHtml(runId)` methods (raw fetch, throws on non-OK). Added `blog_post_path` + `blog_post_html_path` to `ContentResponse` interface.
+- `frontend/app/pipeline/page.tsx`:
+  - Added `Eye`, `XIcon` to lucide-react imports alongside existing `FileText`, `Globe`.
+  - Added `showBlogPreview: boolean` state.
+  - Stage 3 bottom bar (visible when `contentResult && stages.content.status === "done" && runId`): "BLOG POST" label + violet **Preview** button + zinc **Markdown** download + zinc **HTML** download.
+  - Full-screen blog preview modal (`fixed inset-0 z-50`): dark header bar with topic, Eye icon, Markdown/HTML download buttons, ✕ close. Body is `<iframe src="/api/v1/content/{runId}/blog-post.html">` — loads the styled HTML directly from the backend static endpoint.
+
+---
+
+**Output structure (updated):**
+
+```
+outputs/<run_id>/
+├── research/        ← unchanged
+├── angles/          ← unchanged  
+├── content/         ← unchanged (carousels)
+├── blog_post.md     ← NEW: paste into Medium / Substack / Ghost
+└── blog_post.html   ← NEW: paste into Wix / Blogger, or open in browser
+```
+
+**Tests:** 44 backend unit tests passing. 30 new assertions covering all generator functions, edge cases (empty evidence, LLM-only mode, img_url fallback, max 4 pull-quotes, citation filtering). 61/61 Playwright E2E tests passing.
+
+**Status:** ✅ Complete — blog post auto-generated after every content run, viewable in-app, downloadable as .md and .html.
+
+---
+
 ## 2026-05-30 - Session 25: Research Progress Bar, run_id Pipeline Fix, E2E Test Suite, Stage Timers
+
 
 **Decision:** Four separate deliverables in one session — research progress polling, critical run_id bug fix, full E2E Playwright coverage for all 5 pages, and live stage timers in the pipeline UI.
 
