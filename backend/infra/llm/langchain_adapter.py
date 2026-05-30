@@ -15,7 +15,6 @@ Use this when working with LangChain/LangGraph features:
 For direct LLM calls, use LLMFactory.get_client() instead.
 """
 
-from functools import lru_cache
 from typing import Union
 from langchain_core.language_models.chat_models import BaseChatModel
 from configs.settings import get_settings
@@ -65,42 +64,73 @@ def _create_gemini_client(settings) -> BaseChatModel:
     )
 
 
-@lru_cache()
+# Resettable module-level cache — avoids @lru_cache() baking a stale JWT forever.
+_cached_client: BaseChatModel | None = None
+
+
 def get_langchain_llm() -> BaseChatModel:
     """
     Get LangChain-compatible LLM client (singleton, provider-agnostic).
 
-    Returns the appropriate LangChain client based on settings.llm_provider:
-    - "claude" → ChatAnthropic
-    - "openai" → ChatOpenAI
-    - "gemini" → ChatGoogleGenerativeAI
-
-    Cached for reuse across calls.
-
-    Use this when:
-    - Building LangChain chains
-    - Using LangGraph workflows
-    - Working with LangChain agents/tools
-
-    Example:
-        from infra.llm.langchain_adapter import get_langchain_llm
-
-        llm = get_langchain_llm()  # Automatically uses provider from settings
-        result = llm.invoke("What is LangGraph?")
-
-    Raises:
-        ValueError: If provider is not supported
+    Returns the appropriate LangChain client based on settings.llm_provider.
+    Call reset_langchain_llm() to force a fresh client on the next call
+    (done automatically by get_langchain_llm_with_retry on JWT expiry).
     """
-    settings = get_settings()
+    global _cached_client
+    if _cached_client is None:
+        _cached_client = _build_client()
+    return _cached_client
 
-    if settings.llm_provider == "claude": return _create_claude_client(settings)
-    elif settings.llm_provider == "openai": return _create_openai_client(settings)
-    elif settings.llm_provider == "gemini": return _create_gemini_client(settings)
+
+def reset_langchain_llm() -> None:
+    """Discard the cached client so the next get_langchain_llm() call builds a fresh one."""
+    global _cached_client
+    _cached_client = None
+
+
+def _build_client() -> BaseChatModel:
+    settings = get_settings()
+    if settings.llm_provider == "claude":
+        return _create_claude_client(settings)
+    elif settings.llm_provider == "openai":
+        return _create_openai_client(settings)
+    elif settings.llm_provider == "gemini":
+        return _create_gemini_client(settings)
     else:
         raise ValueError(
             f"Unsupported LangChain provider: {settings.llm_provider}. "
             f"Supported: claude, openai, gemini"
         )
+
+
+def _is_jwt_error(exc: Exception) -> bool:
+    return "jwt" in str(exc).lower() or "expired" in str(exc).lower() or "401" in str(exc)
+
+
+async def get_langchain_llm_with_retry(call):
+    """
+    Execute an async callable `call(llm)` using the cached LangChain client.
+    If the call raises a JWT/auth error, resets the cache and retries once with
+    a fresh client. Any other error is re-raised immediately.
+
+    Usage:
+        result = await get_langchain_llm_with_retry(
+            lambda llm: llm.ainvoke(messages)
+        )
+    """
+    from infra.logging import get_logger
+    logger = get_logger(__name__)
+
+    llm = get_langchain_llm()
+    try:
+        return await call(llm)
+    except Exception as e:
+        if _is_jwt_error(e):
+            logger.warning("langchain_jwt_expired_retrying")
+            reset_langchain_llm()
+            llm = get_langchain_llm()
+            return await call(llm)
+        raise
 
 
 def create_langchain_llm(
@@ -110,43 +140,15 @@ def create_langchain_llm(
     max_tokens: int = None
 ) -> BaseChatModel:
     """
-    Create a new LangChain LLM with custom parameters.
-
-    Use this when you need different settings than the default,
-    or want to use a different provider temporarily.
-
-    Args:
-        provider: Override provider ("claude", "openai", "gemini")
-        model: Override model name
-        temperature: Override temperature
-        max_tokens: Override max tokens
-
-    Example:
-        # Use OpenAI for a specific task
-        llm = create_langchain_llm(
-            provider="openai",
-            model="gpt-4",
-            temperature=0.0
-        )
-
-        # Use different Claude model
-        llm = create_langchain_llm(
-            model="anthropic--claude-haiku-4.5",
-            temperature=0.7
-        )
-
-    Raises:
-        ValueError: If provider is not supported
+    Create a new LangChain LLM with custom parameters (always fresh, not cached).
     """
     settings = get_settings()
 
-    # Use provided values or fall back to settings
     provider = provider or settings.llm_provider
     model = model or settings.llm_model
     temperature = temperature if temperature is not None else settings.llm_temperature
     max_tokens = max_tokens or settings.llm_max_tokens
 
-    # Create settings-like object for factory functions
     class CustomSettings:
         def __init__(self):
             self.llm_provider = provider
@@ -154,8 +156,6 @@ def create_langchain_llm(
             self.llm_temperature = temperature
             self.llm_max_tokens = max_tokens
             self.llm_timeout = settings.llm_timeout
-
-            # Provider-specific keys
             self.hai_proxy_api_key = settings.hai_proxy_api_key
             self.hai_proxy_url = settings.hai_proxy_url
             self.openai_api_key = getattr(settings, 'openai_api_key', None)

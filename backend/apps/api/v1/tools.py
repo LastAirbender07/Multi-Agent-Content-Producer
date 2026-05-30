@@ -14,7 +14,7 @@ from apps.api.v1.schemas import (
 )
 from configs.settings import get_settings
 from infra.logging import get_logger
-from infra.llm.langchain_adapter import get_langchain_llm
+from infra.llm.langchain_adapter import get_langchain_llm_with_retry
 from langchain_core.messages import HumanMessage
 import httpx
 import asyncio
@@ -117,8 +117,9 @@ async def _ddgs_multi_search(
             "Output: a JSON array of relevant image URLs only, e.g. [\"url1\", \"url2\"]. "
             "Return an empty array [] if none are relevant. No explanation."
         )
-        llm = get_langchain_llm()
-        resp = await llm.ainvoke([HumanMessage(content=prompt)])
+        resp = await get_langchain_llm_with_retry(
+            lambda llm: llm.ainvoke([HumanMessage(content=prompt)])
+        )
         raw = resp.content.strip()
         # Extract JSON array from response
         match = re.search(r'\[.*\]', raw, re.DOTALL)

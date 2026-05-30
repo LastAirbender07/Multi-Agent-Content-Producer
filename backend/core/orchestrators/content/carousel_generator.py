@@ -100,8 +100,8 @@ async def render_slides_node(state: ContentGraphState) -> dict:
             slide_number=slide.slide_number,
             total_slides=total,
             template=template_name,
-            brand_name="",
-            logo_path="",
+            brand_name=_settings.brand_name,
+            logo_path=f"/{_settings.brand_logo_path}",
             assets_root="/assets",
             layout_variant=layout_variant,
         )

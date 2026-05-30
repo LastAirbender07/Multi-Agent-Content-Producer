@@ -68,6 +68,10 @@ class Settings(BaseSettings):
     content_image_per_slide: int = 1
     content_output_dir: str = "outputs"
 
+    # Brand Settings
+    brand_name: str = "TheOpinionBoard"
+    brand_logo_path: str = "assets/brand/logo.png"
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

@@ -176,8 +176,8 @@ export function InstagramPost({
               {hashtags.map((h) => `#${h}`).join(" ")}
             </p>
           )}
-          <p className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest pt-2 border-t border-zinc-100">
-            Produced by Content Studio AI
+          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest pt-2 border-t border-zinc-100">
+            @TheOpinionBoard
           </p>
         </div>
       </div>

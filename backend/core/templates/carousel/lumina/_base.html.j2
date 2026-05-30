@@ -55,14 +55,21 @@ html, body {
     z-index: 10;
 }
 
+.brand-identity {
+    display: flex; align-items: center; gap: 12px;
+}
+
+.brand-logo {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
 .brand-name {
     font-size: 18px; font-weight: 600;
     color: var(--muted); letter-spacing: 0.08em;
     text-transform: uppercase;
-}
-.progress {
-    font-size: 18px; font-weight: 600;
-    color: var(--muted); font-variant-numeric: tabular-nums;
 }
 
 .canvas {
@@ -75,14 +82,13 @@ html, body {
 
 .progress-bar {
     position: absolute; bottom: 72px; left: 0; right: 0;
-    height: 2px; background: rgba(255,255,255,0.08);
+    height: 2px; background: rgba(0,0,0,0.08);
 }
 
 .progress-fill {
     height: 100%;
     background: linear-gradient(90deg, var(--primary), var(--secondary));
     width: {{ (slide_number / total_slides * 100)|int }}%;
-    transition: width 0.3s ease;
 }
 {% block extra_styles %}{% endblock %}
 </style>
@@ -92,8 +98,10 @@ html, body {
 {% block content %}{% endblock %}
 <div class="progress-bar"><div class="progress-fill"></div></div>
 <div class="brand-bar">
-    <span class="brand-name">{{ brand_name or '&nbsp;' }}</span>
-    <span class="progress">{{ slide_number }} / {{ total_slides }}</span>
+    <div class="brand-identity">
+        {% if logo_path %}<img class="brand-logo" src="{{ logo_path }}" alt="{{ brand_name }}">{% endif %}
+        <span class="brand-name">{{ brand_name or '&nbsp;' }}</span>
+    </div>
 </div>
 </div>
 </body>
