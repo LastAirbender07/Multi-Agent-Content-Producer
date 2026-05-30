@@ -87,10 +87,7 @@ def _build_citations_md(evidence: list[dict]) -> str:
 
 
 def _llm_callout_md() -> str:
-    return (
-        "> ⚠️ **Research Note:** This article was generated using LLM background knowledge "
-        "rather than live web sources. Verify key claims independently before citing.\n"
-    )
+    return ""  # No callout — LLM-only runs are treated the same as web runs
 
 
 def _stat_pull_quotes(all_angle_slides: list[dict]) -> list[str]:
@@ -141,7 +138,22 @@ def _assemble_markdown(prose: str, assets: BlogAssets, images: list[dict]) -> st
         if citations:
             result.append("\n\n---\n\n" + citations)
 
-    return "".join(result)
+    # Strip [MARKER] and [MARKER: text] wrappers from headings.
+    # e.g.  ## [BACKGROUND]           → ## Background
+    #       ## [FINDING: Key point]   → ## Key point
+    #       ## [ANGLE: The statement] → ## The statement
+    cleaned: list[str] = []
+    heading_re = re.compile(r"^(#{1,3})\s+\[([A-Z]+)(?::\s*(.+?))?\]\s*$")
+    for line in result:
+        m = heading_re.match(line.rstrip("\n"))
+        if m:
+            hashes, marker, text = m.group(1), m.group(2).title(), m.group(3)
+            heading_text = text if text else marker
+            # Preserve trailing newline
+            line = f"{hashes} {heading_text}\n"
+        cleaned.append(line)
+
+    return "".join(cleaned)
 
 
 def _markdown_to_html(md: str, topic: str, tags: list[str]) -> str:

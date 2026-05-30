@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, startTransition, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   CheckCircle,
@@ -21,7 +22,6 @@ import {
   FileText,
   Globe,
   Eye,
-  X as XIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -327,6 +327,7 @@ function LlmRefinePanel({
 
 export default function PipelinePage() {
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const { stages, researchResult, angleResult, contentResult, errors, angleMode, runId, topic, llmResearchMode } =
     useAppSelector((state) => state.pipeline);
   const { runs } = useAppSelector((state) => state.history);
@@ -336,7 +337,6 @@ export default function PipelinePage() {
   );
   const [showAngleModal, setShowAngleModal] = useState(false);
   const [showLlmKnowledge, setShowLlmKnowledge] = useState(false);
-  const [showBlogPreview, setShowBlogPreview] = useState(false);
   const [activeCarousel, setActiveCarousel] = useState(0);
   const [researchProgress, setResearchProgress] = useState<{ pct: number; label: string } | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -828,7 +828,7 @@ export default function PipelinePage() {
                           Blog Post
                         </span>
                         <button
-                          onClick={() => setShowBlogPreview(true)}
+                          onClick={() => router.push(`/blog-preview?run_id=${runId}&topic=${encodeURIComponent(topic)}`)}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-violet-500/40 bg-violet-500/5 text-violet-400 text-[11px] font-semibold hover:bg-violet-500/10 hover:border-violet-400 transition-all"
                         >
                           <Eye size={12} /> Preview
@@ -947,60 +947,6 @@ export default function PipelinePage() {
           open={showAngleModal}
           onClose={() => setShowAngleModal(false)}
         />
-
-        {/* Blog Post Preview Modal */}
-        {showBlogPreview && runId && (
-          <div className="fixed inset-0 z-50 flex flex-col bg-black/80 backdrop-blur-sm">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-950 shrink-0">
-              <div className="flex items-center gap-3">
-                <Eye size={16} className="text-violet-400" />
-                <span className="text-sm font-bold text-zinc-200">Blog Post Preview</span>
-                <span className="text-[10px] text-zinc-500 font-medium">{topic.slice(0, 60)}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={async () => {
-                    try {
-                      const md = await api.getBlogPostMd(runId);
-                      const a = document.createElement("a");
-                      a.href = URL.createObjectURL(new Blob([md], { type: "text/markdown" }));
-                      a.download = `${topic.slice(0, 50).replace(/\s+/g, "_")}_blog.md`;
-                      a.click();
-                    } catch {}
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-700 text-zinc-400 text-[11px] font-semibold hover:text-violet-400 hover:border-violet-500/50 transition-all"
-                >
-                  <FileText size={12} /> Markdown
-                </button>
-                <button
-                  onClick={async () => {
-                    try {
-                      const html = await api.getBlogPostHtml(runId);
-                      const a = document.createElement("a");
-                      a.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
-                      a.download = `${topic.slice(0, 50).replace(/\s+/g, "_")}_blog.html`;
-                      a.click();
-                    } catch {}
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-700 text-zinc-400 text-[11px] font-semibold hover:text-violet-400 hover:border-violet-500/50 transition-all"
-                >
-                  <Globe size={12} /> HTML
-                </button>
-                <button
-                  onClick={() => setShowBlogPreview(false)}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all ml-1"
-                >
-                  <XIcon size={16} />
-                </button>
-              </div>
-            </div>
-            <iframe
-              src={`http://localhost:8000/api/v1/content/${runId}/blog-post.html`}
-              className="flex-1 w-full border-0 bg-white"
-              title="Blog Post Preview"
-            />
-          </div>
-        )}
       </main>
     </div>
   );
