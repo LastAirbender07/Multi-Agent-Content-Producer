@@ -76,6 +76,7 @@ export interface ResearchRequestBody {
   topic: string;
   mode: "quick" | "standard" | "deep";
   freshness: "breaking" | "recent" | "evergreen";
+  run_id?: string;
   budget?: Partial<BudgetConfig>;
   explicit_urls?: string[];
   needs_claim_verification?: boolean;

@@ -7,26 +7,69 @@ from core.orchestrators.research.llm_knowledge import llm_knowledge_node
 from core.orchestrators.research.normalizer import normalize_evidence_node
 from core.orchestrators.research.router import route_node
 from core.orchestrators.research.synthesizer import synthesize_node
+from core.orchestrators.research import _progress_store as progress
 from core.schemas.workflow_state import ResearchGraphState
 from infra.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 async def intake_node(state: ResearchGraphState) -> dict:
     """Validate request and log start"""
+    run_id = state["run_id"]
+    progress.update(run_id, "intake", 1)
     request = state["request"]
     logger.info(
         "research_graph_start",
-        run_id=state["run_id"],
+        run_id=run_id,
         topic=request.topic,
         mode=request.mode,
         freshness=request.freshness,
     )
     return {"messages": state.get("messages", []) + ["intake complete."]}
 
+
+async def _route_node_tracked(state: ResearchGraphState) -> dict:
+    progress.update(state["run_id"], "route", 2)
+    return await route_node(state)
+
+
+async def _llm_knowledge_node_tracked(state: ResearchGraphState) -> dict:
+    progress.update(state["run_id"], "llm_knowledge", 3)
+    return await llm_knowledge_node(state)
+
+
+async def _execute_tools_node_tracked(state: ResearchGraphState) -> dict:
+    progress.update(state["run_id"], "execute_tools", 4)
+    return await execute_tools_node(state)
+
+
+async def _normalize_node_tracked(state: ResearchGraphState) -> dict:
+    progress.update(state["run_id"], "normalize", 5)
+    return await normalize_evidence_node(state)
+
+
+async def _score_evidence_node_tracked(state: ResearchGraphState) -> dict:
+    progress.update(state["run_id"], "score_evidence", 6)
+    return await score_evidence_node(state)
+
+
+async def _synthesize_node_tracked(state: ResearchGraphState) -> dict:
+    progress.update(state["run_id"], "synthesize", 7)
+    return await synthesize_node(state)
+
+
+async def _evaluate_node_tracked(state: ResearchGraphState) -> dict:
+    progress.update(state["run_id"], "evaluate", 8)
+    return await evaluate_node(state)
+
+
 async def refine_node(state: ResearchGraphState) -> dict:
     """Record completed iteration, save snapshot to disk, increment loop counter."""
     from core.orchestrators.research.orchestrator import save_iteration_snapshot
+
+    # Step back to 4 (execute_tools) since the graph loops back there
+    progress.update(state["run_id"], "refine", 4)
 
     loop_count = state.get("loop_count", 0)
     iteration_number = loop_count + 1
@@ -52,23 +95,30 @@ async def refine_node(state: ResearchGraphState) -> dict:
         ],
     }
 
+
 async def finalize_node(state: ResearchGraphState) -> dict:
     """save full output to disk. Called on Success"""
     from core.orchestrators.research.orchestrator import save_research_output
+    progress.update(state["run_id"], "finalize", 9)
     output_path = await save_research_output(state, status="success", iteration_history=state.get("iteration_history", []))
+    progress.clear(state["run_id"])
     return {
         "output_path": output_path,
         "messages": state.get("messages", []) + [f"Research run completed successfully. Output saved to {output_path}"],
     }
 
+
 async def finalize_partial_node(state: ResearchGraphState) -> dict:
     """save partial output to disk. Called when quality gate fails and no budget left."""
     from core.orchestrators.research.orchestrator import save_research_output
+    progress.update(state["run_id"], "finalize_partial", 9)
     output_path = await save_research_output(state, status="partial_success", iteration_history=state.get("iteration_history", []))
+    progress.clear(state["run_id"])
     return {
         "output_path": output_path,
         "messages": state.get("messages", []) + [f"Research run completed with partial results. Output saved to {output_path}"],
     }
+
 
 def should_continue_after_evaluation(state: ResearchGraphState) -> str:
     loop_count = state.get("loop_count", 0)
@@ -88,17 +138,18 @@ def should_continue_after_evaluation(state: ResearchGraphState) -> str:
 
     return "finalize_partial"
 
+
 def build_research_graph() -> StateGraph:
     graph = StateGraph(ResearchGraphState)
 
     graph.add_node("intake", intake_node)
-    graph.add_node("route", route_node)
-    graph.add_node("llm_knowledge", llm_knowledge_node)
-    graph.add_node("execute_tools", execute_tools_node)
-    graph.add_node("normalize", normalize_evidence_node)
-    graph.add_node("score_evidence", score_evidence_node)
-    graph.add_node("synthesize", synthesize_node)
-    graph.add_node("evaluate", evaluate_node)
+    graph.add_node("route", _route_node_tracked)
+    graph.add_node("llm_knowledge", _llm_knowledge_node_tracked)
+    graph.add_node("execute_tools", _execute_tools_node_tracked)
+    graph.add_node("normalize", _normalize_node_tracked)
+    graph.add_node("score_evidence", _score_evidence_node_tracked)
+    graph.add_node("synthesize", _synthesize_node_tracked)
+    graph.add_node("evaluate", _evaluate_node_tracked)
     graph.add_node("refine", refine_node)
     graph.add_node("finalize", finalize_node)
     graph.add_node("finalize_partial", finalize_partial_node)

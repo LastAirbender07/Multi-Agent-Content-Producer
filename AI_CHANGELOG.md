@@ -6,7 +6,69 @@
 
 ---
 
-## 2026-05-30 - Session 24: Branding, Bug Fixes & Product Improvements (1 of N)
+## 2026-05-30 - Session 25: Research Progress Bar, run_id Pipeline Fix, E2E Test Suite, Stage Timers
+
+**Decision:** Four separate deliverables in one session — research progress polling, critical run_id bug fix, full E2E Playwright coverage for all 5 pages, and live stage timers in the pipeline UI.
+
+---
+
+**Change 1 — Research progress bar (backend + frontend)**
+
+- `backend/core/orchestrators/research/_progress_store.py` (NEW) — Lightweight module-level `_store: dict[str, dict]` with `update(run_id, node, step)`, `get()`, `clear()`, and `NODE_LABELS` dict mapping all 11 node names to human-readable labels ("Searching news & web…", "Synthesising findings…" etc).
+- `backend/core/graphs/research_graph.py` — All 9 external nodes wrapped with `_tracked` variants that call `progress.update()` before delegating. Inline nodes (`intake`, `refine`, `finalize`, `finalize_partial`) updated directly. Both finalize paths call `progress.clear()` to prevent memory leak.
+- `backend/apps/api/v1/research.py` — Added `GET /research/status/{run_id}` endpoint returning `{pct, label, step, total, node}`.
+- `frontend/store/slices/pipelineSlice.ts` — Added `setRunId` reducer so `pendingRunId` can be set before the research API call returns.
+- `frontend/components/pipeline/PipelineConfig.tsx` — `pendingRunId = crypto.randomUUID()` generated before `resetPipeline`, dispatched immediately so the poller has the right ID from tick 1.
+- `frontend/app/pipeline/page.tsx` — `researchProgress` state, 2s poll `useEffect` (clears on non-running status), thin violet progress bar + node label replacing plain spinner in Stage 1.
+
+**Critical bug fixed during this work:** `pendingRunId` was never sent to the backend — the orchestrator generated its own UUID, so the poll always returned `{"status": "unknown"}`. Fixed by adding `run_id: Optional[str]` to `ResearchRequest` and `run_id = run_id or parsed_request.run_id or str(uuid.uuid4())` in the orchestrator. Frontend passes `run_id: pendingRunId` in the research request body. Also added `run_id?: string` to `ResearchRequestBody` in `api.ts`.
+
+---
+
+**Change 2 — run_id consistency verified across full pipeline**
+
+Traced run_id through all three phases:
+- **Research:** `pendingRunId` → `/research/run` → `researchRes.run_id === pendingRunId` → `setResearchResult` overwrites Redux `runId` with same value ✅
+- **Angle:** `research.run_id` passed to `/angle/run` → orchestrator uses it → `angleRes.run_id === pendingRunId` ✅
+- **Content (auto):** `angle.run_id` used in `/content/run` → same UUID → all outputs in `outputs/{pendingRunId}/` ✅
+- **Content (manual HITL, AngleSelector):** `resumedAngle.run_id` from `/angle/{id}/select` response → correct ✅
+- **LLM-only mode:** `llmDraftResearch` generates its own UUID (no progress polling needed) → Redux `runId` overwritten by `setResearchResult` → consistent within that run ✅
+
+---
+
+**Change 3 — Full E2E Playwright test suite (5 new spec files, 61 tests total)**
+
+Added `test-results/` and `playwright-report/` to `frontend/.gitignore` — Playwright auto-generates `error-context.md` files in `test-results/` on failure; these are diagnostic artifacts, not code.
+
+| File | Tests | Coverage |
+|---|---|---|
+| `e2e/pipeline-normal-flow.spec.ts` | 12 | Auto mode end-to-end, manual HITL modal, angle regeneration, progress bar polling, error banner |
+| `e2e/pipeline-config.spec.ts` | 8 | Mode/freshness selectors, advanced settings, LLM mode persistence through reset |
+| `e2e/research-page.spec.ts` | 5 | Query refinement, results display, error state |
+| `e2e/images-page.spec.ts` | 5 | Pexels/DDGS search, tag chips, download |
+| `e2e/news-page.spec.ts` | 5 | Source switching, time filters, results render |
+| `e2e/chat-page.spec.ts` | 5 | Message send, multi-turn history in request, error reply, clear chat |
+| `e2e/llm-research-mode.spec.ts` | 20 | *(existing)* LLM-only research flow |
+
+All tests mock backend via `page.route()`. Key selector fixes discovered during test runs: research page button is "START RESEARCH" not generic text; images placeholder is "Describe the visual concept…"; news placeholder is "Search global events and signals…"; source button labels are "PEXELS"/"DUCKDUCKGO"/"DDG"; HITL modal confirm button text is "Generate Content for N Angles"; angle text in HITL modal must be scoped inside `[class*='fixed'][class*='inset']` to avoid strict mode violation with stage card backdrop.
+
+---
+
+**Change 4 — Live stage timers in pipeline UI**
+
+- `frontend/app/pipeline/page.tsx`:
+  - Added `useStageTimer(status: StageStatus): number | null` hook — starts a 500ms `setInterval` when `status === "running"`, freezes elapsed on done/error, resets to `null` on idle. Uses `useRef` to track start time and interval handle.
+  - Added `formatElapsed(seconds: number): string` — formats as `M:SS` (e.g. `0:03`, `1:42`).
+  - `StageCard` receives optional `elapsed?: number | null` prop — renders a `font-mono tabular-nums` chip left of the status label: violet `bg-violet-500/10 text-violet-400` while running, zinc `bg-zinc-800 text-zinc-400` when frozen after completion.
+  - Three `useStageTimer` calls in `PipelinePage`: `researchElapsed`, `angleElapsed`, `contentElapsed` — each passed to its respective `StageCard`.
+
+Each stage runs its own independent stopwatch. Timer appears only when the stage has been touched (non-null), so idle stages show no timer. After completion the time is permanently visible as a subtle zinc chip — user can always see "research took 0:47, angles took 0:12, content took 1:23".
+
+**Status:** ✅ Complete — 61/61 E2E tests passing, progress bar + timers verified via Playwright screenshots.
+
+---
+
+
 
 **Decision:** Applied branding to carousel slides, fixed JWT expiry auto-recovery, fixed image deduplication across carousels, added angle re-generation feature, removed slide counter from brand bar, and restored the progress bar.
 

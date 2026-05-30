@@ -178,7 +178,7 @@ class ResearchOrchestrator:
 
     async def run(self, request: Any, run_id: str | None = None) -> ResearchResponse:
         parsed_request = ResearchRequest.model_validate(request)
-        run_id = run_id or str(uuid.uuid4())
+        run_id = run_id or parsed_request.run_id or str(uuid.uuid4())
 
         logger.info(
             "research_orchestrator_started",

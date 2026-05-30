@@ -5,10 +5,9 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   setTopic,
   setMode,
-  setFreshness,
-  setAngleMode,
-  setImageSource,
+  setAngleMode, 
   setLlmResearchMode,
+  setRunId,
   resetPipeline,
   setStageStatus,
   setResearchResult,
@@ -74,7 +73,9 @@ export function PipelineConfig() {
 
   async function handleRun() {
     if (!topic.trim() || isRunning) return;
+    const pendingRunId = crypto.randomUUID();
     dispatch(resetPipeline());
+    dispatch(setRunId(pendingRunId));
     dispatch(setErrors([]));
     dispatch(setStageStatus({ stage: "research", status: "running" }));
 
@@ -97,6 +98,7 @@ export function PipelineConfig() {
         topic,
         mode,
         freshness,
+        run_id: pendingRunId,
         budget: {
           max_tool_calls: maxTools,
           max_sources: maxSources,

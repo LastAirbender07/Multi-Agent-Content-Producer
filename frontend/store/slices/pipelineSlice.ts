@@ -78,6 +78,9 @@ export const pipelineSlice = createSlice({
     setStageStatus: (state, action: PayloadAction<{ stage: keyof PipelineState["stages"]; status: StageStatus }>) => {
       state.stages[action.payload.stage].status = action.payload.status;
     },
+    setRunId: (state, action: PayloadAction<string>) => {
+      state.runId = action.payload;
+    },
     setResearchResult: (state, action: PayloadAction<ResearchResponse>) => {
       state.researchResult = action.payload;
       state.runId = action.payload.run_id;
@@ -116,6 +119,7 @@ export const {
   setAngleMode,
   setImageSource,
   setLlmResearchMode,
+  setRunId,
   setStageStatus,
   setResearchResult,
   setAngleResult,

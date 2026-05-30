@@ -65,6 +65,36 @@ function hookColor(hook: string) {
 
 // ─── Stage card ────────────────────────────────────────────────────────────────
 
+function useStageTimer(status: StageStatus): number | null {
+  const [elapsed, setElapsed] = useState<number | null>(null);
+  const startRef = useRef<number | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (status === "running") {
+      startRef.current = Date.now() - (elapsed ?? 0) * 1000;
+      intervalRef.current = setInterval(() => {
+        setElapsed(Math.floor((Date.now() - startRef.current!) / 1000));
+      }, 500);
+    } else {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (status === "idle") {
+        setElapsed(null);
+        startRef.current = null;
+      }
+    }
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [status]);
+
+  return elapsed;
+}
+
+function formatElapsed(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
 function StageCard({
   number,
   icon,
@@ -72,6 +102,7 @@ function StageCard({
   status,
   open,
   onToggle,
+  elapsed,
   children,
 }: {
   number: number;
@@ -80,6 +111,7 @@ function StageCard({
   status: StageStatus;
   open: boolean;
   onToggle: () => void;
+  elapsed?: number | null;
   children?: React.ReactNode;
 }) {
   const borderColor =
@@ -115,6 +147,17 @@ function StageCard({
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
+          {elapsed != null && (
+            <span className={`text-[11px] font-mono tabular-nums px-2 py-0.5 rounded-lg ${
+              status === "running"
+                ? "bg-violet-500/10 text-violet-400"
+                : status === "done"
+                ? "bg-zinc-800 text-zinc-400"
+                : "bg-zinc-800 text-red-400"
+            }`}>
+              {formatElapsed(elapsed)}
+            </span>
+          )}
           <span
             className={`text-[10px] font-black uppercase tracking-widest ${
               status === "done"
@@ -290,8 +333,13 @@ export default function PipelinePage() {
   const [showAngleModal, setShowAngleModal] = useState(false);
   const [showLlmKnowledge, setShowLlmKnowledge] = useState(false);
   const [activeCarousel, setActiveCarousel] = useState(0);
+  const [researchProgress, setResearchProgress] = useState<{ pct: number; label: string } | null>(null);
   const [mounted, setMounted] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
+
+  const researchElapsed = useStageTimer(stages.research.status);
+  const angleElapsed = useStageTimer(stages.angle.status);
+  const contentElapsed = useStageTimer(stages.content.status);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -356,6 +404,26 @@ export default function PipelinePage() {
       startTransition(() => setShowAngleModal(true));
     }
   }, [stages.angle.status, stages.content.status, angleMode, contentResult]);
+
+  // Poll research progress every 2s while research is running
+  useEffect(() => {
+    if (stages.research.status !== "running" || !runId) return;
+    setResearchProgress(null);
+    const interval = setInterval(async () => {
+      try {
+        const prog = await fetch(`http://localhost:8000/api/v1/research/status/${runId}`).then(r => r.json());
+        if (prog.pct !== undefined) {
+          setResearchProgress({ pct: prog.pct, label: prog.label ?? "Running…" });
+        }
+      } catch {}
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [stages.research.status, runId]);
+
+  // Clear progress when research finishes
+  useEffect(() => {
+    if (stages.research.status !== "running") setResearchProgress(null);
+  }, [stages.research.status]);
 
   // Save to history when pipeline fully completes
   useEffect(() => {
@@ -475,14 +543,23 @@ export default function PipelinePage() {
                   status={stages.research.status}
                   open={openSections.has("research")}
                   onToggle={() => toggle("research")}
+                  elapsed={researchElapsed}
                 >
                   <div className="pt-4 space-y-4">
                     {stages.research.status === "running" && (
-                      <div className="flex items-center gap-3 py-8 justify-center">
-                        <div className="w-5 h-5 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
-                        <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
-                          Researching…
-                        </span>
+                      <div className="py-6 space-y-3">
+                        <div className="flex items-center gap-3 justify-center">
+                          <div className="w-5 h-5 rounded-full border-2 border-violet-500 border-t-transparent animate-spin shrink-0" />
+                          <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">
+                            {researchProgress?.label ?? "Researching…"}
+                          </span>
+                        </div>
+                        <div className="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className="bg-violet-500 h-1.5 rounded-full transition-all duration-500"
+                            style={{ width: `${researchProgress?.pct ?? 0}%` }}
+                          />
+                        </div>
                       </div>
                     )}
 
@@ -541,6 +618,7 @@ export default function PipelinePage() {
                   status={stages.angle.status}
                   open={openSections.has("angle")}
                   onToggle={() => toggle("angle")}
+                  elapsed={angleElapsed}
                 >
                   <div className="pt-4 space-y-4">
                     {stages.angle.status === "running" && (
@@ -636,6 +714,7 @@ export default function PipelinePage() {
                   status={stages.content.status}
                   open={openSections.has("content")}
                   onToggle={() => toggle("content")}
+                  elapsed={contentElapsed}
                 >
                   <div className="pt-4">
                     {stages.content.status === "running" && (

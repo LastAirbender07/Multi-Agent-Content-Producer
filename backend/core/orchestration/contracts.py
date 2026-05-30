@@ -21,6 +21,7 @@ class BudgetConfig(BaseModel):
 
 class ResearchRequest(BaseModel):
     schema_version: str = Field(default="1.0", description="Schema version for the research request")
+    run_id: Optional[str] = Field(default=None, description="Optional run ID; generated server-side if not provided")
     topic: str = Field(..., min_length=2, description="The main topic to research")
     mode: Literal["quick", "standard", "deep"] = Field(default="standard", description="The depth of the research")
     freshness: Literal["breaking", "recent", "evergreen"] = Field(default="recent", description="The freshness of the information")

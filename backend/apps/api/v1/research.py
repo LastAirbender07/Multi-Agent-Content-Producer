@@ -2,6 +2,7 @@ from fastapi import APIRouter
 from core.orchestration.contracts import ResearchRequest, ResearchResponse
 from core.orchestrators.research.orchestrator import ResearchOrchestrator
 from core.orchestrators.research.llm_drafter import draft_research, refine_research
+from core.orchestrators.research import _progress_store as progress
 from apps.api.v1.schemas import LLMDraftRequest, LLMRefineRequest
 
 router = APIRouter(prefix="/research", tags=["research"])
@@ -10,6 +11,22 @@ router = APIRouter(prefix="/research", tags=["research"])
 async def run_research(request: ResearchRequest) -> ResearchResponse:
     orchestrator = ResearchOrchestrator()
     return await orchestrator.run(request.model_dump())
+
+
+@router.get("/status/{run_id}")
+async def research_status(run_id: str) -> dict:
+    """Poll mid-run progress for a research job."""
+    prog = progress.get(run_id)
+    if not prog:
+        return {"run_id": run_id, "status": "unknown"}
+    return {
+        "run_id": run_id,
+        "node": prog["node"],
+        "step": prog["step"],
+        "total": prog["total"],
+        "pct": round(prog["step"] / prog["total"] * 100),
+        "label": progress.NODE_LABELS.get(prog["node"], "Running…"),
+    }
 
 
 @router.post("/llm-draft", response_model=ResearchResponse)
