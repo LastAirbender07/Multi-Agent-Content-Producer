@@ -22,7 +22,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { addRun } from "@/store/slices/historySlice";
-import { StageStatus, loadRun, setResearchResult } from "@/store/slices/pipelineSlice";
+import { StageStatus, loadRun, setResearchResult, setAngleResult } from "@/store/slices/pipelineSlice";
 import { api } from "@/lib/api";
 
 import { PipelineConfig } from "@/components/pipeline/PipelineConfig";
@@ -374,6 +374,30 @@ export default function PipelinePage() {
   }, [stages.content.status]);
 
   const isAnyRunning = Object.values(stages).some((s) => s.status === "running");
+
+  const [regenerating, setRegenerating] = useState(false);
+
+  async function handleRegenerateAngles() {
+    if (!researchResult?.synthesis || regenerating) return;
+    setRegenerating(true);
+    try {
+      const result = await api.regenerateAngles({
+        topic,
+        synthesis: researchResult.synthesis,
+        run_id: runId ?? undefined,
+        mode: angleMode,
+        max_angles_to_select: 3,
+        exclude_statements: angleResult?.angles.map((a) => a.statement) ?? [],
+      });
+      dispatch(setAngleResult(result));
+    } catch (e: any) {
+      console.error("Angle regeneration failed:", e.message);
+    } finally {
+      setRegenerating(false);
+    }
+  }
+
+
   const hasAnyResult = researchResult || angleResult || contentResult;
   const canReopenAngles =
     angleMode === "manual" &&
@@ -582,6 +606,21 @@ export default function PipelinePage() {
                           >
                             <MousePointerClick size={14} />
                             Open Angle Selector
+                          </button>
+                        )}
+
+                        {stages.angle.status === "done" && stages.content.status === "idle" && (
+                          <button
+                            onClick={handleRegenerateAngles}
+                            disabled={regenerating}
+                            className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-zinc-700/60 bg-zinc-900/40 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold transition-all"
+                          >
+                            {regenerating ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                              <RefreshCw size={14} />
+                            )}
+                            {regenerating ? "Regenerating…" : "Regenerate Angles"}
                           </button>
                         )}
                       </>

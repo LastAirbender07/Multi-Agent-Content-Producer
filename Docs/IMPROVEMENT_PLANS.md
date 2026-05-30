@@ -5,9 +5,11 @@
 ## 1. Image Deduplication Across Carousel
 
 ### Problem
+
 `fetch_images_node` processes each slide independently. The same image URL can appear on multiple slides in the same carousel because there is no cross-slide awareness — `ranked[0]` is picked for slide 2, then the same `ranked[0]` is picked again for slide 5 because it scores best for both queries.
 
 ### Root cause
+
 In `backend/core/orchestrators/content/image_fetcher.py`, the `for slide in slides` loop maintains no set of already-used URLs.
 
 ### Solution
@@ -29,6 +31,7 @@ used_urls.add(best.get("url", ""))
 ```
 
 Fetch 20 candidates instead of 15 to keep the pool large enough after deduplication:
+
 ```python
 results = await _search_pexels(query, per_page=20)   # was 15
 results = await _search_ddgs(query, max_results=20)  # was 15
@@ -42,62 +45,11 @@ results = await _search_ddgs(query, max_results=20)  # was 15
 
 ---
 
-## 2. Hashtag Quality Control
-
-### Problem
-`caption_generation.txt` asks for "8-12 relevant hashtags (mix of niche + broad)" but imposes no specificity floor. The LLM regularly produces `#india`, `#politics`, `#news` which add zero signal.
-
-### Solution
-
-**Two-layer fix — no new LLM call needed:**
-
-**Layer 1 — Prompt constraint (immediate, free):**
-Update `backend/core/prompts/templates/caption_generation.txt`:
-
-```
-2. 8-12 hashtags following these rules:
-   - At least 5 must be SPECIFIC: named person, event, organisation, place, or data point
-     (good: #NarendraModi2024, #RBIRateCut, #SAPSapphire2026)
-   - At most 3 generic/broad hashtags
-     (ok: #India, #AI, #Politics — but no more than 3 of these)
-   - No hashtags under 4 characters
-   - No duplicates with different capitalisation
-```
-
-**Layer 2 — Post-generation filter in `caption_generator.py`:**
-After `result = await llm.generate_structured(...)`, apply:
-
-```python
-def _filter_hashtags(tags: list[str], topic: str) -> list[str]:
-    GENERIC = {"india", "news", "politics", "trending", "viral", "today",
-               "breaking", "update", "latest", "ai", "tech", "business"}
-    seen: set[str] = set()
-    filtered: list[str] = []
-    generic_count = 0
-    for tag in tags:
-        clean = tag.lstrip("#").lower()
-        if clean in seen or len(clean) < 4:
-            continue
-        seen.add(clean)
-        if clean in GENERIC:
-            if generic_count >= 3:
-                continue
-            generic_count += 1
-        filtered.append(tag.lstrip("#"))
-    return filtered[:12]
-```
-
-Call it: `hashtags = _filter_hashtags(result.hashtags, request.topic)`
-
-**Files changed:** `caption_generation.txt`, `caption_generator.py`. No schema or API changes.
-
-**Verification:** Run a carousel on "Indian politics 2026". Before fix: expect `["india", "politics", "news", ...]`. After fix: expect `["NarendraModi", "BJP2026", "IndiaElections", ...]` with at most 3 generic ones.
-
----
 
 ## 3. Angle Re-generation
 
 ### Problem
+
 There is no way to regenerate angles without re-running the full pipeline. The `/angle/run` endpoint runs the full graph from scratch each time — it does not expose "give me a new set of angles for the same synthesis."
 
 ### Solution
@@ -105,6 +57,7 @@ There is no way to regenerate angles without re-running the full pipeline. The `
 **Add `POST /api/v1/angle/regenerate`** — accepts an existing `synthesis` + `run_id` (same as `/angle/run`) but seeds the generation with a `exclude_statements` list so the LLM knows what was already generated.
 
 **Backend — `apps/api/v1/angle.py`:**
+
 ```python
 class AngleRegenerateRequest(BaseModel):
     topic: str
@@ -124,10 +77,13 @@ Move `AngleRegenerateRequest` to `schemas.py`.
 
 **Prompt update — `angle_generation.txt`:**
 Add a section at the end:
+
 ```
 {exclude_block}
 ```
+
 Where `exclude_block` is either empty (normal run) or:
+
 ```
 PREVIOUSLY GENERATED ANGLES (DO NOT REPEAT THESE):
 - {statement_1}
@@ -141,12 +97,14 @@ Read `exclude_statements` from request dict. If non-empty, inject them into the 
 
 **`AngleRequest` contract — `contracts.py`:**
 Add optional field:
+
 ```python
 exclude_statements: list[str] = Field(default_factory=list)
 ```
 
 **Frontend — `lib/api.ts`:**
 Add:
+
 ```ts
 regenerateAngles: (body: AngleRegenerateBody) =>
   post<AngleResponse>("/angle/regenerate", body),
@@ -156,6 +114,7 @@ regenerateAngles: (body: AngleRegenerateBody) =>
 Add a "Regenerate Angles" button below the angle list, visible when `stages.angle.status === "done" && stages.content.status === "idle"`. On click: collect current `angleResult.angles.map(a => a.statement)` as `exclude_statements`, call `api.regenerateAngles(...)`, dispatch `setAngleResult`, keep angle stage as `done`.
 
 **Files changed:**
+
 - `backend/core/orchestration/contracts.py` — add `exclude_statements` to `AngleRequest`
 - `backend/core/orchestrators/angle/generator.py` — pass `exclude_block` to prompt
 - `backend/core/prompts/templates/angle_generation.txt` — add `{exclude_block}` variable
@@ -171,6 +130,7 @@ Add a "Regenerate Angles" button below the angle list, visible when `stages.angl
 ## 4. Progress Percentage in Research Stage
 
 ### Problem
+
 The research graph runs 9 nodes taking 30–90s. The UI shows only `"Running…"` with no indication of which node is executing or how far along the run is.
 
 ### Solution
@@ -189,12 +149,14 @@ _run_progress[state["run_id"]] = {"node": "route", "step": 2, "total": 9}
 ```
 
 Node → step mapping:
+
 ```
 intake=1, route=2, llm_knowledge=3, execute_tools=4,
 normalize=5, score_evidence=6, synthesize=7, evaluate=8, finalize=9
 ```
 
 Add endpoint in `research.py`:
+
 ```python
 @router.get("/status/{run_id}")
 async def research_status(run_id: str) -> dict:
@@ -243,6 +205,7 @@ useEffect(() => {
 ```
 
 In Stage 1 card running state (currently just a spinner), replace with:
+
 ```tsx
 <div className="text-xs text-zinc-500 font-medium">{researchProgress?.label ?? "Researching…"}</div>
 <div className="w-full bg-zinc-800 rounded-full h-1.5 mt-2">
@@ -252,6 +215,7 @@ In Stage 1 card running state (currently just a spinner), replace with:
 ```
 
 **Files changed:**
+
 - `backend/core/graphs/research_graph.py` — add `_run_progress` dict + update at each node
 - `backend/apps/api/v1/research.py` — add `GET /status/{run_id}` endpoint
 - `frontend/app/pipeline/page.tsx` — add poll + progress bar in Stage 1 running state
@@ -265,6 +229,7 @@ In Stage 1 card running state (currently just a spinner), replace with:
 ## 5. Multi-Topic Batch Mode
 
 ### Problem
+
 The API and CLI accept one topic per call. Producing a 10-post content calendar requires 10 sequential invocations (total: 5–15 minutes). There is no way to submit a batch and have them run concurrently.
 
 ### Solution
@@ -338,17 +303,20 @@ Move `BatchPipelineRequest`, `BatchTopicResult`, `BatchPipelineResponse` to `sch
 **`PipelineRequest` and `PipelineResponse` should also move to `schemas.py`** as part of this work (currently inline in `pipeline.py` — a known tech debt item).
 
 **Frontend — add a "Batch Mode" tab or secondary page `/pipeline/batch`:**
+
 - Textarea where user pastes one topic per line
 - Mode/freshness/angle-mode selectors (same as single pipeline)
 - "Run Batch" button → calls `api.runBatch()`
 - Results table: topic, status badge (✅/❌), output path link
 
 **`lib/api.ts`:**
+
 ```ts
 runBatch: (body: BatchPipelineBody) => post<BatchPipelineResponse>("/pipeline/batch", body),
 ```
 
 **Files changed:**
+
 - `backend/apps/api/v1/pipeline.py` — add `/batch` endpoint
 - `backend/apps/api/v1/schemas.py` — add 3 batch models + move existing `PipelineRequest/Response`
 - `frontend/lib/api.ts` — add `runBatch`
@@ -361,9 +329,11 @@ runBatch: (body: BatchPipelineBody) => post<BatchPipelineResponse>("/pipeline/ba
 ## 6. Slide Editor UI
 
 ### Problem
+
 After content is generated the user can only view slides. There is no way to edit text, swap an image, or regenerate a single slide — the only option is re-running the entire 3-stage pipeline.
 
 This is the most complex of the six improvements. It requires:
+
 1. A backend endpoint to regenerate a single slide
 2. A backend endpoint to swap an image on a slide (search + replace + re-render PNG)
 3. Frontend inline editing UI on the carousel preview
@@ -429,11 +399,13 @@ Add these to `backend/apps/api/v1/content.py`. Add request/response models to `s
   - **Save / Cancel** buttons
 
 **State in `pipeline/page.tsx`:**
+
 ```ts
 const [editingSlide, setEditingSlide] = useState<{angleIdx: number; slideNum: number} | null>(null);
 ```
 
 **`lib/api.ts`:**
+
 ```ts
 regenerateSlide: (runId: string, slideNum: number, body: SlideRegenBody) =>
   post<SlideRegenResponse>(`/content/${runId}/slides/${slideNum}/regenerate`, body),
@@ -445,17 +417,18 @@ On successful regen/swap: update `contentResult.carousel_paths[angleIdx][slideId
 
 #### Files changed
 
-| File | Change |
-|---|---|
-| `backend/apps/api/v1/content.py` | Add 2 new endpoints |
-| `backend/apps/api/v1/schemas.py` | Add 4 new models |
+| File                                                         | Change                                                                                   |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `backend/apps/api/v1/content.py`                           | Add 2 new endpoints                                                                      |
+| `backend/apps/api/v1/schemas.py`                           | Add 4 new models                                                                         |
 | `backend/core/orchestrators/content/carousel_generator.py` | Extract `render_and_screenshot_single_slide(slide, angle, run_id, angle_index)` helper |
-| `backend/core/orchestrators/content/image_fetcher.py` | Extract `fetch_single_slide_image(slide, run_id, angle_index)` helper |
-| `frontend/lib/api.ts` | Add `regenerateSlide`, `swapSlideImage` |
-| `frontend/components/pipeline/InstagramPreview.tsx` | Add edit overlay + inline editor |
-| `frontend/app/pipeline/page.tsx` | Pass `runId` + `editingSlide` state to `InstagramPreview` |
+| `backend/core/orchestrators/content/image_fetcher.py`      | Extract `fetch_single_slide_image(slide, run_id, angle_index)` helper                  |
+| `frontend/lib/api.ts`                                      | Add `regenerateSlide`, `swapSlideImage`                                              |
+| `frontend/components/pipeline/InstagramPreview.tsx`        | Add edit overlay + inline editor                                                         |
+| `frontend/app/pipeline/page.tsx`                           | Pass `runId` + `editingSlide` state to `InstagramPreview`                          |
 
 **Verification:**
+
 1. Generate a carousel. Hover a slide — pencil appears.
 2. Click pencil. Title becomes editable — change it. Click Save. Confirm PNG re-renders with new text.
 3. Click "Regenerate with AI", type "add a specific statistic". Confirm new slide content appears.
@@ -506,20 +479,20 @@ The backend also serves `/outputs/` as static files (`main.py` already mounts th
 
 ### Data mapping — what goes where
 
-| Blog section | Source |
-|---|---|
-| Title, subtitle | LLM-generated from `topic` + first angle statement |
-| Hero image | Slide 1 or 2 image from `angle_0/images/slide_01.jpg` (first non-colour slide) |
-| Intro paragraph | `synthesis.summary` (first 2 sentences) + LLM expansion |
-| Background section | `synthesis.key_points` expanded into prose by LLM |
-| Key findings subsections | One per key point — LLM prose + `[Source](url)` citations from `evidence` |
-| Pull quotes | `stat_value` slides from any angle — displayed as `> **stat_value** — stat_label` |
-| Angle sections (×3) | Each angle: LLM prose using slide titles/bodies + angle image (slide 2–4 of that angle) |
-| Image captions | `image_assets[n].source` → "Photo via Pexels" / "Photo via DuckDuckGo" / "Illustration" |
-| Cited articles section | All evidence with real URLs — title, snippet, source domain |
-| LLM-only callout | If all evidence is `source_type: llm_knowledge` — yellow callout box in HTML |
-| Tags / hashtags | From `carousel.json` hashtags of angle_0 |
-| Conclusion | LLM-generated from `synthesis.implications` |
+| Blog section             | Source                                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------------------ |
+| Title, subtitle          | LLM-generated from `topic` + first angle statement                                       |
+| Hero image               | Slide 1 or 2 image from `angle_0/images/slide_01.jpg` (first non-colour slide)           |
+| Intro paragraph          | `synthesis.summary` (first 2 sentences) + LLM expansion                                  |
+| Background section       | `synthesis.key_points` expanded into prose by LLM                                        |
+| Key findings subsections | One per key point — LLM prose +`[Source](url)` citations from `evidence`              |
+| Pull quotes              | `stat_value` slides from any angle — displayed as `> **stat_value** — stat_label`    |
+| Angle sections (×3)     | Each angle: LLM prose using slide titles/bodies + angle image (slide 2–4 of that angle)   |
+| Image captions           | `image_assets[n].source` → "Photo via Pexels" / "Photo via DuckDuckGo" / "Illustration" |
+| Cited articles section   | All evidence with real URLs — title, snippet, source domain                               |
+| LLM-only callout         | If all evidence is `source_type: llm_knowledge` — yellow callout box in HTML            |
+| Tags / hashtags          | From `carousel.json` hashtags of angle_0                                                 |
+| Conclusion               | LLM-generated from `synthesis.implications`                                              |
 
 ---
 
@@ -619,6 +592,7 @@ Create `backend/core/prompts/templates/blog_post.txt` as above.
 **File:** `backend/core/orchestrators/content/blog_post_generator.py`
 
 This module has two responsibilities:
+
 1. Call the LLM to generate prose sections
 2. Assemble the final Markdown and HTML by injecting images, citations, and pull-quotes into the prose
 
@@ -1036,6 +1010,7 @@ async def get_blog_post_html(run_id: str) -> str:
 Add `blog_post_path: str = ""` and `blog_post_html_path: str = ""` to `ContentResponse` in `contracts.py`.
 
 **`lib/api.ts`:**
+
 ```ts
 getBlogPostMd:   (runId: string) =>
   fetch(`${BASE}/content/${runId}/blog-post`).then(r => r.text()),
@@ -1172,16 +1147,16 @@ Between 1995 and 2010, channels like Cartoon Network, Nickelodeon, Disney XD, an
 
 ### Files changed / created
 
-| File | Action |
-|---|---|
-| `backend/core/prompts/templates/blog_post.txt` | NEW — LLM prose prompt |
-| `backend/core/orchestrators/content/blog_post_generator.py` | NEW — `BlogAssets`, `generate_blog_post()`, `_assemble_markdown()`, `_markdown_to_html()` |
-| `backend/core/orchestrators/content/orchestrator.py` | MODIFY — collect image_assets per angle, call generator after loop |
-| `backend/core/orchestration/contracts.py` | MODIFY — add `blog_post_path`, `blog_post_html_path` to `ContentResponse` |
-| `backend/apps/api/v1/content.py` | MODIFY — add 2 GET endpoints |
-| `backend/pyproject.toml` | MODIFY — add `markdown>=3.5` dependency |
-| `frontend/lib/api.ts` | MODIFY — add `getBlogPostMd`, `getBlogPostHtml` |
-| `frontend/app/pipeline/page.tsx` | MODIFY — add "Export Markdown" + "Export HTML" buttons in Stage 3 |
+| File                                                          | Action                                                                                            |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `backend/core/prompts/templates/blog_post.txt`              | NEW — LLM prose prompt                                                                           |
+| `backend/core/orchestrators/content/blog_post_generator.py` | NEW —`BlogAssets`, `generate_blog_post()`, `_assemble_markdown()`, `_markdown_to_html()` |
+| `backend/core/orchestrators/content/orchestrator.py`        | MODIFY — collect image_assets per angle, call generator after loop                               |
+| `backend/core/orchestration/contracts.py`                   | MODIFY — add `blog_post_path`, `blog_post_html_path` to `ContentResponse`                  |
+| `backend/apps/api/v1/content.py`                            | MODIFY — add 2 GET endpoints                                                                     |
+| `backend/pyproject.toml`                                    | MODIFY — add `markdown>=3.5` dependency                                                        |
+| `frontend/lib/api.ts`                                       | MODIFY — add `getBlogPostMd`, `getBlogPostHtml`                                              |
+| `frontend/app/pipeline/page.tsx`                            | MODIFY — add "Export Markdown" + "Export HTML" buttons in Stage 3                                |
 
 ---
 

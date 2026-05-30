@@ -8,7 +8,6 @@ router = APIRouter(prefix="/angle", tags=["angle"])
 _orchestrator = AngleOrchestrator()
 
 
-
 @router.post("/run", response_model=AngleResponse)
 async def run_angle(request: AngleRequest) -> AngleResponse:
     """
@@ -17,6 +16,17 @@ async def run_angle(request: AngleRequest) -> AngleResponse:
     - mode=auto: returns immediately with selected_angles (LLM picks).
     - mode=manual: returns status=pending with all generated angles.
                    Call POST /angle/{run_id}/select to complete.
+    """
+    return await _orchestrator.run(request.model_dump())
+
+
+@router.post("/regenerate", response_model=AngleResponse)
+async def regenerate_angles(request: AngleRequest) -> AngleResponse:
+    """
+    Generate a fresh set of angles for the same synthesis, avoiding previously seen ones.
+
+    Pass the statements from the previous run in exclude_statements so the LLM
+    produces completely different angles. Uses the same run_id to group outputs.
     """
     return await _orchestrator.run(request.model_dump())
 

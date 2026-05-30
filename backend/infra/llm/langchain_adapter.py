@@ -15,7 +15,6 @@ Use this when working with LangChain/LangGraph features:
 For direct LLM calls, use LLMFactory.get_client() instead.
 """
 
-from typing import Union
 from langchain_core.language_models.chat_models import BaseChatModel
 from configs.settings import get_settings
 

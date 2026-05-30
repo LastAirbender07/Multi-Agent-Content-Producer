@@ -12,6 +12,16 @@ async def generate_angles_node(state: AngleGraphState) -> dict:
     request = AngleRequest.model_validate(state["request"])
     synthesis = request.synthesis
 
+    exclude_statements = request.exclude_statements or []
+    if exclude_statements:
+        lines = "\n".join(f"- {s}" for s in exclude_statements)
+        exclude_block = (
+            f"\n\nPREVIOUSLY GENERATED ANGLES (DO NOT REPEAT THESE):\n{lines}\n"
+            "Generate completely different angles that approach the topic from new directions."
+        )
+    else:
+        exclude_block = ""
+
     try:
         llm = await LLMFactory.get_client()
         system_prompt = get_system_prompt("angle")
@@ -20,6 +30,7 @@ async def generate_angles_node(state: AngleGraphState) -> dict:
             topic=request.topic,
             research_summary=synthesis.summary,
             key_points="\n".join(f"- {p}" for p in synthesis.key_points),
+            exclude_block=exclude_block,
         )
 
         result = await llm.generate_structured(

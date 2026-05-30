@@ -133,6 +133,7 @@ class AngleRequest(BaseModel):
     run_id: Optional[str] = Field(default=None, description="Run ID from the pipeline; generated if not provided")
     mode: Literal["auto", "manual"] = Field(default="manual", description="auto = LLM selects; manual = human selects via interrupt")
     max_angles_to_select: int = Field(default=3, description="How many angles to select in auto mode")
+    exclude_statements: list[str] = Field(default_factory=list, description="Angle statements from a previous run to avoid repeating")
 
 class AngleResponse(BaseModel):
     run_id: str = Field(..., description="Run ID for this angle generation run")

@@ -6,7 +6,47 @@
 
 ---
 
-## 2026-05-22 - Session 22: Carousel Validation Framework + Bug Fixes
+## 2026-05-30 - Session 24: Branding, Bug Fixes & Product Improvements (1 of N)
+
+**Decision:** Applied branding to carousel slides, fixed JWT expiry auto-recovery, fixed image deduplication across carousels, added angle re-generation feature, removed slide counter from brand bar, and restored the progress bar.
+
+---
+
+**Change 1 — Brand identity on every carousel slide**
+
+- `backend/configs/settings.py` — Added `brand_name: str = "TheOpinionBoard"` and `brand_logo_path: str = "assets/brand/logo.png"` settings. Override via `.env` without code changes.
+- `backend/core/orchestrators/content/carousel_generator.py` — Changed `brand_name=""` and `logo_path=""` hardcoded values to read from `_settings`. Logo path prefixed with `/` so the aiohttp render server resolves it from `_BACKEND_ROOT`.
+- `backend/core/templates/carousel/aurora/_base.html.j2` + `lumina/_base.html.j2` — Brand bar left side changed from plain `<span>` text to a `<div class="brand-identity">` with a circular 36×36px `<img class="brand-logo">` (guarded by `{% if logo_path %}`) followed by the handle text. Lumina progress bar track fixed from `rgba(255,255,255,0.08)` (invisible on white) to `rgba(0,0,0,0.08)`.
+- `frontend/components/pipeline/InstagramPreview.tsx` — Footer text changed from "Produced by Content Studio AI" to "@TheOpinionBoard".
+
+**Change 2 — Slide counter removed, progress bar kept**
+
+- Both `_base.html.j2` files — Removed `N / 12` counter text (`<span class="progress">`) and its `.progress` CSS class from the brand bar. Progress fill bar retained (position + gradient unchanged). Rationale: Instagram provides its own counter; the hardcoded number causes confusion if slides are skipped during posting.
+
+**Change 3 — JWT auto-recovery for LangChain adapter**
+
+- `backend/infra/llm/langchain_adapter.py` — Replaced `@lru_cache()` on `get_langchain_llm()` with a resettable module-level `_cached_client`. Added `reset_langchain_llm()` and `get_langchain_llm_with_retry(call)` — on JWT/401 error, resets cache and retries once with a fresh client. `_is_jwt_error()` detects by checking `"jwt"`, `"expired"`, or `"401"` in the exception message (case-insensitive).
+- `backend/apps/api/v1/chat.py` — Switched from `llm = get_langchain_llm(); await llm.ainvoke(...)` to `await get_langchain_llm_with_retry(lambda llm: llm.ainvoke(messages))`.
+- `backend/apps/api/v1/tools.py` — Same switch for the DDGS image LLM relevance filter.
+
+**Change 4 — Image deduplication across carousel slides**
+
+- `backend/core/orchestrators/content/image_fetcher.py` — Added `used_urls: set[str]` before the slide loop. Pool size raised 15→20 for all four fetch calls (primary + fallback for both sources). Best image picked with `next((img for img in ranked if download_url not in used_urls), ranked[0])` where `download_url = img.get("src", {}).get("large2x") or img.get("url", "")` — uses the actual CDN download URL (not Pexels page URL) as the dedup key. `used_urls.add(download_url)` runs after the `if not download_url` guard so empty strings never pollute the set.
+
+**Change 5 — Angle re-generation**
+
+- `backend/core/orchestration/contracts.py` — Added `exclude_statements: list[str] = Field(default_factory=list)` to `AngleRequest`.
+- `backend/core/prompts/templates/angle_generation.txt` — Added `{exclude_block}` variable at the end of the prompt.
+- `backend/core/orchestrators/angle/generator.py` — Builds `exclude_block` string from `request.exclude_statements`: if non-empty, injects a "PREVIOUSLY GENERATED ANGLES (DO NOT REPEAT THESE)" section; empty string if none.
+- `backend/apps/api/v1/angle.py` — Added `POST /angle/regenerate` endpoint that calls `_orchestrator.run(request.model_dump())` with the same `AngleRequest` body — no new schema class needed.
+- `frontend/lib/api.ts` — Added `regenerateAngles` method; added `exclude_statements?: string[]` to `AngleRequestBody`.
+- `frontend/app/pipeline/page.tsx` — Added `handleRegenerateAngles()` function and `regenerating` state. Added "Regenerate Angles" button below the angle list in Stage 2, visible when `stages.angle.status === "done" && stages.content.status === "idle"`. Styled as a zinc secondary button (distinct from the violet primary "Open Angle Selector"). Fixed bug: `isAnyRunning` const definition was accidentally displaced during edit — restored.
+
+**Status:** ✅ Complete — 5 changes, verified via Playwright screenshots.
+
+---
+
+
 
 **Decision:** Implemented a post-generation validation pipeline (new LangGraph node) that enforces slide structure, filters irrelevant content, strengthens image/graph quality. Then diagnosed three production bugs from a live run and fixed them.
 

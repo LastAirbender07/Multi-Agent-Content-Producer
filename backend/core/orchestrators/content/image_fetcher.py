@@ -153,6 +153,7 @@ async def fetch_images_node(state: ContentGraphState) -> dict:
     images_dir.mkdir(parents=True, exist_ok=True)
 
     image_assets: list[dict] = []
+    used_urls: set[str] = set()
 
     for slide in slides:
         slide_num = slide["slide_number"]
@@ -171,9 +172,9 @@ async def fetch_images_node(state: ContentGraphState) -> dict:
 
         # Fetch from the chosen source only
         if source == "pexels":
-            results = await _search_pexels(query, per_page=15)
+            results = await _search_pexels(query, per_page=20)
         else:  # ddgs
-            results = await _search_ddgs(query, max_results=15)
+            results = await _search_ddgs(query, max_results=20)
 
         # Fallback: if chosen source returns nothing, try the other
         if not results:
@@ -184,10 +185,10 @@ async def fetch_images_node(state: ContentGraphState) -> dict:
                 query=query[:60],
             )
             if source == "pexels":
-                results = await _search_ddgs(query, max_results=15)
+                results = await _search_ddgs(query, max_results=20)
                 source = "ddgs"
             else:
-                results = await _search_pexels(query, per_page=15)
+                results = await _search_pexels(query, per_page=20)
                 source = "pexels"
 
         if not results:
@@ -195,12 +196,22 @@ async def fetch_images_node(state: ContentGraphState) -> dict:
             continue
 
         ranked = sorted(results, key=lambda img: _score_image(img, query), reverse=True)
-        best = ranked[0]
+
+        # Deduplicate by the actual download URL (Pexels uses src.large2x, DDGS uses url directly)
+        best = next(
+            (
+                img for img in ranked
+                if (img.get("src", {}).get("large2x") or img.get("url", "")) not in used_urls
+            ),
+            ranked[0],
+        )
 
         download_url = best.get("src", {}).get("large2x") or best.get("url", "")
         if not download_url:
             image_assets.append(ImageAsset(slide_number=slide_num, source="colour").model_dump())
             continue
+
+        used_urls.add(download_url)
 
         dest = images_dir / f"slide_{slide_num:02d}.jpg"
         ok = await _download_image(
