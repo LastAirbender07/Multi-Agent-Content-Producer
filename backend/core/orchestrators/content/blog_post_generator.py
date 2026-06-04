@@ -1,5 +1,6 @@
 import json
 import re
+import httpx
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -24,44 +25,51 @@ class BlogAssets:
     is_llm_only: bool
 
 
-def _pick_section_images(assets: BlogAssets) -> list[dict]:
-    """One image per angle section — first non-colour asset, fallback to first PNG."""
-    images = []
+_SLIDE_TYPE_PRIORITY = {"hook": 0, "content": 1, "quote": 2, "stat": 3, "engage": 9, "cta": 9}
+
+def _build_image_pool(assets: BlogAssets, max_images: int = 8) -> list[dict]:
+    """
+    Collect all real images across every angle, deduplicate by URL,
+    sort by slide type priority, return up to max_images.
+    """
+    seen_urls: set[str] = set()
+    pool: list[dict] = []
+
     for item in assets.all_angle_slides:
-        angle = item["angle"]
         image_assets = item.get("image_assets", [])
         slides = item.get("slides", [])
         angle_index = item["angle_index"]
+        slides_by_num = {s["slide_number"]: s for s in slides}
 
-        real = next(
-            (a for a in image_assets if a.get("source") != "colour" and a.get("local_raw_path")),
-            None,
-        )
+        for asset in image_assets:
+            if asset.get("source") == "colour" or not asset.get("local_raw_path"):
+                continue
+            url = asset.get("original_url", "")
+            if not url or url in seen_urls:
+                continue
+            seen_urls.add(url)
 
-        if real:
-            slide_num = real["slide_number"]
-            caption = "Photo via Pexels" if real["source"] == "pexels" else "Photo via DuckDuckGo"
-            slide = next((s for s in slides if s["slide_number"] == slide_num), {})
-            images.append({
-                "original_url": real.get("original_url", ""),
+            slide = slides_by_num.get(asset["slide_number"], {})
+            slide_type = slide.get("type", "content")
+            if slide_type in ("cta", "engage"):
+                continue  # colour-card types even if they somehow have an image
+
+            caption = "Photo via Pexels" if asset["source"] == "pexels" else "Photo via DuckDuckGo"
+            pool.append({
+                "original_url": url,
                 "caption": caption,
-                "alt": slide.get("title", assets.topic),
+                "alt": slide.get("title", assets.topic)[:80],
                 "angle_index": angle_index,
-                "slide_number": slide_num,
+                "slide_number": asset["slide_number"],
+                "_priority": _SLIDE_TYPE_PRIORITY.get(slide_type, 5),
             })
-        else:
-            png_dir = assets.outputs_root / assets.run_id / "content" / f"angle_{angle_index}" / "png"
-            pngs = sorted(png_dir.glob("slide_*.png")) if png_dir.exists() else []
-            if pngs:
-                images.append({
-                    "original_url": "",
-                    "caption": "@TheOpinionBoard",
-                    "alt": angle.get("statement", assets.topic)[:80],
-                    "angle_index": angle_index,
-                    "slide_number": 0,
-                })
 
-    return images
+    # Sort: hook/content first, quote second, others last
+    pool.sort(key=lambda x: x["_priority"])
+    for img in pool:
+        img.pop("_priority", None)
+
+    return pool[:max_images]
 
 
 def _img_url(item: dict, run_id: str) -> str:
@@ -71,6 +79,30 @@ def _img_url(item: dict, run_id: str) -> str:
     sn = item["slide_number"]
     ai = item["angle_index"]
     return f"http://localhost:8000/outputs/{run_id}/content/angle_{ai}/images/slide_{sn:02d}.jpg"
+
+
+async def _is_url_alive(url: str) -> bool:
+    """HEAD request to verify the image URL is reachable. Returns True for localhost paths."""
+    if url.startswith("http://localhost"):
+        return True
+    try:
+        async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
+            resp = await client.head(url, headers={"User-Agent": "Mozilla/5.0"})
+            return resp.status_code < 400
+    except Exception:
+        return False
+
+
+async def _filter_live_images(images: list[dict], run_id: str) -> list[dict]:
+    """Return only images whose URL responds successfully."""
+    import asyncio
+    urls = [_img_url(img, run_id) for img in images]
+    checks = await asyncio.gather(*[_is_url_alive(u) for u in urls])
+    live = [img for img, ok in zip(images, checks) if ok]
+    dead = len(images) - len(live)
+    if dead:
+        logger.warning("blog_images_dead_urls_filtered", count=dead, total=len(images))
+    return live
 
 
 def _build_citations_md(evidence: list[dict]) -> str:
@@ -101,34 +133,69 @@ def _stat_pull_quotes(all_angle_slides: list[dict]) -> list[str]:
 
 
 def _assemble_markdown(prose: str, assets: BlogAssets, images: list[dict]) -> str:
-    lines = prose.splitlines(keepends=True)
-    result: list[str] = []
-    hero_inserted = False
-    angle_img_idx = 0
+    """
+    Replace [IMAGE_HERE] tokens the LLM placed in prose with real images from the pool.
+    Guarantee at least 2 images: if the LLM placed fewer tokens than we have images,
+    inject remaining images at the first available section boundary.
+    Strips [MARKER] and [MARKER: text] brackets from headings.
+    Cleans up any residual raw image tokens that were not consumed.
+    """
+    # Token the LLM writes — no curly braces so str.format() in load_prompt leaves it intact
+    TOKEN = "[IMAGE_HERE]"
+
+    pool = list(images)
     pull_quotes = _stat_pull_quotes(assets.all_angle_slides)
     pq_idx = 0
 
+    lines = prose.splitlines(keepends=True)
+    result: list[str] = []
+    images_injected = 0
+    MIN_IMAGES = 2
+
+    heading_re = re.compile(r"^(#{1,3})\s+\[([A-Z]+)(?::\s*(.+?))?\]\s*$")
+
     for line in lines:
+        stripped = line.rstrip("\n")
+
+        # Replace [IMAGE_HERE] token
+        if stripped.strip() == TOKEN:
+            if pool:
+                img = pool.pop(0)
+                url = _img_url(img, assets.run_id)
+                result.append(f"\n![{img['alt']}]({url})\n*{img['caption']}*\n\n")
+                images_injected += 1
+            # Pool exhausted — token silently dropped (cleaned up below)
+            continue
+
+        # Strip [MARKER] brackets from headings
+        m = heading_re.match(stripped)
+        if m:
+            hashes, marker, text = m.group(1), m.group(2).title(), m.group(3)
+            heading_text = text if text else marker
+            line = f"{hashes} {heading_text}\n"
+
         result.append(line)
 
-        # Hero image after the first blockquote (subtitle line)
-        if not hero_inserted and line.startswith("> ") and images:
-            hero = images[0]
-            url = _img_url(hero, assets.run_id)
-            result.append(f"\n![{hero['alt']}]({url})\n*{hero['caption']}*\n\n")
-            hero_inserted = True
-
-        # Section image before each ANGLE heading
-        if re.match(r"^## \[ANGLE:", line) and angle_img_idx + 1 < len(images):
-            angle_img_idx += 1
-            img = images[angle_img_idx]
-            url = _img_url(img, assets.run_id)
-            result.append(f"\n![{img['alt']}]({url})\n*{img['caption']}*\n\n")
-
-        # Pull-quote after each FINDING heading
-        if re.match(r"^## \[FINDING:", line) and pq_idx < len(pull_quotes):
+        # Pull-quote after FINDING headings
+        if re.match(r"^## \[FINDING:", stripped) and pq_idx < len(pull_quotes):
             result.append("\n" + pull_quotes[pq_idx])
             pq_idx += 1
+
+    # Minimum guarantee: inject remaining pool images at section headings if under minimum
+    if images_injected < MIN_IMAGES and pool:
+        heading_positions = [
+            i for i, l in enumerate(result)
+            if l.startswith("## ") and i > 0
+        ]
+        insert_positions = heading_positions[:MIN_IMAGES - images_injected]
+        for offset, pos in enumerate(insert_positions):
+            if not pool:
+                break
+            img = pool.pop(0)
+            url = _img_url(img, assets.run_id)
+            insert_at = pos + offset + 1
+            result.insert(insert_at, f"\n![{img['alt']}]({url})\n*{img['caption']}*\n\n")
+            images_injected += 1
 
     # Append citations or LLM callout
     if assets.is_llm_only:
@@ -138,29 +205,39 @@ def _assemble_markdown(prose: str, assets: BlogAssets, images: list[dict]) -> st
         if citations:
             result.append("\n\n---\n\n" + citations)
 
-    # Strip [MARKER] and [MARKER: text] wrappers from headings.
-    # e.g.  ## [BACKGROUND]           → ## Background
-    #       ## [FINDING: Key point]   → ## Key point
-    #       ## [ANGLE: The statement] → ## The statement
-    cleaned: list[str] = []
-    heading_re = re.compile(r"^(#{1,3})\s+\[([A-Z]+)(?::\s*(.+?))?\]\s*$")
-    for line in result:
-        m = heading_re.match(line.rstrip("\n"))
-        if m:
-            hashes, marker, text = m.group(1), m.group(2).title(), m.group(3)
-            heading_text = text if text else marker
-            # Preserve trailing newline
-            line = f"{hashes} {heading_text}\n"
-        cleaned.append(line)
+    # Instagram CTA
+    result.append(
+        "\n**Follow us on Instagram for daily bite-sized insights: "
+        "[@TheOpinionBoard](https://www.instagram.com/theopinionboard/)**\n"
+    )
 
-    return "".join(cleaned)
+    assembled = "".join(result)
+
+    # ── Safety cleanup pass ───────────────────────────────────────────────────
+    # Remove any residual image tokens that survived (pool exhausted, or LLM used
+    # a slightly different format like {IMAGE} or {{IMAGE}}).
+    _stale_token_re = re.compile(
+        r"^\s*(\{IMAGE\}|\{\{IMAGE\}\}|\[IMAGE_HERE\]|\{image\})\s*$",
+        re.IGNORECASE | re.MULTILINE,
+    )
+    cleaned = _stale_token_re.sub("", assembled)
+
+    # ── Post-generation validator ─────────────────────────────────────────────
+    remaining = _stale_token_re.findall(assembled)
+    if remaining:
+        logger.warning(
+            "blog_image_tokens_not_replaced",
+            count=len(remaining),
+            run_id=assets.run_id,
+        )
+
+    return cleaned
+
 
 
 def _markdown_to_html(md: str, topic: str, tags: list[str]) -> str:
     import markdown as md_lib
     body_html = md_lib.markdown(md, extensions=["extra", "tables", "toc"])
-
-    tags_html = " ".join(f'<span class="tag">#{t}</span>' for t in tags[:12])
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -208,8 +285,6 @@ def _markdown_to_html(md: str, topic: str, tags: list[str]) -> str:
 </head>
 <body>
   {body_html}
-  <div class="tags">{tags_html}</div>
-  <p class="footer">Originally produced by <strong>@TheOpinionBoard</strong></p>
 </body>
 </html>"""
 
@@ -275,7 +350,11 @@ async def generate_blog_post(assets: BlogAssets) -> tuple[str, str]:
     )
     prose = response.content
 
-    section_images = _pick_section_images(assets)
+    section_images = _build_image_pool(assets)
+
+    # Validate URLs — filter out dead CDN/DDG links before injecting
+    section_images = await _filter_live_images(section_images, assets.run_id)
+
     markdown_str = _assemble_markdown(prose, assets, section_images)
 
     # Get hashtags from first angle's carousel.json
@@ -286,6 +365,13 @@ async def generate_blog_post(assets: BlogAssets) -> tuple[str, str]:
     if carousel_path.exists():
         carousel_data = json.loads(carousel_path.read_text())
         tags = carousel_data.get("hashtags", [])
+
+    # Append tags and footer to Markdown (so the raw .md has them too)
+    if tags:
+        # Prefix with zero-width space to prevent Markdown treating #tag as heading
+        tags_line = " ".join(f"\\#{t}" for t in tags[:12])
+        markdown_str += f"\n\n---\n\n{tags_line}\n"
+    markdown_str += "\n*Originally produced by [@TheOpinionBoard](https://www.instagram.com/theopinionboard/)*\n"
 
     html_str = _markdown_to_html(markdown_str, assets.topic, tags)
     return markdown_str, html_str

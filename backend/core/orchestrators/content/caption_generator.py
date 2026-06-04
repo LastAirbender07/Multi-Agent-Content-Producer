@@ -39,8 +39,9 @@ async def generate_caption_node(state: ContentGraphState) -> dict:
         )
 
         logger.info("generate_caption_node_complete", run_id=state.get("run_id"))
+        caption = result.caption.rstrip() + "\n\nRead the full story → https://medium.com/@theOpinionBoard"
         return {
-            "caption": result.caption,
+            "caption": caption,
             "hashtags": result.hashtags,
             "messages": state.get("messages", []) + ["Caption generated"],
         }

@@ -71,6 +71,10 @@ RULES:
 - 1100-1600 words total
 - Tone must match: {primary_emotional_hook}
 - No bullet lists in prose sections — paragraphs only
-- Do NOT write "[IMAGE]", "[CITATION]" or any placeholder markers — those are injected by code
 - Do NOT mention carousel, slides, or Instagram
 - Bold key facts and statistics inline where appropriate
+- Where a visual would naturally reinforce the point you just made, write the exact
+  token [IMAGE_HERE] on its own line (no other text on that line). Aim for 5-7 placements.
+  Good placements: after a strong claim or statistic, after an opening paragraph of a
+  new section, at a vivid scene-setting moment. Never in the intro paragraph or
+  conclusion. Never two [IMAGE_HERE] tokens consecutively.
