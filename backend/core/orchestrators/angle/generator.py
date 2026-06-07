@@ -23,7 +23,6 @@ async def generate_angles_node(state: AngleGraphState) -> dict:
         exclude_block = ""
 
     try:
-        llm = await LLMFactory.get_client()
         system_prompt = get_system_prompt("angle")
         user_prompt = load_prompt(
             "angle_generation",
@@ -33,10 +32,12 @@ async def generate_angles_node(state: AngleGraphState) -> dict:
             exclude_block=exclude_block,
         )
 
-        result = await llm.generate_structured(
-            prompt=user_prompt,
-            output_schema=AngleGenerationOutput,
-            system_prompt=system_prompt,
+        result = await LLMFactory.get_client_with_retry(
+            lambda llm: llm.generate_structured(
+                prompt=user_prompt,
+                output_schema=AngleGenerationOutput,
+                system_prompt=system_prompt,
+            )
         )
 
         logger.info(

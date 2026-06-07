@@ -21,10 +21,11 @@ async def llm_knowledge_node(state: ResearchGraphState) -> dict:
     topic = request.topic
 
     try:
-        llm = await LLMFactory.get_client()
         system_prompt = get_system_prompt("research")
         user_prompt = load_prompt("llm_knowledge", topic=topic)
-        response = await llm.generate(prompt=user_prompt, system_prompt=system_prompt)
+        response = await LLMFactory.get_client_with_retry(
+            lambda llm: llm.generate(prompt=user_prompt, system_prompt=system_prompt)
+        )
         content = response.content
 
         now = datetime.now(timezone.utc)

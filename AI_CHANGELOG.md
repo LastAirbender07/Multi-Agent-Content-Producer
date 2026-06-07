@@ -6,7 +6,68 @@
 
 ---
 
+## 2026-06-07 - Session 27: Research Pipeline Fixes, LLMFactory JWT Retry, Codebase Cleanup
+
+**Decision:** Fixed three research pipeline bugs identified from live run analysis: URLs in topics being silently discarded, query_variants being static boilerplate instead of LLM-refined, and LLM background knowledge failing due to JWT expiry on the singleton client. Added LLMFactory retry pattern to all callers. Pinned llm_knowledge evidence outside relevance ranking. Embedded evidence list in research_result.json. Deleted dead files.
+
+---
+
+**Change 1 — Stale file cleanup**
+
+Deleted: `core/graphs/content_workflow.py` (empty), `tests/test_frontend.py` (superseded by `frontend/e2e/`), `tests/demo_llm.py` (exploratory script), `scripts/__init__.py` (empty dir), `build/` (pip artefact).
+Kept: `tests/test_executor_crawl4ai_mcp.py` and `core/tools/mcp_servers/date_time_server.py` — user's learning references.
+Updated `.gitignore`: added `backend/build/` and `frontend/test-results/`.
+
+---
+
+**Change 2 — URL extraction in `intake_node` (Fix 1)**
+
+- `backend/core/graphs/research_graph.py` — `intake_node` now runs a regex `_URL_RE = re.compile(r'https?://\S+')` on `request.topic` at intake time. Any found URLs are merged into `request.explicit_urls`. The routing policy already handles `explicit_urls` → crawl4ai. Previously: URLs embedded in the topic (e.g. espncricinfo stats links) were silently discarded.
+
+---
+
+**Change 3 — QueryPreprocessor wired into `intake_node` (Fix 2)**
+
+- `backend/core/graphs/research_graph.py` — `intake_node` now calls `QueryPreprocessor().process(request.topic)` when `preprocessed_queries` is empty. Sets `request.preprocessed_queries` from the result (6-10 LLM-refined, facet-targeted queries). Also updates `freshness` if the preprocessor infers a stronger signal (e.g. breaking vs recent). Non-fatal — falls through silently on error.
+- Previously: `QueryPreprocessor` was only called from the legacy CLI node (`core/nodes/research.py`). The main API path (`/research/run`) always hit the static fallback.
+- `backend/core/orchestration/policies/routing.py` — Removed the useless `" analysis trends"` / `" expert perspectives research"` suffix fallback. Fallback now uses a single raw topic query instead.
+
+---
+
+**Change 4 — LLMFactory JWT auto-retry (Fix 3)**
+
+- `backend/infra/llm/factory.py` — Added `reset()` classmethod (sets `_instance = None`) and `get_client_with_retry(call)` (executes `call(llm)`, on JWT/401 error resets singleton and retries once). Added `_is_jwt_error(exc)` helper — detects "jwt", "expired", "401" in message.
+- Root cause: `LLMFactory._instance` holds a `ClaudeLLM` with the HAI Proxy API key baked into `httpx.AsyncClient` headers at construction. When the JWT expires during a long server session, the singleton fails on every subsequent call.
+- Updated callers to use `get_client_with_retry`: `llm_knowledge.py`, `query_preprocessor.py`, `angle/generator.py`, `auto_selector.py`, `content/slide_generator.py`, `content/blog_post_generator.py`.
+
+---
+
+**Change 5 — llm_knowledge pinned outside relevance ranking (Fix 4)**
+
+- `backend/core/orchestrators/research/evidence_scorer.py` — `score_evidence_node` now separates `llm_knowledge` items before scoring. Only `source_type != "llm_knowledge"` items go through the LLM relevance ranker. Merge order: `llm_knowledge` items first (always reach the synthesiser), then ranked external sources. Previously: the single `llm_knowledge` item competed against 30+ news articles and was often ranked below the synthesiser's evidence window.
+
+---
+
+**Change 6 — Evidence list embedded in `research_result.json` (Fix 5)**
+
+- `backend/core/orchestrators/research/orchestrator.py` — `_build_response_data()` now includes `"evidence": [e.model_dump() for e in state.get("evidence", [])]`. Previously: only `evidence_count` was saved; loading a run from history showed empty evidence (no `llm_knowledge` chip, no source cards). Evidence is still also written separately to `evidence.json`.
+
+---
+
+**Docs updated**
+
+- `backend/infra/llm/README.md` — Added JWT caveat for `LLMFactory`, documented `get_client_with_retry()`, `reset()`, and recommended usage pattern.
+- `Docs/content-orchestrator/FRONTEND.md` — Updated E2E table (61 tests across 7 suites), added stage timers section, added blog export buttons/preview modal, updated API client list, updated running state description.
+- `Docs/RCA_Research_Pipeline_Issues.md` (new) — Full RCA document covering all 6 issues + stale file audit with delete/keep decisions.
+
+**Tests:** 44/44 backend unit tests passing. 61/61 frontend E2E tests passing. All 5 fixes verified with dedicated assertions.
+
+**Status:** ✅ Complete.
+
+---
+
 ## 2026-05-30 - Session 26: Blog Post Export (Markdown + HTML + In-App Preview)
+
 
 **Decision:** Auto-generate a publish-ready blog article at the end of every content run. Produces `blog_post.md` (Medium/Substack/Ghost) and `blog_post.html` (Wix/Blogger/standalone) with real images, inline citations, stat pull-quotes, and a branded footer. Accessible from the frontend via a full-screen preview modal + two download buttons.
 

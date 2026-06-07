@@ -89,7 +89,7 @@ Each pipeline stage renders as a collapsible `StageCard` with:
 - Chevron toggle header — shows stage number, icon, title, status badge
 - Auto-expands via `useEffect` + `startTransition` when `stages.X.status === "done"`
 - Collapses all when pipeline resets (all stages idle)
-- Running state shows spinner; done state shows full results
+- Running state shows spinner + live research progress bar (node label + violet fill bar polling `GET /research/status/{run_id}` every 2s); done state shows full results
 
 **Stage 1 (Research):** Shows `ResearchSummary` component. In LLM mode also shows `LlmRefinePanel`.
 
@@ -102,6 +102,19 @@ Each pipeline stage renders as a collapsible `StageCard` with:
 - Idle page: recent runs shown in the main area
 - Each `RunCard` shows: first 90 chars of topic with "…more" inline expansion, formatted timestamp
 - Clicking a card dispatches `loadRun(run)` which restores all stage results and auto-expands relevant stage cards
+
+#### Stage timers
+Each `StageCard` header shows a live `0:00` monospaced timer chip:
+- **Violet pill** while the stage is running — ticks every 500ms
+- **Zinc chip** frozen at final elapsed time once done/error
+- **Hidden** when stage is idle (no timer shown before the stage starts)
+- Implemented via `useStageTimer(status: StageStatus)` hook using `useRef` for start time and `setInterval` for ticks
+
+#### Blog post export
+After content completes, Stage 3 shows a "BLOG POST" bar with three buttons:
+- **Preview** (violet) — opens full-screen modal with `<iframe src="/api/v1/content/{runId}/blog-post.html">`, download buttons in the modal header, ✕ to close
+- **Markdown** — downloads `{topic}_blog.md`
+- **HTML** — downloads `{topic}_blog.html`
 
 #### `PipelineConfig`
 Left-side configuration panel. Reads and writes the `pipeline` Redux slice.
@@ -315,6 +328,8 @@ api.llmRefineResearch({ topic, current_result, feedback }) → POST /research/ll
 api.runAngle(body)                              → POST /angle/run
 api.selectAngles(runId, indices)                → POST /angle/{run_id}/select
 api.runContent(body)                            → POST /content/run
+api.getBlogPostMd(runId)                        → GET  /content/{run_id}/blog-post
+api.getBlogPostHtml(runId)                      → GET  /content/{run_id}/blog-post.html
 api.chat({ messages })                          → POST /chat/
 ```
 
@@ -434,28 +449,26 @@ The active running stage in `PipelineProgress` uses `layoutId="active-glow"` so 
 
 ```
 frontend/
-├── playwright.config.ts          ← Chromium only, baseURL http://localhost:3000, headless
+├── playwright.config.ts   ← Chromium only, baseURL http://localhost:3000, headless, workers: 1
 └── e2e/
-    └── llm-research-mode.spec.ts ← 20 tests covering LLM-only research mode (Session 23)
+    ├── llm-research-mode.spec.ts   ← 20 tests: LLM-only research mode (Session 23)
+    ├── pipeline-normal-flow.spec.ts ← 12 tests: auto/manual pipeline, angle regen, progress bar, errors
+    ├── pipeline-config.spec.ts      ← 8 tests: mode selectors, advanced settings, LLM toggle persistence
+    ├── research-page.spec.ts        ← 5 tests: query refinement, results, error state
+    ├── images-page.spec.ts          ← 5 tests: Pexels/DDGS search, tags, download
+    ├── news-page.spec.ts            ← 5 tests: source switching, time filters, results
+    └── chat-page.spec.ts            ← 5 tests: message send, history, clear
 ```
 
-All backend calls are intercepted with `page.route()` so tests are deterministic and require no live LLM backend.
-
-**Test suites (20 tests total):**
-
-| Suite | Tests |
-|---|---|
-| Toggle UI | visible, default OFF, label changes, Research Depth hidden, hint text |
-| Draft Flow | synthesis appears, request body, Generate Angles button, not shown in web mode |
-| Refine Panel | panel visible, button disabled when empty, enables on typing, refine updates synthesis, request body, textarea clears, multiple refines keep same run_id |
-| Generate Angles Flow | angle API called, correct run_id forwarded |
-| Normal pipeline | `/research/run` used when LLM mode OFF |
+**Total: 61 tests across 7 suites.** All backend calls intercepted with `page.route()` — deterministic, no live LLM backend required.
 
 **Running the tests:**
 ```bash
 cd frontend
 # Start the dev server first (tests need it)
 node_modules/.bin/next dev --port 3000 &
-# Run all E2E tests
-node_modules/.bin/playwright test e2e/llm-research-mode.spec.ts
+# Run all suites
+node_modules/.bin/playwright test e2e/
+# Run a specific suite
+node_modules/.bin/playwright test e2e/pipeline-normal-flow.spec.ts
 ```

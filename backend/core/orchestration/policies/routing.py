@@ -37,9 +37,6 @@ class DeterministicResearchRoutingPolicy:
             plan.query_variants = request.preprocessed_queries
             plan.rationale.append("Using preprocessed search queries from query preprocessor.")
         else:
-            plan.query_variants = [
-                request.topic,
-                f"{request.topic} analysis trends",
-                f"{request.topic} expert perspectives research",
-            ]
+            plan.query_variants = [request.topic]
+            plan.rationale.append("No preprocessed queries; using raw topic as single query variant.")
         return plan

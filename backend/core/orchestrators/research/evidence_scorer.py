@@ -58,43 +58,51 @@ async def _score_batch(topic: str, evidence: list[Evidence]) -> list[float]:
 async def score_evidence_node(state: ResearchGraphState) -> dict:
     """
     Replaces per-item relevance_score with LLM-judged semantic relevance.
-    A single batched LLM call scores all evidence items relative to the topic.
-    LLM-knowledge items (already scored by the model itself) are re-scored too
-    so everything uses the same scale.
+    A single batched LLM call scores all EXTERNAL evidence items relative to the topic.
+    llm_knowledge items are PINNED first — they are background context, not external sources,
+    and should not compete in the relevance ranking.
     """
     evidence: list[Evidence] = list(state.get("evidence", []))
     if not evidence:
         return {}
 
     topic: str = state["request"].topic
-    # Cap to avoid oversized prompts; take the top-_MAX_ITEMS by credibility
-    to_score = evidence[:_MAX_ITEMS]
-    rest = evidence[_MAX_ITEMS:]
+
+    # Separate LLM background knowledge from external sources
+    llm_knowledge_items = [e for e in evidence if e.source_type == "llm_knowledge"]
+    external_items = [e for e in evidence if e.source_type != "llm_knowledge"]
+
+    # Score only external items — cap to avoid oversized prompts
+    to_score = external_items[:_MAX_ITEMS]
+    rest = external_items[_MAX_ITEMS:]
 
     try:
         scores = await _score_batch(topic, to_score)
         updated: list[Evidence] = []
         for item, score in zip(to_score, scores):
             updated.append(item.model_copy(update={"relevance_score": round(score, 4)}))
-        # Items beyond _MAX_ITEMS keep their existing score
-        all_evidence = sorted(updated + rest, key=lambda e: e.relevance_score, reverse=True)
+        scored_external = sorted(updated + rest, key=lambda e: e.relevance_score, reverse=True)
+
+        # Merge: llm_knowledge always first (pinned context), then ranked external sources
+        all_evidence = llm_knowledge_items + scored_external
 
         logger.info(
             "score_evidence_node_completed",
             run_id=state.get("run_id"),
             scored=len(to_score),
-            top_score=all_evidence[0].relevance_score if all_evidence else 0,
-            avg_score=round(sum(e.relevance_score for e in all_evidence) / len(all_evidence), 3),
+            pinned_llm_knowledge=len(llm_knowledge_items),
+            top_score=scored_external[0].relevance_score if scored_external else 0,
+            avg_score=round(sum(e.relevance_score for e in scored_external) / len(scored_external), 3) if scored_external else 0,
         )
         return {
             "evidence": all_evidence,
             "messages": state.get("messages", []) + [
-                f"Evidence scoring: {len(to_score)} items scored by LLM; re-ranked by relevance."
+                f"Evidence scoring: {len(to_score)} items scored by LLM; "
+                f"{len(llm_knowledge_items)} LLM background item(s) pinned first; re-ranked by relevance."
             ],
         }
     except Exception as e:
         logger.warning("score_evidence_node_failed", error=str(e), run_id=state.get("run_id"))
-        # Non-fatal: leave evidence as-is
         return {
             "messages": state.get("messages", []) + [
                 f"Evidence scoring failed ({str(e)[:80]}); using unscored evidence."

@@ -15,7 +15,6 @@ async def generate_slides_node(state: ContentGraphState) -> dict:
     target_slides = min(request.max_slides, 14)
 
     try:
-        llm = await LLMFactory.get_client()
         system_prompt = get_system_prompt("content")
         user_prompt = load_prompt(
             "slide_generation",
@@ -27,11 +26,12 @@ async def generate_slides_node(state: ContentGraphState) -> dict:
             key_points="\n".join(f"- {point}" for point in request.key_points),
             target_slides=target_slides
         )
-
-        result = await llm.generate_structured(
-            prompt=user_prompt,
-            output_schema=SlideGenerationOutput,
-            system_prompt=system_prompt
+        result = await LLMFactory.get_client_with_retry(
+            lambda llm: llm.generate_structured(
+                prompt=user_prompt,
+                output_schema=SlideGenerationOutput,
+                system_prompt=system_prompt,
+            )
         )
 
         slides = result.slides

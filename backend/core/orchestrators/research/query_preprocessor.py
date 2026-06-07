@@ -37,8 +37,7 @@ class QueryPreprocessor:
 
         today = date.today().isoformat()
         prompt = self._template.format(raw_topic=raw_topic, current_date=today)
-        llm = await LLMFactory.get_client()
-        response = await llm.generate(prompt)
+        response = await LLMFactory.get_client_with_retry(lambda llm: llm.generate(prompt))
         raw = response.content
 
         try:

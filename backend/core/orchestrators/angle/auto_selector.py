@@ -14,20 +14,18 @@ async def llm_select_node(state: AngleGraphState) -> dict:
     angles = [Angle.model_validate(a) for a in state.get("angles", [])]
 
     try:
-        llm = await LLMFactory.get_client()
         angle_descriptions = "\n\n".join(
             f"Index {i}:\n  Statement: {a.statement}\n  Hook: {a.emotional_hook}\n  Evidence: {a.supporting_evidence}"
             for i, a in enumerate(angles)
         )
-
-        result = await llm.generate_structured(
-            prompt=(
-                f"From these {len(angles)} content angles for the topic '{request.topic}', "
-                f"select the {request.max_angles_to_select} strongest for an Instagram carousel post. "
-                f"Prefer angles that are contrarian, data-backed, and emotionally provocative.\n\n"
-                f"{angle_descriptions}"
-            ),
-            output_schema=AutoSelectionOutput,
+        _prompt = (
+            f"From these {len(angles)} content angles for the topic '{request.topic}', "
+            f"select the {request.max_angles_to_select} strongest for an Instagram carousel post. "
+            f"Prefer angles that are contrarian, data-backed, and emotionally provocative.\n\n"
+            f"{angle_descriptions}"
+        )
+        result = await LLMFactory.get_client_with_retry(
+            lambda llm: llm.generate_structured(prompt=_prompt, output_schema=AutoSelectionOutput)
         )
 
         valid_indices = [i for i in result.selected_indices if i < len(angles)]

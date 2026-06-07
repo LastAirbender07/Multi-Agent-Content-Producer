@@ -48,3 +48,10 @@ Thumbs.db
 
 # Research outputs
 backend/outputs/
+
+# Build artefacts
+backend/build/
+
+# Playwright test results
+frontend/test-results/
+frontend/playwright-report/

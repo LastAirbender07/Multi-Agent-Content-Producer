@@ -1,10 +1,12 @@
 from datetime import datetime, timezone
+import re as _re
 from langgraph.graph import START, END, StateGraph
 from core.orchestrators.research.evaluator import evaluate_node
 from core.orchestrators.research.evidence_scorer import score_evidence_node
 from core.orchestrators.research.executor import execute_tools_node
 from core.orchestrators.research.llm_knowledge import llm_knowledge_node
 from core.orchestrators.research.normalizer import normalize_evidence_node
+from core.orchestrators.research.query_preprocessor import QueryPreprocessor
 from core.orchestrators.research.router import route_node
 from core.orchestrators.research.synthesizer import synthesize_node
 from core.orchestrators.research import _progress_store as progress
@@ -13,12 +15,50 @@ from infra.logging import get_logger
 
 logger = get_logger(__name__)
 
+_URL_RE = _re.compile(r'https?://\S+')
+
 
 async def intake_node(state: ResearchGraphState) -> dict:
-    """Validate request and log start"""
+    """Validate request, extract URLs from topic, run query preprocessor."""
     run_id = state["run_id"]
     progress.update(run_id, "intake", 1)
     request = state["request"]
+    updates: dict = {}
+
+    # ── Fix 1: Extract URLs embedded in the raw topic ─────────────────────────
+    found_urls = _URL_RE.findall(request.topic)
+    if found_urls:
+        existing = list(request.explicit_urls or [])
+        merged = list(dict.fromkeys(existing + found_urls))  # dedup, preserve order
+        request = request.model_copy(update={"explicit_urls": merged})
+        updates["request"] = request
+        logger.info("intake_urls_extracted", run_id=run_id, count=len(found_urls), urls=merged)
+
+    # ── Fix 2: Run QueryPreprocessor to get intelligent search queries ─────────
+    if not request.preprocessed_queries:
+        try:
+            preprocessor = QueryPreprocessor()
+            processed = await preprocessor.process(request.topic)
+            freshness = (
+                request.freshness
+                if request.freshness != "recent"
+                else processed.freshness_hint
+            )
+            request = request.model_copy(update={
+                "preprocessed_queries": processed.search_queries,
+                "freshness": freshness,
+            })
+            updates["request"] = request
+            logger.info(
+                "intake_preprocessor_complete",
+                run_id=run_id,
+                query_count=len(processed.search_queries),
+                freshness_hint=processed.freshness_hint,
+            )
+        except Exception as e:
+            logger.warning("intake_preprocessor_failed", run_id=run_id, error=str(e))
+            # Non-fatal — routing policy uses raw topic as single fallback query
+
     logger.info(
         "research_graph_start",
         run_id=run_id,
@@ -26,7 +66,7 @@ async def intake_node(state: ResearchGraphState) -> dict:
         mode=request.mode,
         freshness=request.freshness,
     )
-    return {"messages": state.get("messages", []) + ["intake complete."]}
+    return {**updates, "messages": state.get("messages", []) + ["intake complete."]}
 
 
 async def _route_node_tracked(state: ResearchGraphState) -> dict:

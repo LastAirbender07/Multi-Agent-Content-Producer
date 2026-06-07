@@ -27,16 +27,23 @@ infra/llm/
 - ✅ Fine-grained cost/usage tracking
 - ✅ Direct API control without framework overhead
 
-**Example:**
+> ⚠️ **JWT expiry caveat:** `LLMFactory._instance` is a singleton — `ClaudeLLM` stores the API key (which is a JWT on HAI Proxy) baked into `httpx.AsyncClient` headers at construction time. If the JWT expires mid-session, the singleton will fail. Use `get_client_with_retry()` for long-running processes or infrequently-called nodes.
+
+**Example — simple call with JWT auto-retry (recommended):**
 ```python
 from infra.llm.factory import LLMFactory
 
-# Get singleton client (reuses connection pool)
-llm = await LLMFactory.get_client()
-
-# Simple call
-response = await llm.generate("What is AI?")
+# Recommended: auto-resets singleton on JWT/401 error and retries once
+response = await LLMFactory.get_client_with_retry(
+    lambda llm: llm.generate(prompt="What is AI?")
+)
 print(response.content)
+```
+
+**Example — direct call (use only when JWT expiry is not a concern):**
+```python
+llm = await LLMFactory.get_client()
+response = await llm.generate("What is AI?")
 
 # Structured output
 from pydantic import BaseModel
@@ -49,6 +56,11 @@ summary = await llm.generate_structured(
     prompt="Summarize this article...",
     output_schema=Summary
 )
+```
+
+**Manual reset (e.g. on server restart hooks):**
+```python
+LLMFactory.reset()  # next get_client() call will build a fresh singleton
 ```
 
 ---

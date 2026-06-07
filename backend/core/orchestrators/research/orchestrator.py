@@ -67,6 +67,7 @@ def _build_response_data(
         "best_iteration": best_iter,
         "synthesis": best_synth_dump,
         "evaluation": best_eval_dump,
+        "evidence": [e.model_dump() for e in state.get("evidence", [])],
         "evidence_count": len(state.get("evidence", [])),
         "iterations": iteration_history,
         "route_plan": state.get("route_plan").model_dump() if state.get("route_plan") else {},
