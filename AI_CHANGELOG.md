@@ -6,7 +6,48 @@
 
 ---
 
+## 2026-06-08 - Session 28: Output Path Restructure + Collapsible Sidebar (Plan 8)
+
+**Decision:** Two infrastructure changes plus Plan 8 (Collapsible Sidebar) fully implemented and validated.
+
+---
+
+**Change 1 — Output path restructure**
+
+- `backend/configs/settings.py` — `research_output_dirs` and `content_output_dir` changed from `"outputs"` to `"outputs/runs"`. Image downloads remain at `outputs/downloads/images`. All pipeline runs now write to `outputs/runs/{run_id}/` — clean separation from image downloads and no UUID filter needed for the editor's file browser.
+- `backend/apps/api/v1/content.py` — Updated to use `_OUTPUTS_ROOT = _BACKEND_ROOT / _settings.content_output_dir` (resolves to `outputs/runs/`).
+- **28 existing run folders migrated** from `outputs/{run_id}/` to `outputs/runs/{run_id}/`.
+- `frontend/components/pipeline/InstagramPreview.tsx` — `slideImageUrl()` rewritten to handle both legacy paths (`/outputs/{id}/...`) and new paths (`/outputs/runs/{id}/...`). Legacy paths are transparently rewritten to the new format so existing runs still display correctly. Also fixed Tailwind v4 class names: `bg-linear-to-tr`, `w-95`, `p-0.5`.
+
+---
+
+**Change 2 — Tailwind v4 gradient class consistency**
+
+- `frontend/components/layout/Sidebar.tsx` — `bg-gradient-to-br` → `bg-linear-to-br`, `bg-gradient-to-r` → `bg-linear-to-r` (canonical Tailwind v4 syntax).
+
+---
+
+**Change 3 — Plan 8: Collapsible Sidebar**
+
+- `frontend/components/layout/Sidebar.tsx` — Full rewrite. Key changes:
+  - `motion.aside` with `animate={{ width: expanded ? 256 : 80 }}` — smooth Framer Motion width transition (0.2s easeInOut). Avoids SSR mismatch from Tailwind class switching.
+  - `useState(true)` + `useEffect` reading `localStorage("sidebar_expanded")` — preference persists across page reloads. No Redux.
+  - **New header layout**: hamburger `≡` (`Menu` icon, 18px) is the LEFT-MOST element in a fixed `w-20 h-18` column — always visible in both states, always centered in the collapsed 80px column. Brand (small logo + "CONTENT / Studio AI") slides in to the right via `AnimatePresence` only when expanded.
+  - `AnimatePresence` on all text labels — each `<motion.span>` fades out before the width shrinks, preventing text overflow flash.
+  - Native `title` attribute on collapsed `<Link>` elements — zero-JS browser tooltip showing the label on hover.
+  - `layoutId="active-nav"` gradient pill — still animates between pages in both states.
+  - **Added "Editor" nav item** (`PencilRuler` icon, href `/editor`) — entry point for Plan 6R+9.
+  - Removed unused `cn()` helper and `clsx`/`twMerge` imports (replaced with template literal classNames).
+  - **Bug fixed in first implementation**: hamburger was in `justify-between` flex alongside the logo, causing it to be clipped 36px outside the 80px viewport when collapsed. Fixed by restructuring header so hamburger is a fixed `w-20` element always at position 0.
+
+**Validation:** 61/61 Playwright E2E tests passing. Playwright screenshots confirm both expanded and collapsed states render correctly at 1440px, 1280px, and 1024px viewport widths.
+
+**Status:** ✅ Plan 8 complete. Ready for Plan 7R (Pipeline Page Redesign + Smart Topic Discovery Drawer).
+
+---
+
 ## 2026-06-07 - Session 27: Research Pipeline Fixes, LLMFactory JWT Retry, Codebase Cleanup
+
 
 **Decision:** Fixed three research pipeline bugs identified from live run analysis: URLs in topics being silently discarded, query_variants being static boilerplate instead of LLM-refined, and LLM background knowledge failing due to JWT expiry on the singleton client. Added LLMFactory retry pattern to all callers. Pinned llm_knowledge evidence outside relevance ranking. Embedded evidence list in research_result.json. Deleted dead files.
 

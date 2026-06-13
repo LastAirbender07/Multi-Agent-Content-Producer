@@ -15,9 +15,21 @@ import { motion, AnimatePresence } from "framer-motion";
 const BACKEND = "http://localhost:8000";
 
 function slideImageUrl(path: string): string {
-  const marker = "/outputs/";
-  const idx = path.indexOf(marker);
-  if (idx !== -1) return `${BACKEND}${path.slice(idx)}`;
+  // Handle new format: .../outputs/runs/{run_id}/...
+  // Handle old format: .../outputs/{run_id}/... (legacy stored paths)
+  const runsMarker = "/outputs/runs/";
+  const legacyMarker = "/outputs/";
+
+  const runsIdx = path.indexOf(runsMarker);
+  if (runsIdx !== -1) return `${BACKEND}${path.slice(runsIdx)}`;
+
+  const legacyIdx = path.indexOf(legacyMarker);
+  if (legacyIdx !== -1) {
+    // Rewrite legacy /outputs/{id}/... → /outputs/runs/{id}/...
+    const afterOutputs = path.slice(legacyIdx + legacyMarker.length);
+    return `${BACKEND}/outputs/runs/${afterOutputs}`;
+  }
+
   return `${BACKEND}/${path.replace(/^\//, "")}`;
 }
 
@@ -41,7 +53,7 @@ export function InstagramPost({
     captionExpanded || !captionTruncated ? caption : caption.slice(0, PREVIEW_LEN);
 
   return (
-    <div className="flex flex-col gap-4 w-[380px]">
+    <div className="flex flex-col gap-4 w-95">
       {/* Angle context header */}
       <div className="flex items-center gap-2 px-1">
         <Sparkles size={14} className="text-violet-400" />
@@ -54,8 +66,8 @@ export function InstagramPost({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 p-[2px]">
-              <div className="w-full h-full rounded-full bg-white p-[2px]">
+            <div className="w-9 h-9 rounded-full bg-linear-to-tr from-yellow-400 via-red-500 to-purple-600 p-0.5">
+              <div className="w-full h-full rounded-full bg-white p-0.5">
                 <div className="w-full h-full rounded-full bg-zinc-100 flex items-center justify-center text-zinc-900 text-xs font-black">
                   CS
                 </div>

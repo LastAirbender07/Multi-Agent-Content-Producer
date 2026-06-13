@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     research_max_refinement_loops: int = 2
     research_quality_min_sources: int = 3
     research_quality_min_confidence: float = 0.72
-    research_output_dirs: str = "outputs"
+    research_output_dirs: str = "outputs/runs"
     research_allowed_tools: list[str] = ["news_api", "ddgs_text", "ddgs_news", "crawl4ai"]
 
     # Angle Orchestrator Settings
@@ -66,7 +66,7 @@ class Settings(BaseSettings):
     content_max_slides: int = 12
     content_min_slides: int = 4
     content_image_per_slide: int = 1
-    content_output_dir: str = "outputs"
+    content_output_dir: str = "outputs/runs"
 
     # Brand Settings
     brand_name: str = "TheOpinionBoard"
