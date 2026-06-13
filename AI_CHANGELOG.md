@@ -6,6 +6,118 @@
 
 ---
 
+## 2026-06-13 - Session 30: Full Pipeline UI Overhaul + Discover Flow Redesign + Component Cleanup
+
+**Decision:** Three compounding sessions of UI work culminating in a fully decomposed, maintainable pipeline frontend with a modern command bar, enriched topic discovery, and zero dead code.
+
+---
+
+**Change 1 — Command bar complete redesign (PipelineConfig)**
+
+Replaced the old cluttered horizontal toolbar with a card-based launcher:
+- **Row 1:** Full-width topic textarea (transparent, no border) + Discover button right-aligned
+- **Row 2:** Chip toolbar — LLM mode toggle, depth/freshness/angles `OptionChip` dropdowns, spacer, Config button, Produce Content CTA
+- **Settings panel:** Expands inline inside the card (not a floating popover) — 2-column grid with Research Budget (tool calls, sources, loops, crawl URLs, claim verification) and Content Generation (angles, slide range, image source)
+
+Key UX fixes vs old design:
+- Advanced settings now expands **downward inside the card** — no longer clips above viewport
+- "Source" label renamed to **"LLM Mode"** — chip shows "Web" or "LLM only" clearly
+- All configs exposed: `max_angles_to_select`, `needs_claim_verification`, `min_slides`, `max_crawl_urls`, `image_source` (in advanced)
+- Dropdown chips (`OptionChip`) replace old pill segment buttons — each option has a label + description sub-line
+- **Produce Content button and textarea both lock** (`disabled` / `readOnly`) while topic is being drafted from an article
+
+---
+
+**Change 2 — Discover flow: URL-based LLM topic drafting**
+
+Old behaviour: selecting a discover article called `/tools/query-refine` with just the headline → returned a raw keyword list with no context, dumped into the query strip automatically.
+
+New behaviour:
+1. User clicks "Use →" on a discover article card
+2. Topic field immediately seeds with the article headline
+3. `POST /tools/topic-from-url` fires in background — LLM drafts a **one rich research statement** (15–25 words) grounded in the article's actual content
+4. Topic field updates to the drafted statement; textarea and CTA are locked during drafting
+5. `✦ Topic drafted from article content` hint appears (amber `⚠` if content couldn't be read)
+6. Article URL stored as `discoverUrl` in Redux — passed as `explicit_urls` to research pipeline so Crawl4AI uses it
+
+**Why no Crawl4AI for drafting:** The news APIs (Google News / DDGS) already return full article content in `a.content` / `r.body`. The `_fetch_category` function was truncating to 200 chars — removed that truncation. The full content is now passed directly to the LLM in the `topic-from-url` endpoint. No additional web requests needed.
+
+**New backend endpoint (`backend/apps/api/v1/tools.py`):**
+- `POST /tools/topic-from-url` — accepts `{url, title, snippet}` (snippet = full article content from news API), calls LLM, returns `{topic, freshness, entities, crawl_failed}`
+- `crawl_failed: bool` is always `False` in normal flow (snippet-based); used as fallback signal if LLM fails
+
+**New backend schemas (`backend/apps/api/v1/schemas.py`):**
+- `TopicFromUrlRequest`, `TopicFromUrlResponse`
+
+**New Redux field (`pipelineSlice.ts`):**
+- `discoverUrl: string | null` — cleared on `resetPipeline`, wired into `runResearch` as `explicit_urls`
+
+---
+
+**Change 3 — Discover drawer card redesign (`DiscoverDrawer.tsx`)**
+
+Old: `line-clamp-2` truncated both title and snippet; clicking anywhere on the card selected it.
+
+New layout per card:
+- Full title (semibold, no truncation)
+- Full snippet (no line-clamp)
+- Source + age in footer
+- **Two explicit action buttons:** `[↗ Read]` (opens URL in new tab, no selection) and `[Use →]` (triggers topic drafting flow)
+- Entire card is NOT clickable — prevents accidental selection
+
+Category filter chips now have full category names; loading skeleton has realistic shimmer shape.
+
+---
+
+**Change 4 — Full component decomposition of `PipelineConfig.tsx` (742 → 234 lines)**
+
+All inlined helper components and logic extracted to dedicated files:
+
+| File | Content |
+|---|---|
+| `components/pipeline/OptionChip.tsx` | Dropdown chip with animated popover, click-outside close |
+| `components/pipeline/LlmChip.tsx` | LLM mode toggle button with mini inline switch |
+| `components/pipeline/SettingsPrimitives.tsx` | `Stepper`, `SettingRow`, `ToggleRow`, `SectionHead` |
+| `components/pipeline/AdvancedSettings.tsx` | Full settings expansion panel (reads/dispatches Redux) |
+| `components/pipeline/RefinedQueriesStrip.tsx` | Collapsible query editor strip |
+| `hooks/usePipelineOrchestration.ts` | All pipeline run logic: `handleRun`, `handleGenerateAngles`, `runContent`, `runAngleAndContent` |
+
+`PipelineConfig.tsx` is now **pure layout wiring** — imports everything, defines nothing inline.
+
+---
+
+**Change 5 — Dead code removal**
+
+Deleted two orphaned files that were never imported anywhere:
+- `components/pipeline/RefinedQueriesStrip.tsx` (old stale version — shadowed by inline duplicate in PipelineConfig)
+- `components/pipeline/PipelineProgress.tsx` (superseded by StageCard-based layout in pipeline/page.tsx)
+
+---
+
+**Change 6 — Hydration bug fix**
+
+`RefinedQueriesStrip` had `<button>` inside `<button>` (the collapse toggle wrapping the clear X button). Fixed by converting the outer toggle to `<div role="button" tabIndex={0}>`. Browser hydration error eliminated.
+
+---
+
+**Redux slice additions (`pipelineSlice.ts`)**
+
+New fields: `maxTools`, `maxSources`, `maxLoops`, `maxSlides`, `minSlides`, `maxCrawlUrls`, `maxAnglesSelect`, `needsClaimVerification`, `discoverUrl`. All preserved through `resetPipeline`. All wired into `runResearch` / `runAngle` / `runContent` API calls via `usePipelineOrchestration`.
+
+---
+
+**E2E test updates**
+
+Updated selectors across `pipeline-config.spec.ts`, `llm-research-mode.spec.ts`, `pipeline-normal-flow.spec.ts` for new dropdown-chip UI:
+- Pill button checks → chip label visibility checks
+- Active class `bg-violet-600` → chip label text presence
+- `getByRole("button", { name: /^auto$/ })` → open dropdown first, then pick option
+- Advanced settings locator → `page.getByRole("button", { name: "+" })` stepper interaction
+
+**Test result: 61/61 passing**
+
+---
+
 ## 2026-06-08 - Session 28: Output Path Restructure + Collapsible Sidebar (Plan 8)
 
 **Decision:** Two infrastructure changes plus Plan 8 (Collapsible Sidebar) fully implemented and validated.
@@ -250,7 +362,7 @@ Each stage runs its own independent stopwatch. Timer appears only when the stage
 
 ---
 
-
+## 2026-05-24 - Session 24: Branding, JWT Fix, Image Dedup, Angle Re-gen, Progress Bar
 
 **Decision:** Applied branding to carousel slides, fixed JWT expiry auto-recovery, fixed image deduplication across carousels, added angle re-generation feature, removed slide counter from brand bar, and restored the progress bar.
 
@@ -291,6 +403,12 @@ Each stage runs its own independent stopwatch. Timer appears only when the stage
 ---
 
 
+
+**Decision:** Implemented a post-generation validation pipeline (new LangGraph node) that enforces slide structure, filters irrelevant content, strengthens image/graph quality. Then diagnosed three production bugs from a live run and fixed them.
+
+---
+
+## 2026-05-24 - Session 22: Content Validation Pipeline + Production Bug Fixes
 
 **Decision:** Implemented a post-generation validation pipeline (new LangGraph node) that enforces slide structure, filters irrelevant content, strengthens image/graph quality. Then diagnosed three production bugs from a live run and fixed them.
 
@@ -466,7 +584,7 @@ Each stage runs its own independent stopwatch. Timer appears only when the stage
 
 ---
 
-
+## 2026-05-22 - Session 17: Frontend Modular Redesign (Redux + Framer Motion + Premium UI)
 
 **Decision:** Refactored the monolithic frontend into a modular, premium-grade SPA using Redux Toolkit for persistent state management and Framer Motion for high-fidelity animations.
 
@@ -1347,4 +1465,4 @@ Rewrote to the standard Headless UI / Tailwind UI pattern:
 
 ---
 
-_Last updated: 2026-05-24 (Session 23)_
+_Last updated: 2026-06-13 (Session 30)_

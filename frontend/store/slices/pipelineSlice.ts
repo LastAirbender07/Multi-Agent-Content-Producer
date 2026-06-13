@@ -9,6 +9,13 @@ interface StageState {
   result: any;
 }
 
+interface DiscoveryArticle {
+  title: string;
+  snippet: string;
+  url: string;
+  category: string;
+}
+
 interface PipelineState {
   topic: string;
   mode: "quick" | "standard" | "deep";
@@ -16,17 +23,32 @@ interface PipelineState {
   angleMode: "auto" | "manual";
   imageSource: "auto" | "pexels" | "ddgs";
   llmResearchMode: boolean;
-  
+  preprocessedQueries: string[];
+  discoveryArticle: DiscoveryArticle | null;
+  discoverUrl: string | null;
+
+  // Budget controls
+  maxTools: number;
+  maxSources: number;
+  maxLoops: number;
+  maxSlides: number;
+  minSlides: number;
+  maxCrawlUrls: number;
+
+  // Content controls
+  maxAnglesSelect: number;
+  needsClaimVerification: boolean;
+
   stages: {
     research: StageState;
     angle: StageState;
     content: StageState;
   };
-  
+
   researchResult: ResearchResponse | null;
   angleResult: AngleResponse | null;
   contentResult: ContentResponse | null;
-  
+
   errors: string[];
   runId: string | null;
 }
@@ -38,17 +60,29 @@ const initialState: PipelineState = {
   angleMode: "manual",
   imageSource: "auto",
   llmResearchMode: false,
-  
+  preprocessedQueries: [],
+  discoveryArticle: null,
+  discoverUrl: null,
+
+  maxTools: 6,
+  maxSources: 15,
+  maxLoops: 2,
+  maxSlides: 12,
+  minSlides: 4,
+  maxCrawlUrls: 3,
+  maxAnglesSelect: 3,
+  needsClaimVerification: false,
+
   stages: {
     research: { status: "idle", result: null },
     angle: { status: "idle", result: null },
     content: { status: "idle", result: null },
   },
-  
+
   researchResult: null,
   angleResult: null,
   contentResult: null,
-  
+
   errors: [],
   runId: null,
 };
@@ -58,6 +92,11 @@ export const pipelineSlice = createSlice({
   initialState,
   reducers: {
     setTopic: (state, action: PayloadAction<string>) => {
+      // Clear discovery state when topic is manually changed to something different
+      if (action.payload !== state.topic) {
+        state.preprocessedQueries = [];
+        state.discoveryArticle = null;
+      }
       state.topic = action.payload;
     },
     setMode: (state, action: PayloadAction<PipelineState["mode"]>) => {
@@ -72,8 +111,23 @@ export const pipelineSlice = createSlice({
     setImageSource: (state, action: PayloadAction<PipelineState["imageSource"]>) => {
       state.imageSource = action.payload;
     },
+    setMaxTools: (state, action: PayloadAction<number>) => { state.maxTools = action.payload; },
+    setMaxSources: (state, action: PayloadAction<number>) => { state.maxSources = action.payload; },
+    setMaxLoops: (state, action: PayloadAction<number>) => { state.maxLoops = action.payload; },
+    setMaxSlides: (state, action: PayloadAction<number>) => { state.maxSlides = action.payload; },
+    setMinSlides: (state, action: PayloadAction<number>) => { state.minSlides = action.payload; },
+    setMaxCrawlUrls: (state, action: PayloadAction<number>) => { state.maxCrawlUrls = action.payload; },
+    setMaxAnglesSelect: (state, action: PayloadAction<number>) => { state.maxAnglesSelect = action.payload; },
+    setNeedsClaimVerification: (state, action: PayloadAction<boolean>) => { state.needsClaimVerification = action.payload; },
+    setDiscoverUrl: (state, action: PayloadAction<string | null>) => { state.discoverUrl = action.payload; },
     setLlmResearchMode: (state, action: PayloadAction<boolean>) => {
       state.llmResearchMode = action.payload;
+    },
+    setPreprocessedQueries: (state, action: PayloadAction<string[]>) => {
+      state.preprocessedQueries = action.payload;
+    },
+    setDiscoveryArticle: (state, action: PayloadAction<DiscoveryArticle | null>) => {
+      state.discoveryArticle = action.payload;
     },
     setStageStatus: (state, action: PayloadAction<{ stage: keyof PipelineState["stages"]; status: StageStatus }>) => {
       state.stages[action.payload.stage].status = action.payload.status;
@@ -95,7 +149,27 @@ export const pipelineSlice = createSlice({
       state.errors = action.payload;
     },
     resetPipeline: (state) => {
-      return { ...initialState, topic: state.topic, llmResearchMode: state.llmResearchMode };
+      return {
+        ...initialState,
+        topic: state.topic,
+        llmResearchMode: state.llmResearchMode,
+        preprocessedQueries: state.preprocessedQueries,
+        discoveryArticle: state.discoveryArticle,
+        // preserve all budget/config settings
+        mode: state.mode,
+        freshness: state.freshness,
+        angleMode: state.angleMode,
+        imageSource: state.imageSource,
+        maxTools: state.maxTools,
+        maxSources: state.maxSources,
+        maxLoops: state.maxLoops,
+        maxSlides: state.maxSlides,
+        minSlides: state.minSlides,
+        maxCrawlUrls: state.maxCrawlUrls,
+        maxAnglesSelect: state.maxAnglesSelect,
+        needsClaimVerification: state.needsClaimVerification,
+        discoverUrl: state.discoverUrl,
+      };
     },
     loadRun: (state, action: PayloadAction<PipelineRun>) => {
       const run = action.payload;
@@ -118,7 +192,18 @@ export const {
   setFreshness,
   setAngleMode,
   setImageSource,
+  setMaxTools,
+  setMaxSources,
+  setMaxLoops,
+  setMaxSlides,
+  setMinSlides,
+  setMaxCrawlUrls,
+  setMaxAnglesSelect,
+  setNeedsClaimVerification,
+  setDiscoverUrl,
   setLlmResearchMode,
+  setPreprocessedQueries,
+  setDiscoveryArticle,
   setRunId,
   setStageStatus,
   setResearchResult,

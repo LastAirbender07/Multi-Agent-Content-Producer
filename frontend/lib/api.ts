@@ -53,6 +53,10 @@ export const api = {
   // News
   searchNews: (body: NewsSearchBody) =>
     post<NewsSearchResponse>("/tools/news", body),
+  discoverTopics: (bust = false) =>
+    fetch(`${BASE}/tools/news/discover${bust ? "?bust=1" : ""}`).then(r => r.json()) as Promise<DiscoverResponse>,
+  topicFromUrl: (body: TopicFromUrlBody) =>
+    post<TopicFromUrlResponse>("/tools/topic-from-url", body),
 
   // Chat
   chat: (body: ChatBody) => post<ChatResponse>("/chat/", body),
@@ -270,6 +274,34 @@ export interface NewsSearchResponse {
   total_results: number;
   articles: NewsArticle[];
   error?: string;
+}
+
+export interface DiscoverArticle {
+  title: string;
+  snippet: string;
+  url: string;
+  source_name: string;
+  category: string;
+  age_label: string;
+  published_at?: string;
+}
+
+export interface DiscoverResponse {
+  articles: DiscoverArticle[];
+  cached: boolean;
+}
+
+export interface TopicFromUrlBody {
+  url: string;
+  title: string;
+  snippet?: string;
+}
+
+export interface TopicFromUrlResponse {
+  topic: string;
+  freshness: string;
+  entities: string[];
+  crawl_failed: boolean;
 }
 
 export interface ChatBody {

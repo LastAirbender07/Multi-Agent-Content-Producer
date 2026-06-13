@@ -71,3 +71,31 @@ class ImageTagsRequest(BaseModel):
 
 class ImageTagsResponse(BaseModel):
     tags: list[str]
+
+
+class DiscoverArticle(BaseModel):
+    title: str
+    snippet: str
+    url: str
+    source_name: str
+    category: str
+    age_label: str          # "2h ago", "Yesterday", "3 days ago"
+    published_at: Optional[str] = None
+
+
+class DiscoverResponse(BaseModel):
+    articles: list[DiscoverArticle]
+    cached: bool
+
+
+class TopicFromUrlRequest(BaseModel):
+    url: str
+    title: str
+    snippet: str = ""
+
+
+class TopicFromUrlResponse(BaseModel):
+    topic: str
+    freshness: str                  # "breaking" | "recent" | "evergreen"
+    entities: list[str] = []
+    crawl_failed: bool = False      # True when article couldn't be fetched

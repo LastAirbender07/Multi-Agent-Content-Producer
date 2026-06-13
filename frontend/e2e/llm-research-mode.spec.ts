@@ -113,8 +113,8 @@ async function interceptAPIs(
 
 async function goToPipeline(page: Page) {
   await page.goto("/pipeline");
-  // Use the specific h1 heading inside the PipelineConfig sidebar
-  await expect(page.getByRole("heading", { name: "Pipeline", level: 1 })).toBeVisible();
+  // Wait for the command bar topic textarea to be ready
+  await expect(page.getByPlaceholder(/enter topic/i)).toBeVisible();
 }
 
 async function enableLlmMode(page: Page) {
@@ -157,15 +157,18 @@ test.describe("LLM Research Mode — Toggle UI", () => {
 
   test("Research Depth selector hidden when LLM mode is ON", async ({ page }) => {
     await goToPipeline(page);
-    await expect(page.getByText("Research Depth")).toBeVisible();
+    // Depth chip (shows current value "Standard") is visible before LLM mode
+    await expect(page.getByRole("button", { name: /^standard$/i }).first()).toBeVisible();
     await enableLlmMode(page);
-    await expect(page.getByText("Research Depth")).not.toBeVisible();
+    // When LLM mode is ON, depth chip disappears entirely
+    await expect(page.getByRole("button", { name: /^standard$/i }).first()).not.toBeVisible();
   });
 
   test("hint text appears when LLM mode is ON", async ({ page }) => {
     await goToPipeline(page);
     await enableLlmMode(page);
-    await expect(page.getByText(/no web search/i)).toBeVisible();
+    // In new UI: when LLM mode is ON, depth pills are hidden and button says "Draft"
+    await expect(page.getByRole("button", { name: /draft research/i })).toBeVisible();
   });
 });
 
@@ -216,7 +219,7 @@ test.describe("LLM Research Mode — Draft Flow", () => {
     await page.getByRole("button", { name: /draft research/i }).click();
 
     await expect(
-      page.getByRole("button", { name: /satisfied.*generate angles/i })
+      page.getByRole("button", { name: /generate angles →/i })
     ).toBeVisible({ timeout: 10000 });
   });
 
@@ -224,7 +227,7 @@ test.describe("LLM Research Mode — Draft Flow", () => {
     await goToPipeline(page);
     // LLM mode is OFF by default
     await expect(
-      page.getByRole("button", { name: /satisfied.*generate angles/i })
+      page.getByRole("button", { name: /generate angles →/i })
     ).not.toBeVisible();
   });
 });
@@ -422,7 +425,7 @@ test.describe("LLM Research Mode — Generate Angles Flow", () => {
     await enterTopic(page, "Sengottaiyan controversies");
     await page.getByRole("button", { name: /draft research/i }).click();
 
-    const generateBtn = page.getByRole("button", { name: /satisfied.*generate angles/i });
+    const generateBtn = page.getByRole("button", { name: /generate angles →/i });
     await expect(generateBtn).toBeVisible({ timeout: 10000 });
     await generateBtn.click();
 
@@ -456,7 +459,7 @@ test.describe("LLM Research Mode — Generate Angles Flow", () => {
     await enterTopic(page, "Sengottaiyan controversies");
     await page.getByRole("button", { name: /draft research/i }).click();
 
-    const generateBtn = page.getByRole("button", { name: /satisfied.*generate angles/i });
+    const generateBtn = page.getByRole("button", { name: /generate angles →/i });
     await expect(generateBtn).toBeVisible({ timeout: 10000 });
     await generateBtn.click();
 

@@ -240,3 +240,200 @@ async def search_news(request: NewsSearchRequest) -> NewsSearchResponse:
         ) for r in result.results]
         return NewsSearchResponse(success=True, query=request.query, source="ddgs",
                                   total_results=result.total_results, articles=articles)
+
+
+# ── Discover Topics ───────────────────────────────────────────────────────────
+
+from datetime import datetime, timezone as _tz
+from apps.api.v1.schemas import DiscoverArticle, DiscoverResponse
+
+_discover_cache: dict = {"data": None, "expires_at": 0.0}
+
+_DISCOVER_CATEGORIES = [
+    ("technology AI", "technology"),
+    ("India business economy", "business"),
+    ("Indian politics", "politics"),
+    ("cricket sports India", "sports"),
+    ("science environment", "science"),
+    ("Bollywood entertainment", "entertainment"),
+    ("startup funding India", "startups"),
+    ("world news today", "world"),
+]
+
+
+def _age_label(published_at: object | None) -> str:
+    if not published_at:
+        return "Recent"
+    try:
+        if isinstance(published_at, str):
+            dt = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
+        else:
+            dt = published_at
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=_tz.utc)
+        delta = datetime.now(_tz.utc) - dt
+        secs = delta.total_seconds()
+        if secs < 3600:
+            return f"{int(secs // 60)}m ago"
+        if secs < 86400:
+            return f"{int(secs // 3600)}h ago"
+        if secs < 172800:
+            return "Yesterday"
+        return f"{int(secs // 86400)}d ago"
+    except Exception:
+        return "Recent"
+
+
+async def _fetch_category(keyword: str, category: str) -> list[DiscoverArticle]:
+    articles = []
+    try:
+        tool = GoogleNewsAPI()
+        result = await asyncio.wait_for(
+            tool.execute(query=keyword, max_results=8, when="3d"),
+            timeout=8.0,  # hard 8s per category — don't block the whole feed
+        )
+        for a in result.articles:
+            if not a.title or not a.url:
+                continue
+            # Use full content — not truncated. The LLM needs this for topic drafting.
+            snippet = (a.content or a.description or "").strip()
+            articles.append(DiscoverArticle(
+                title=a.title,
+                snippet=snippet,
+                url=a.url,
+                source_name=a.source_name or "",
+                category=category,
+                age_label=_age_label(a.published_at),
+                published_at=a.published_at.isoformat() if a.published_at else None,
+            ))
+    except Exception as e:
+        logger.warning("discover_google_failed", category=category, error=str(e)[:80])
+
+    # DDGS fallback if Google returned nothing
+    if not articles:
+        try:
+            ddgs_tool = DDGSSearch(timeout=6)
+            result = await asyncio.wait_for(
+                ddgs_tool.search_news(query=keyword, max_results=5),
+                timeout=8.0,
+            )
+            if result.success:
+                for r in result.results:
+                    if not r.title or not r.url:
+                        continue
+                    articles.append(DiscoverArticle(
+                        title=r.title,
+                        snippet=(r.body or "").strip(),
+                        url=r.url,
+                        source_name=r.source or "",
+                        category=category,
+                        age_label=_age_label(r.date),
+                        published_at=r.date.isoformat() if r.date else None,
+                    ))
+        except Exception as e:
+            logger.warning("discover_ddgs_failed", category=category, error=str(e)[:80])
+
+    return articles
+
+
+@router.get("/news/discover", response_model=DiscoverResponse)
+async def discover_topics(bust: int = 0) -> DiscoverResponse:
+    """
+    Return latest news across categories for topic discovery.
+    Results are cached for 30 minutes. Pass ?bust=1 to force refresh.
+    Each category fetches independently with a timeout — partial results are
+    returned immediately rather than waiting for all 8 categories.
+    """
+    import time
+    now = time.time()
+
+    if bust == 0 and _discover_cache["data"] and now < _discover_cache["expires_at"]:
+        return DiscoverResponse(articles=_discover_cache["data"], cached=True)
+
+    results = await asyncio.gather(
+        *[_fetch_category(kw, cat) for kw, cat in _DISCOVER_CATEGORIES],
+        return_exceptions=True,
+    )
+
+    seen_urls: set[str] = set()
+    articles: list[DiscoverArticle] = []
+    for batch in results:
+        if isinstance(batch, Exception):
+            continue
+        for a in batch:
+            if a.url not in seen_urls:
+                seen_urls.add(a.url)
+                articles.append(a)
+
+    articles.sort(key=lambda a: a.published_at or "", reverse=True)
+    articles = articles[:60]
+
+    _discover_cache["data"] = articles
+    _discover_cache["expires_at"] = now + 1800  # 30 minutes
+
+    return DiscoverResponse(articles=articles, cached=False)
+
+# ── Topic From URL ────────────────────────────────────────────────────────────
+
+from apps.api.v1.schemas import TopicFromUrlRequest, TopicFromUrlResponse
+
+_TOPIC_FROM_URL_PROMPT = """\
+You are a content strategist for an Instagram carousel brand called TheOpinionBoard.
+
+A journalist found this news article:
+Title: {title}
+Article content:
+{content}
+
+Draft ONE compelling research question or topic statement (15-25 words) that:
+- Is specific and grounded in the article's actual subject matter
+- Would make a great Instagram carousel (curiosity, emotion, or surprising angle)
+- Is framed as a claim, question, or insight — NOT a search keyword list
+- References real entities from the article
+
+Also determine:
+- freshness: "breaking" (last 24h), "recent" (last week), or "evergreen"
+- entities: list of up to 5 key named entities (people, orgs, places)
+
+Return ONLY valid JSON, no markdown, no explanation:
+{{"topic": "...", "freshness": "...", "entities": ["..."]}}"""
+
+
+@router.post("/topic-from-url", response_model=TopicFromUrlResponse)
+async def topic_from_url(request: TopicFromUrlRequest) -> TopicFromUrlResponse:
+    """
+    Use the article's full content (already fetched by the news API at discover time)
+    to draft a rich research topic statement via LLM. No additional crawling needed.
+    """
+    # Use the snippet field — it now carries the full article content from the news API
+    content_block = request.snippet.strip() if request.snippet else request.title
+    prompt = _TOPIC_FROM_URL_PROMPT.format(
+        title=request.title,
+        content=content_block[:3000],  # cap at 3k chars to keep prompt focused
+    )
+
+    try:
+        resp = await get_langchain_llm_with_retry(
+            lambda llm: llm.ainvoke([HumanMessage(content=prompt)])
+        )
+        raw = resp.content.strip()
+        import json as _json
+        match = re.search(r'\{.*\}', raw, re.DOTALL)
+        if match:
+            parsed = _json.loads(match.group())
+            return TopicFromUrlResponse(
+                topic=parsed.get("topic", request.title),
+                freshness=parsed.get("freshness", "recent"),
+                entities=parsed.get("entities", []),
+                crawl_failed=False,
+            )
+    except Exception as e:
+        logger.warning("topic_from_url_llm_failed", error=str(e)[:80])
+
+    return TopicFromUrlResponse(
+        topic=request.title,
+        freshness="recent",
+        entities=[],
+        crawl_failed=True,
+    )
+

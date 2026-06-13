@@ -73,7 +73,7 @@ const MOCK_STATUS_SYNTHESIZING = { run_id: "pipe-run-001", node: "synthesize", s
 
 async function goToPipeline(page: Page) {
   await page.goto("/pipeline");
-  await expect(page.getByRole("heading", { name: "Pipeline", level: 1 })).toBeVisible();
+  await expect(page.getByPlaceholder(/enter topic/i)).toBeVisible();
 }
 
 async function enterTopic(page: Page) {
@@ -113,7 +113,7 @@ test.describe("Normal Pipeline — Auto Mode", () => {
     await mockContent(page);
     await goToPipeline(page);
     await enterTopic(page);
-    await page.getByRole("button", { name: /^auto$/i }).click();
+    await page.getByRole("button", { name: /manual angles/i }).click(); await page.getByRole("button", { name: /auto angles/i }).click();
     await page.getByRole("button", { name: /produce content/i }).click();
 
     // Wait for all 3 stage cards to show Done
@@ -132,7 +132,7 @@ test.describe("Normal Pipeline — Auto Mode", () => {
     await mockContent(page);
     await goToPipeline(page);
     await enterTopic(page);
-    await page.getByRole("button", { name: /^auto$/i }).click();
+    await page.getByRole("button", { name: /manual angles/i }).click(); await page.getByRole("button", { name: /auto angles/i }).click();
     await page.getByRole("button", { name: /produce content/i }).click();
 
     await expect(page.locator("text=DONE").first()).toBeVisible({ timeout: 15000 });
@@ -152,7 +152,7 @@ test.describe("Normal Pipeline — Auto Mode", () => {
     });
     await goToPipeline(page);
     await enterTopic(page);
-    await page.getByRole("button", { name: /^auto$/i }).click();
+    await page.getByRole("button", { name: /manual angles/i }).click(); await page.getByRole("button", { name: /auto angles/i }).click();
     await page.getByRole("button", { name: /produce content/i }).click();
 
     // Wait until content stage is done — guarantees capturedContentBody is populated
@@ -168,7 +168,7 @@ test.describe("Normal Pipeline — Auto Mode", () => {
     await page.route("**/api/v1/angle/run", async route => { await new Promise(r => setTimeout(r, 30000)); route.abort(); });
     await goToPipeline(page);
     await enterTopic(page);
-    await page.getByRole("button", { name: /^auto$/i }).click();
+    await page.getByRole("button", { name: /manual angles/i }).click(); await page.getByRole("button", { name: /auto angles/i }).click();
     await page.getByRole("button", { name: /produce content/i }).click();
 
     await expect(page.getByText(/agentic ai is fundamentally/i)).toBeVisible({ timeout: 10000 });
@@ -275,7 +275,7 @@ test.describe("Normal Pipeline — Research Progress Bar", () => {
 
     await goToPipeline(page);
     await enterTopic(page);
-    await page.getByRole("button", { name: /^auto$/i }).click();
+    await page.getByRole("button", { name: /manual angles/i }).click(); await page.getByRole("button", { name: /auto angles/i }).click();
     await page.getByRole("button", { name: /produce content/i }).click();
 
     // Expand Stage 1 card to see running state
@@ -297,7 +297,7 @@ test.describe("Normal Pipeline — Research Progress Bar", () => {
 
     await goToPipeline(page);
     await enterTopic(page);
-    await page.getByRole("button", { name: /^auto$/i }).click();
+    await page.getByRole("button", { name: /manual angles/i }).click(); await page.getByRole("button", { name: /auto angles/i }).click();
     await page.getByRole("button", { name: /produce content/i }).click();
 
     await expect(page.getByText(/agentic ai is fundamentally/i)).toBeVisible({ timeout: 10000 });

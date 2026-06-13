@@ -1,324 +1,234 @@
 "use client";
-import { Zap, Loader2, Settings2 } from "lucide-react";
 import { useState } from "react";
+import { Zap, Loader2, Search, SlidersHorizontal, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import {
-  setTopic,
-  setMode,
-  setAngleMode, 
-  setLlmResearchMode,
-  setRunId,
-  resetPipeline,
-  setStageStatus,
-  setResearchResult,
-  setErrors,
-  setAngleResult,
-  setContentResult,
-} from "@/store/slices/pipelineSlice";
-import { api } from "@/lib/api";
+import { setTopic, setMode, setFreshness, setAngleMode, setLlmResearchMode, setDiscoveryArticle, setDiscoverUrl } from "@/store/slices/pipelineSlice";
+import { api, DiscoverArticle } from "@/lib/api";
+
+import { OptionChip } from "./OptionChip";
+import { LlmChip } from "./LlmChip";
+import { AdvancedSettings } from "./AdvancedSettings";
+import { RefinedQueriesStrip } from "./RefinedQueriesStrip";
+import { DiscoverDrawer } from "./DiscoverDrawer";
+import { usePipelineOrchestration } from "@/hooks/usePipelineOrchestration";
+
+// ─── Static option lists ──────────────────────────────────────────────────────
+
+const DEPTH_OPTIONS = [
+  { value: "quick" as const, label: "Quick", description: "Fast, light research" },
+  { value: "standard" as const, label: "Standard", description: "Balanced depth & speed" },
+  { value: "deep" as const, label: "Deep", description: "Thorough, more sources" },
+];
+const FRESHNESS_OPTIONS = [
+  { value: "breaking" as const, label: "Breaking", description: "Last 24h" },
+  { value: "recent" as const, label: "Recent", description: "Last week" },
+  { value: "evergreen" as const, label: "Evergreen", description: "All time" },
+];
+const ANGLE_OPTIONS = [
+  { value: "auto" as const, label: "Auto angles", description: "AI picks best angles" },
+  { value: "manual" as const, label: "Manual angles", description: "You choose from options" },
+];
+
+// ─── PipelineConfig ───────────────────────────────────────────────────────────
 
 export function PipelineConfig() {
   const dispatch = useAppDispatch();
-  const { topic, mode, freshness, angleMode, imageSource, llmResearchMode, stages, researchResult } =
-    useAppSelector((state) => state.pipeline);
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [maxTools, setMaxTools] = useState(6);
-  const [maxSources, setMaxSources] = useState(15);
-  const [maxLoops, setMaxLoops] = useState(2);
-  const [maxSlides, setMaxSlides] = useState(12);
+  const { topic, mode, freshness, angleMode, llmResearchMode } = useAppSelector((s) => s.pipeline);
 
-  const isRunning = Object.values(stages).some((s) => s.status === "running");
+  const { isRunning, handleRun, handleGenerateAngles, stages } = usePipelineOrchestration();
 
-  async function runContent(research: any, angle: any, selectedAngles: any) {
-    dispatch(setStageStatus({ stage: "content", status: "running" }));
+  const [showSettings, setShowSettings] = useState(false);
+  const [topicLoading, setTopicLoading] = useState(false);
+  const [refineHint, setRefineHint] = useState<"clean" | "crawl_failed" | null>(null);
+
+  // Discover drawer state
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [discoverArticles, setDiscoverArticles] = useState<DiscoverArticle[]>([]);
+  const [discoverLoading, setDiscoverLoading] = useState(false);
+  const [discoverFilter, setDiscoverFilter] = useState("all");
+
+  async function loadDiscover(bust = false) {
+    setDiscoverLoading(true);
     try {
-      const contentRes = await api.runContent({
-        run_id: angle.run_id,
-        topic,
-        selected_angles: selectedAngles,
-        research_summary: research.synthesis?.summary || "",
-        key_points: research.synthesis?.key_points || [],
-        image_source: imageSource,
-        max_slides: maxSlides,
-        min_slides: 4,
-      });
-      dispatch(setContentResult(contentRes));
-      dispatch(setStageStatus({ stage: "content", status: "done" }));
-    } catch (e: any) {
-      dispatch(setErrors([`Content generation failed: ${e.message}`]));
-      dispatch(setStageStatus({ stage: "content", status: "error" }));
-    }
+      const res = await api.discoverTopics(bust);
+      setDiscoverArticles(res.articles);
+    } catch {}
+    finally { setDiscoverLoading(false); }
   }
 
-  async function runAngleAndContent(research: any) {
-    dispatch(setStageStatus({ stage: "angle", status: "running" }));
-    try {
-      const angleRes = await api.runAngle({
-        topic,
-        synthesis: research.synthesis,
-        run_id: research.run_id,
-        mode: angleMode,
-        max_angles_to_select: 3,
-      });
-      dispatch(setAngleResult(angleRes));
-      dispatch(setStageStatus({ stage: "angle", status: "done" }));
-      if (angleMode === "auto") {
-        await runContent(research, angleRes, angleRes.selected_angles);
-      }
-    } catch (e: any) {
-      dispatch(setErrors([`Angle generation failed: ${e.message}`]));
-      dispatch(setStageStatus({ stage: "angle", status: "error" }));
-    }
+  function openDrawer() {
+    setDrawerOpen(true);
+    if (discoverArticles.length === 0) loadDiscover();
   }
 
-  async function handleRun() {
-    if (!topic.trim() || isRunning) return;
-    const pendingRunId = crypto.randomUUID();
-    dispatch(resetPipeline());
-    dispatch(setRunId(pendingRunId));
-    dispatch(setErrors([]));
-    dispatch(setStageStatus({ stage: "research", status: "running" }));
+  async function useArticleAsTopic(article: DiscoverArticle) {
+    setDrawerOpen(false);
+    setRefineHint(null);
+    dispatch(setTopic(article.title));
+    dispatch(setDiscoveryArticle({ title: article.title, snippet: article.snippet, url: article.url, category: article.category }));
+    dispatch(setDiscoverUrl(article.url));
 
-    if (llmResearchMode) {
-      try {
-        const res = await api.llmDraftResearch({ topic });
-        dispatch(setResearchResult(res));
-        dispatch(setStageStatus({ stage: "research", status: "done" }));
-        // Stop here — user refines in Stage 1 card, then clicks "Generate Angles →"
-      } catch (e: any) {
-        dispatch(setErrors([`LLM research failed: ${e.message}`]));
-        dispatch(setStageStatus({ stage: "research", status: "error" }));
-      }
-      return;
-    }
-
-    // Normal web research waterfall
+    setTopicLoading(true);
     try {
-      const researchRes = await api.runResearch({
-        topic,
-        mode,
-        freshness,
-        run_id: pendingRunId,
-        budget: {
-          max_tool_calls: maxTools,
-          max_sources: maxSources,
-          max_refinement_loops: maxLoops,
-        },
-      });
-      dispatch(setResearchResult(researchRes));
-      dispatch(setStageStatus({ stage: "research", status: "done" }));
-
-      if (!researchRes.synthesis) {
-        dispatch(setErrors(["Research produced no synthesis"]));
-        dispatch(setStageStatus({ stage: "research", status: "error" }));
-        return;
-      }
-
-      await runAngleAndContent(researchRes);
-    } catch (e: any) {
-      dispatch(setErrors([`Pipeline failed: ${e.message}`]));
-      dispatch(setStageStatus({ stage: "research", status: "error" }));
+      const result = await api.topicFromUrl({ url: article.url, title: article.title, snippet: article.snippet });
+      dispatch(setTopic(result.topic));
+      dispatch(setFreshness(result.freshness as any));
+      setRefineHint(result.crawl_failed ? "crawl_failed" : "clean");
+    } catch {
+      setRefineHint("crawl_failed");
+    } finally {
+      setTopicLoading(false);
     }
-  }
-
-  async function handleGenerateAngles() {
-    if (!researchResult?.synthesis || isRunning) return;
-    await runAngleAndContent(researchResult);
   }
 
   return (
-    <aside className="w-80 shrink-0 border-r border-zinc-800/50 flex flex-col p-6 gap-6 bg-zinc-950/50 backdrop-blur-md">
-      <div>
-        <h1 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center">
-            <Zap size={18} className="text-white fill-white" />
-          </div>
-          Pipeline
-        </h1>
-        <p className="text-xs text-zinc-500 mt-2">
-          Create premium carousel content with AI agents.
-        </p>
-      </div>
+    <>
+      <div className="shrink-0 px-5 pt-4 pb-0 bg-zinc-950 border-b border-zinc-800/40">
+        <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/40">
 
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-            Target Topic
-          </label>
-          <textarea
-            rows={3}
-            placeholder="Enter topic for content production…"
-            value={topic}
-            onChange={(e) => dispatch(setTopic(e.target.value))}
-            className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all shadow-inner"
-          />
-        </div>
-
-        {/* Research Source toggle */}
-        <div className="space-y-3">
-          <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-            Research Source
-          </label>
-          <div className="flex items-center justify-between px-1">
-            <div className="space-y-0.5">
-              <span className="text-xs font-medium text-zinc-300">LLM-only mode</span>
-              {llmResearchMode && (
-                <p className="text-[10px] text-zinc-500">
-                  No web search — generated from LLM knowledge. Refine before proceeding.
-                </p>
-              )}
-            </div>
-            <button
-              role="switch"
-              aria-checked={llmResearchMode}
-              aria-label="LLM-only mode"
-              onClick={() => dispatch(setLlmResearchMode(!llmResearchMode))}
-              className={`relative inline-flex shrink-0 h-6 w-11 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
-                llmResearchMode ? "bg-violet-600" : "bg-zinc-700"
-              }`}
-            >
-              <span
-                aria-hidden="true"
-                className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-md transform transition duration-200 ease-in-out ${
-                  llmResearchMode ? "translate-x-5" : "translate-x-0"
+          {/* Topic input */}
+          <div className="flex items-start gap-3 px-4 pt-4 pb-3">
+            <div className="relative flex-1 min-w-0">
+              <textarea
+                rows={2}
+                placeholder="Enter topic for content production… e.g. 'Why SAP is betting on AI agents in 2026'"
+                value={topic}
+                onChange={(e) => { if (!topicLoading) { dispatch(setTopic(e.target.value)); setRefineHint(null); } }}
+                readOnly={topicLoading}
+                className={`w-full bg-transparent text-sm text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none leading-relaxed transition-all ${
+                  topicLoading ? "opacity-50 cursor-not-allowed select-none" : ""
                 }`}
               />
+              <AnimatePresence>
+                {topicLoading && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    className="absolute bottom-0 right-0 flex items-center gap-1.5 px-2.5 py-1 bg-zinc-900/90 border border-violet-500/30 rounded-lg text-[11px] text-violet-400 font-medium backdrop-blur-sm"
+                  >
+                    <Loader2 size={10} className="animate-spin" />
+                    Drafting topic…
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            <button
+              onClick={openDrawer}
+              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/50 hover:border-zinc-600 text-zinc-500 hover:text-zinc-200 text-xs font-medium transition-all mt-0.5"
+            >
+              <Search size={12} />
+              Discover
             </button>
           </div>
-        </div>
 
-        {/* Mode — hidden in LLM mode (irrelevant) */}
-        {!llmResearchMode && (
-          <div className="space-y-3">
-            <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-              Research Depth
-            </label>
-            <div className="flex p-1 bg-zinc-900 rounded-xl border border-zinc-800">
-              {(["quick", "standard", "deep"] as const).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => dispatch(setMode(m))}
-                  className={`flex-1 py-2 rounded-lg text-xs font-semibold capitalize transition-all ${
-                    mode === m
-                      ? "bg-zinc-800 text-white shadow-lg"
-                      : "text-zinc-500 hover:text-zinc-300"
-                  }`}
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+          {/* Refine hint */}
+          <AnimatePresence>
+            {refineHint && !topicLoading && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className={`flex items-center gap-2 px-4 py-2 border-t text-[11px] ${
+                  refineHint === "crawl_failed" ? "border-amber-500/20 bg-amber-500/5" : "border-violet-500/15 bg-violet-500/5"
+                }`}>
+                  <span className={refineHint === "crawl_failed" ? "text-amber-500" : "text-violet-400"}>
+                    {refineHint === "crawl_failed" ? "⚠" : "✦"}
+                  </span>
+                  <span className={`font-medium ${refineHint === "crawl_failed" ? "text-amber-400" : "text-violet-300"}`}>
+                    {refineHint === "crawl_failed"
+                      ? "Topic drafted from headline only — article couldn't be read"
+                      : "Topic drafted from article content"}
+                  </span>
+                  <div className="flex-1" />
+                  <button onClick={() => setRefineHint(null)} className="text-zinc-600 hover:text-zinc-400 transition-colors">
+                    <X size={11} />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-        {/* Angle mode */}
-        <div className="space-y-3">
-          <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-            Angle Selection
-          </label>
-          <div className="flex p-1 bg-zinc-900 rounded-xl border border-zinc-800">
-            {(["manual", "auto"] as const).map((a) => (
+          {/* Chip toolbar */}
+          <div className="flex items-center gap-1.5 px-4 py-2.5 border-t border-zinc-800/50">
+            <LlmChip checked={llmResearchMode} onChange={(v) => dispatch(setLlmResearchMode(v))} />
+
+            {!llmResearchMode && (
+              <>
+                <div className="w-px h-4 bg-zinc-800 mx-0.5" />
+                <OptionChip label="Depth" options={DEPTH_OPTIONS} value={mode} onChange={(v) => dispatch(setMode(v))} />
+                <OptionChip label="Freshness" options={FRESHNESS_OPTIONS} value={freshness} onChange={(v) => dispatch(setFreshness(v))} />
+              </>
+            )}
+
+            <div className="w-px h-4 bg-zinc-800 mx-0.5" />
+            <OptionChip label="Angles" options={ANGLE_OPTIONS} value={angleMode} onChange={(v) => dispatch(setAngleMode(v))} />
+
+            <div className="flex-1" />
+
+            {!llmResearchMode && (
               <button
-                key={a}
-                onClick={() => dispatch(setAngleMode(a))}
-                className={`flex-1 py-2 rounded-lg text-xs font-semibold capitalize transition-all ${
-                  angleMode === a
-                    ? "bg-zinc-800 text-white shadow-lg"
-                    : "text-zinc-500 hover:text-zinc-300"
+                title="Advanced settings"
+                onClick={() => setShowSettings(!showSettings)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                  showSettings
+                    ? "bg-violet-500/10 border-violet-500/30 text-violet-300"
+                    : "bg-transparent border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-200"
                 }`}
               >
-                {a === "manual" ? "Manual" : "Auto"}
+                <SlidersHorizontal size={12} />
+                Config
               </button>
-            ))}
+            )}
+
+            {llmResearchMode && stages.research.status === "done" && stages.angle.status === "idle" && (
+              <button
+                onClick={handleGenerateAngles}
+                disabled={isRunning}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-violet-500/40 text-violet-400 text-xs font-medium hover:bg-violet-500/10 disabled:opacity-40 transition-all"
+              >
+                Generate Angles →
+              </button>
+            )}
+
+            <button
+              onClick={() => handleRun(topicLoading)}
+              disabled={isRunning || !topic.trim() || topicLoading}
+              className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-all shadow-lg shadow-violet-500/20 active:scale-[0.97]"
+            >
+              {isRunning || topicLoading ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <Zap size={13} className="fill-white" />
+              )}
+              {isRunning ? "Running…" : topicLoading ? "Drafting…" : llmResearchMode ? "Draft Research" : "Produce Content"}
+            </button>
           </div>
+
+          {/* Advanced settings panel */}
+          <AdvancedSettings open={showSettings} onClose={() => setShowSettings(false)} />
+
+          {/* Refined queries strip */}
+          <RefinedQueriesStrip />
         </div>
 
-        {/* Advanced toggle — hidden in LLM mode */}
-        {!llmResearchMode && (
-          <>
-            <button
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="flex items-center gap-2 text-xs font-medium text-zinc-500 hover:text-zinc-300 transition-colors"
-            >
-              <Settings2 size={14} />
-              {showAdvanced ? "Hide" : "Show"} advanced settings
-            </button>
-
-            {showAdvanced && (
-              <div className="space-y-4 p-4 bg-zinc-900/50 rounded-2xl border border-zinc-800/50">
-                {[
-                  { label: "Max tool calls", value: maxTools, set: setMaxTools },
-                  { label: "Max sources", value: maxSources, set: setMaxSources },
-                  { label: "Max loops", value: maxLoops, set: setMaxLoops },
-                  { label: "Max slides", value: maxSlides, set: setMaxSlides },
-                ].map(({ label, value, set }) => (
-                  <div key={label} className="flex items-center justify-between gap-4">
-                    <span className="text-[11px] font-medium text-zinc-500">{label}</span>
-                    <input
-                      type="number"
-                      value={value}
-                      onChange={(e) => set(Number(e.target.value))}
-                      className="w-12 bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-zinc-100 text-center focus:outline-none focus:border-violet-500"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Max slides in LLM mode (still relevant) */}
-        {llmResearchMode && (
-          <div className="flex items-center justify-between px-1">
-            <span className="text-[11px] font-medium text-zinc-500">Max slides</span>
-            <input
-              type="number"
-              value={maxSlides}
-              onChange={(e) => setMaxSlides(Number(e.target.value))}
-              className="w-12 bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-zinc-100 text-center focus:outline-none focus:border-violet-500"
-            />
-          </div>
-        )}
-
-        <button
-          onClick={handleRun}
-          disabled={isRunning || !topic.trim()}
-          className="group relative w-full overflow-hidden py-4 rounded-2xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold transition-all shadow-xl shadow-violet-500/20 active:scale-[0.98]"
-        >
-          <div className="flex items-center justify-center gap-2">
-            {isRunning ? (
-              <Loader2 size={18} className="animate-spin" />
-            ) : (
-              <Zap size={18} className="group-hover:scale-110 transition-transform" />
-            )}
-            {isRunning
-              ? "Generating..."
-              : llmResearchMode
-              ? "Draft Research"
-              : "Produce Content"}
-          </div>
-        </button>
-
-        {/* "Generate Angles" — only visible in LLM mode after research is done */}
-        {llmResearchMode &&
-          stages.research.status === "done" &&
-          stages.angle.status === "idle" && (
-            <button
-              onClick={handleGenerateAngles}
-              disabled={isRunning}
-              className="w-full py-3 rounded-2xl border border-violet-500/60 text-violet-400 text-sm font-semibold hover:bg-violet-500/10 hover:border-violet-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-            >
-              {isRunning ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 size={14} className="animate-spin" /> Generating…
-                </span>
-              ) : (
-                "Satisfied → Generate Angles"
-              )}
-            </button>
-          )}
+        <div className="h-4" />
       </div>
-    </aside>
+
+      <DiscoverDrawer
+        open={drawerOpen}
+        articles={discoverArticles}
+        loading={discoverLoading}
+        filter={discoverFilter}
+        onClose={() => setDrawerOpen(false)}
+        onRefresh={() => loadDiscover(true)}
+        onFilterChange={setDiscoverFilter}
+        onUseArticle={useArticleAsTopic}
+      />
+    </>
   );
 }
-

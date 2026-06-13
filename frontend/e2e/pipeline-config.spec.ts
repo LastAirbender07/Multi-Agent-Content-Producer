@@ -17,17 +17,17 @@ const MOCK_RESEARCH = {
 
 async function goToPipeline(page: Page) {
   await page.goto("/pipeline");
-  await expect(page.getByRole("heading", { name: "Pipeline", level: 1 })).toBeVisible();
+  await expect(page.getByPlaceholder(/enter topic/i)).toBeVisible();
 }
 
 test.describe("Pipeline Config — Mode & Freshness selectors", () => {
-  test("default mode is Standard", async ({ page }) => {
+  test("default mode chip shows Standard", async ({ page }) => {
     await goToPipeline(page);
-    const standard = page.getByRole("button", { name: /^standard$/i });
-    await expect(standard).toHaveClass(/bg-zinc-800/);
+    // Depth chip button should display "Standard" as current value
+    await expect(page.getByRole("button", { name: /^standard$/i }).first()).toBeVisible();
   });
 
-  test("clicking Deep selects it and research uses mode=deep", async ({ page }) => {
+  test("clicking Deep in dropdown selects it and research uses mode=deep", async ({ page }) => {
     let capturedBody: any = null;
     await page.route("**/api/v1/research/run", async route => {
       capturedBody = JSON.parse(route.request().postData() || "{}");
@@ -36,7 +36,10 @@ test.describe("Pipeline Config — Mode & Freshness selectors", () => {
     await page.route("**/api/v1/angle/**", async route => route.abort());
 
     await goToPipeline(page);
-    await page.getByRole("button", { name: /^deep$/i }).click();
+    // Open the depth dropdown (chip shows current value "Standard")
+    await page.getByRole("button", { name: /^standard$/i }).first().click();
+    // Pick "Deep" from the dropdown list (accessible name includes description)
+    await page.getByRole("button", { name: /^deep/i }).click();
     await page.getByPlaceholder(/enter topic/i).fill("test topic");
     await page.getByRole("button", { name: /produce content/i }).click();
 
@@ -44,13 +47,12 @@ test.describe("Pipeline Config — Mode & Freshness selectors", () => {
     expect(capturedBody?.mode).toBe("deep");
   });
 
-  test("default angle mode is Manual", async ({ page }) => {
+  test("default angle mode chip shows Manual angles", async ({ page }) => {
     await goToPipeline(page);
-    const manual = page.getByRole("button", { name: /^manual$/i });
-    await expect(manual).toHaveClass(/bg-zinc-800/);
+    await expect(page.getByRole("button", { name: /manual angles/i })).toBeVisible();
   });
 
-  test("switching to Auto sends angleMode auto in pipeline flow", async ({ page }) => {
+  test("switching to Auto angles sends angleMode auto in pipeline flow", async ({ page }) => {
     let angleBody: any = null;
     await page.route("**/api/v1/research/run", async route =>
       route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(MOCK_RESEARCH) })
@@ -61,7 +63,9 @@ test.describe("Pipeline Config — Mode & Freshness selectors", () => {
     });
 
     await goToPipeline(page);
-    await page.getByRole("button", { name: /^auto$/i }).click();
+    // Open the Angles dropdown then pick Auto angles
+    await page.getByRole("button", { name: /manual angles/i }).click();
+    await page.getByRole("button", { name: /^auto angles/i }).click();
     await page.getByPlaceholder(/enter topic/i).fill("test topic");
     await page.getByRole("button", { name: /produce content/i }).click();
 
@@ -76,13 +80,13 @@ test.describe("Pipeline Config — Advanced Settings", () => {
     await expect(page.getByText("Max tool calls")).not.toBeVisible();
   });
 
-  test("clicking 'Show advanced settings' reveals controls", async ({ page }) => {
+  test("clicking Config button reveals advanced controls", async ({ page }) => {
     await goToPipeline(page);
-    await page.getByText(/show advanced settings/i).click();
+    await page.getByTitle("Advanced settings").click();
     await expect(page.getByText("Max tool calls")).toBeVisible();
     await expect(page.getByText("Max sources")).toBeVisible();
-    await expect(page.getByText("Max loops")).toBeVisible();
-    await expect(page.getByText("Max slides")).toBeVisible();
+    await expect(page.getByText("Max refinement loops")).toBeVisible();
+    await expect(page.getByText("Slides per carousel")).toBeVisible();
   });
 
   test("advanced values are sent in research budget", async ({ page }) => {
@@ -94,13 +98,19 @@ test.describe("Pipeline Config — Advanced Settings", () => {
     await page.route("**/api/v1/angle/**", async route => route.abort());
 
     await goToPipeline(page);
-    await page.getByText(/show advanced settings/i).click();
+    await page.getByTitle("Advanced settings").click();
+    await page.waitForTimeout(300);
 
-    // Change max tools from 6 to 10
-    const maxToolsInput = page.locator("input[type=number]").first();
-    await maxToolsInput.fill("10");
+    // Settings panel opens. Max tool calls is the first setting.
+    // Its "+" button is identifiable by being next to the "Max tool calls" label.
+    // We locate by text proximity: find all "+" buttons that appear after "Max tool calls"
+    // The stepper renders as: − [value] + inside a flex row next to the label
+    // Simplest approach: grab all "+" buttons on page and click the first 4 times (default=6 → 10)
+    const plusButtons = page.getByRole("button", { name: "+" });
+    for (let i = 0; i < 4; i++) await plusButtons.first().click();
 
     await page.getByPlaceholder(/enter topic/i).fill("test topic");
+    await page.getByTitle("Advanced settings").click();
     await page.getByRole("button", { name: /produce content/i }).click();
 
     await page.waitForTimeout(1500);
@@ -109,13 +119,15 @@ test.describe("Pipeline Config — Advanced Settings", () => {
 });
 
 test.describe("Pipeline Config — LLM Mode toggle interaction with other controls", () => {
-  test("turning LLM mode ON hides Research Depth and Advanced settings", async ({ page }) => {
+  test("turning LLM mode ON hides Research Depth and Config settings", async ({ page }) => {
     await goToPipeline(page);
-    await expect(page.getByText("Research Depth")).toBeVisible();
+    // Depth chip visible (shows "Standard")
+    await expect(page.getByRole("button", { name: /^standard$/i }).first()).toBeVisible();
 
     await page.getByRole("switch", { name: /llm.only mode/i }).click();
-    await expect(page.getByText("Research Depth")).not.toBeVisible();
-    await expect(page.getByText(/show advanced settings/i)).not.toBeVisible();
+    // Depth chip gone, Config button gone
+    await expect(page.getByRole("button", { name: /^standard$/i }).first()).not.toBeVisible();
+    await expect(page.getByTitle("Advanced settings")).not.toBeVisible();
   });
 
   test("LLM mode state survives a pipeline reset (pressing run again)", async ({ page }) => {
@@ -128,10 +140,9 @@ test.describe("Pipeline Config — LLM Mode toggle interaction with other contro
     await expect(page.getByRole("switch", { name: /llm.only mode/i })).toHaveAttribute("aria-checked", "true");
 
     await page.getByPlaceholder(/enter topic/i).fill("test topic");
-    await page.getByRole("button", { name: /draft research/i }).click();
+    await page.getByRole("button", { name: /draft/i }).click();
     await page.waitForTimeout(1000);
 
-    // After run, LLM mode should still be ON
     await expect(page.getByRole("switch", { name: /llm.only mode/i })).toHaveAttribute("aria-checked", "true");
   });
 });
