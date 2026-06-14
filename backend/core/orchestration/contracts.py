@@ -170,6 +170,7 @@ class Slide(BaseModel):
     chart_data: Optional[dict] = Field(default=None, description="Chart data dict: {labels: [...], values: [...]} or {labels: [...], datasets: [{label, values}]} for radar")
     image_query: Optional[str] = Field(default=None, description="Search query for the image — written for the chosen source tool (specific if ddgs, abstract if pexels)")
     image_source_preference: Optional[Literal["ddgs", "pexels", "none"]] = Field(default=None, description="Which image tool to use: ddgs=real people/events/places, pexels=generic concepts/stock, none=no image needed")
+    slide_overrides: dict = Field(default_factory=dict, description="Per-slide CSS variable overrides for editor customisation: {title_font_size, body_color, accent_color, ...}")
 
 class SlideGenerationOutput(BaseModel):
     slides: list[Slide] = Field(..., description="Generated slides for the content")

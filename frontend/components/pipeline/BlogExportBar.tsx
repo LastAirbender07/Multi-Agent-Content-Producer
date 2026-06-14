@@ -37,10 +37,10 @@ export function BlogExportBar({ runId, topic }: BlogExportBarProps) {
         Blog Post
       </span>
       <button
-        onClick={() => router.push(`/blog-preview?run_id=${runId}&topic=${encodeURIComponent(topic)}`)}
+        onClick={() => router.push(`/editor?run=${runId}&view=blog&topic=${encodeURIComponent(topic)}`)}
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-violet-500/40 bg-violet-500/5 text-violet-400 text-[11px] font-semibold hover:bg-violet-500/10 hover:border-violet-400 transition-all"
       >
-        <Eye size={12} /> Preview
+        <Eye size={12} /> Edit &amp; Preview
       </button>
       <button
         onClick={downloadMd}

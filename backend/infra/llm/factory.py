@@ -2,15 +2,11 @@ import asyncio
 from typing import Optional
 from infra.llm.base import BaseLLM
 from infra.llm.providers.claude import ClaudeLLM
+from infra.llm.jwt_handler import is_jwt_error
 from configs.settings import get_settings
 from infra.logging import get_logger
 
 logger = get_logger(__name__)
-
-
-def _is_jwt_error(exc: Exception) -> bool:
-    msg = str(exc).lower()
-    return "jwt" in msg or "expired" in msg or "401" in msg
 
 
 class LLMFactory:
@@ -61,7 +57,7 @@ class LLMFactory:
         try:
             return await call(llm)
         except Exception as e:
-            if _is_jwt_error(e):
+            if is_jwt_error(e):
                 logger.warning("llm_factory_jwt_expired_retrying")
                 cls.reset()
                 llm = await cls.get_client()

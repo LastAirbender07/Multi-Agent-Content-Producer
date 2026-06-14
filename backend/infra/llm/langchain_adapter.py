@@ -14,6 +14,7 @@ For direct LLM calls, use LLMFactory.get_client() instead.
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from configs.settings import get_settings
+from infra.llm.jwt_handler import is_jwt_error
 
 
 def _create_claude_client(settings) -> BaseChatModel:
@@ -88,10 +89,6 @@ def reset_langchain_llm() -> None:
     _cached_client = None
 
 
-def _is_jwt_error(exc: Exception) -> bool:
-    return "jwt" in str(exc).lower() or "expired" in str(exc).lower() or "401" in str(exc)
-
-
 async def get_langchain_llm_with_retry(call):
     """
     Execute an async callable `call(llm)` using the cached LangChain client.
@@ -107,7 +104,7 @@ async def get_langchain_llm_with_retry(call):
     try:
         return await call(llm)
     except Exception as e:
-        if _is_jwt_error(e):
+        if is_jwt_error(e):
             logger.warning("langchain_jwt_expired_retrying")
             reset_langchain_llm()
             llm = get_langchain_llm()

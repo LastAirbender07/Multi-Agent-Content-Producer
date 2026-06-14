@@ -7,7 +7,7 @@ from core.orchestration.contracts import EvaluationResult, LLMEvaluationOutput
 from core.prompts.prompt_loader import load_prompt
 from core.prompts.system_prompts import get_system_prompt
 from core.schemas.workflow_state import ResearchGraphState
-from core.utils.text_utils import format_evidence_block
+from core.utils.text_utils import format_evidence_block, domain_from_url
 from infra.llm.langchain_adapter import get_langchain_llm
 from infra.logging import get_logger
 
@@ -26,8 +26,7 @@ _DIVERSITY_SATURATION = 8.0   # saturates at 8 unique domains (was 4)
 def _source_identifier(e) -> str:
     if e.source_name:
         return e.source_name
-    match = re.search(r'https?://(?:www\.)?([^/]+)', str(e.url) if e.url else "")
-    return match.group(1) if match else ""
+    return domain_from_url(str(e.url) if e.url else "")
 
 
 def _compute_source_score(evidence: list, source_ids: set) -> float:

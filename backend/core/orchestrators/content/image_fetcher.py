@@ -16,9 +16,6 @@ _settings = get_settings()
 _BACKEND_ROOT = Path(__file__).parents[3]
 _ddgs = DDGSSearch(timeout=15)
 
-# Slide types that never need a real image — rendered as coloured cards
-_NO_IMAGE_TYPES = {"stat", "cta", "engage"}
-
 
 async def _search_pexels(query: str, per_page: int = 15) -> list[dict]:
     """Call Pexels MCP server, return list of photo dicts."""
@@ -60,6 +57,45 @@ async def _search_ddgs(query: str, max_results: int = 15) -> list[dict]:
     except Exception as e:
         logger.warning("ddgs_image_error", query=query, error=str(e))
     return []
+
+
+async def fetch_and_download_single_image(
+    query: str,
+    source: str,
+    dest_path: Path,
+    api_key: str | None = None,
+) -> bool:
+    """
+    Search for one image using the given query and source, score results,
+    download the best match to dest_path. Returns True on success.
+    Used by both the batch pipeline and the editor's swap-image endpoint.
+    """
+    if source == "pexels":
+        results = await _search_pexels(query, per_page=20)
+        if not results:
+            results = await _search_ddgs(query, max_results=20)
+            source = "ddgs"
+    else:
+        results = await _search_ddgs(query, max_results=20)
+        if not results:
+            results = await _search_pexels(query, per_page=20)
+            source = "pexels"
+
+    if not results:
+        return False
+
+    ranked = sorted(results, key=lambda img: _score_image(img, query), reverse=True)
+    best = ranked[0]
+    download_url = best.get("src", {}).get("large2x") or best.get("url", "")
+    if not download_url:
+        return False
+
+    return await _download_image(
+        download_url,
+        dest_path,
+        source=best.get("source", source),
+        api_key=api_key or _settings.pexels_api_key,
+    )
 
 
 def _score_image(img: dict, query: str = "") -> float:
@@ -119,7 +155,7 @@ def _effective_source(
     """
     if global_override in ("pexels", "ddgs"):
         return global_override
-    if slide_type in _NO_IMAGE_TYPES:
+    if slide_type in set(_settings.content_no_image_slide_types):
         return "none"
     if slide_preference in ("ddgs", "pexels", "none"):
         return slide_preference

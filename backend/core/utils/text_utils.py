@@ -80,3 +80,11 @@ def make_llm_url(slug: str, index: int = 0) -> str:
     """Generate a synthetic URL for LLM-sourced evidence items."""
     safe_slug = slug.replace(" ", "_")
     return f"{LLM_EVIDENCE_URL_PREFIX}/{safe_slug}/{index}"
+
+
+# ── URL utilities ─────────────────────────────────────────────────────────────
+
+def domain_from_url(url: str) -> str:
+    """Extract the bare domain from an HTTP URL (strips www. prefix)."""
+    match = re.search(r'https?://(?:www\.)?([^/]+)', url or "")
+    return match.group(1) if match else ""

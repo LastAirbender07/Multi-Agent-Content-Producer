@@ -155,7 +155,6 @@ def _assemble_markdown(prose: str, assets: BlogAssets, images: list[dict]) -> st
     lines = prose.splitlines(keepends=True)
     result: list[str] = []
     images_injected = 0
-    MIN_IMAGES = 2
 
     heading_re = re.compile(r"^(#{1,3})\s+\[([A-Z]+)(?::\s*(.+?))?\]\s*$")
 
@@ -187,12 +186,12 @@ def _assemble_markdown(prose: str, assets: BlogAssets, images: list[dict]) -> st
             pq_idx += 1
 
     # Minimum guarantee: inject remaining pool images at section headings if under minimum
-    if images_injected < MIN_IMAGES and pool:
+    if images_injected < _settings.blog_min_images and pool:
         heading_positions = [
             i for i, l in enumerate(result)
             if l.startswith("## ") and i > 0
         ]
-        insert_positions = heading_positions[:MIN_IMAGES - images_injected]
+        insert_positions = heading_positions[:_settings.blog_min_images - images_injected]
         for offset, pos in enumerate(insert_positions):
             if not pool:
                 break
@@ -212,8 +211,8 @@ def _assemble_markdown(prose: str, assets: BlogAssets, images: list[dict]) -> st
 
     # Instagram CTA
     result.append(
-        "\n**Follow us on Instagram for daily bite-sized insights: "
-        "[@TheOpinionBoard](https://www.instagram.com/theopinionboard/)**\n"
+        f"\n**Follow us on Instagram for daily bite-sized insights: "
+        f"[{_settings.instagram_handle}]({_settings.instagram_url})**\n"
     )
 
     assembled = "".join(result)
@@ -330,7 +329,7 @@ async def generate_blog_post(assets: BlogAssets) -> tuple[str, str]:
         # Prefix with zero-width space to prevent Markdown treating #tag as heading
         tags_line = " ".join(f"\\#{t}" for t in tags[:12])
         markdown_str += f"\n\n---\n\n{tags_line}\n"
-    markdown_str += "\n*Originally produced by [@TheOpinionBoard](https://www.instagram.com/theopinionboard/)*\n"
+    markdown_str += f"\n*Originally produced by [{_settings.instagram_handle}]({_settings.instagram_url})*\n"
 
     html_str = _markdown_to_html(markdown_str, assets.topic, tags)
     return markdown_str, html_str

@@ -38,6 +38,11 @@ _outputs_dir = Path(__file__).parent / "outputs"
 _outputs_dir.mkdir(exist_ok=True)
 app.mount("/outputs", StaticFiles(directory=str(_outputs_dir)), name="outputs")
 
+# Serve fonts, brand logo, Chart.js used by slide HTML templates
+_assets_dir = Path(__file__).parent / "assets"
+if _assets_dir.exists():
+    app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="assets")
+
 
 @app.get("/health")
 async def health() -> dict:

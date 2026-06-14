@@ -91,6 +91,13 @@ html, body {
     width: {{ (slide_number / total_slides * 100)|int }}%;
 }
 {% block extra_styles %}{% endblock %}
+{% if slide.slide_overrides %}
+<style>
+:root {
+{% for k, v in slide.slide_overrides.items() %}  --ov-{{ k }}: {{ v }};
+{% endfor %}}
+</style>
+{% endif %}
 </style>
 </head>
 <body>

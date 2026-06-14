@@ -6,7 +6,135 @@
 
 ---
 
-## 2026-06-14 - Session 34: Backend Round 2 — Full Audit & Cleanup Pass
+## 2026-06-14 - Session 36: Backend Round 3 — Service Layer Extraction & Final Cleanup
+
+**Decision:** Third comprehensive backend audit and refactor pass. Tackled the biggest remaining structural problem (`content.py` at 483 lines mixing routing + business logic + I/O) plus duplicate JWT detection, scattered helper functions, and remaining hardcoded constants.
+
+---
+
+**P1 — `content.py` split into proper layers (483 → 119 lines)**
+
+| New file | Purpose | Lines |
+|---|---|---|
+| `core/services/slide_editor_service.py` | All slide editing logic: preview, edit, AI rewrite, swap image, create. Deduplicated Jinja2 env (cached per theme) + single `_render_and_save_png()` helper replacing two identical render+screenshot blocks | 238 |
+| `core/services/run_browser_service.py` | `list_runs()` + `get_run_manifest()` | 88 |
+| `core/persistence/slide_repository.py` | `read_slides()`, `write_slides()`, `read_image_assets()`, `write_image_assets()` — handles both flat list and `{"slides": [...]}` wrapper JSON formats | 76 |
+| `core/persistence/run_repository.py` | `read_topic()`, `static_image_url()` | 42 |
+
+`apps/api/v1/content.py` is now **119 lines of pure routing** — every handler is validate → delegate → respond.
+
+---
+
+**P2 — `infra/llm/jwt_handler.py` — deduplicated JWT detection**
+
+`_is_jwt_error()` was defined identically in both `factory.py` and `langchain_adapter.py`. Extracted to `infra/llm/jwt_handler.py` as `is_jwt_error()`. Both files now import from there.
+
+---
+
+**P3 — Helper functions moved to `core/` from API layer**
+
+| Function | From | To |
+|---|---|---|
+| `_fetch_category()` + `_DISCOVER_CATEGORIES` | `tools_news.py` | `core/tools/News/discovery.py` |
+| `_age_label()` | `tools_news.py` | `core/utils/time_utils.py` |
+| `_ddgs_multi_search()` | `tools_images.py` | `core/tools/Search/multi_search.py` |
+
+`tools_news.py` 237 → 120 lines. `tools_images.py` 164 → 113 lines.
+
+---
+
+**P4 — `domain_from_url()` added to `core/utils/text_utils.py`**
+
+Was duplicated inline in `news_api.py` and `evaluator.py`. Now centralized in `text_utils.py`. `evaluator.py` updated to import it.
+
+---
+
+**P5 — 5 new settings added to `configs/settings.py`**
+
+`instagram_handle`, `blog_min_images`, `news_request_timeout_seconds`, `content_no_image_slide_types`. Callers updated in `blog_post_generator.py` and `image_fetcher.py`.
+
+`claude.py`: `max_retries` renamed to `max_validation_retries` with an inline comment clarifying it controls structured-output validation retry loops, NOT HTTP client retries.
+
+---
+
+**New files created:** `core/services/__init__.py`, `core/persistence/__init__.py`, `core/utils/time_utils.py`, `core/tools/News/discovery.py`, `core/tools/Search/multi_search.py`, `infra/llm/jwt_handler.py`
+
+**44 backend tests + 61/61 E2E — all passing.**
+
+---
+
+
+
+**Decision:** Implemented the final major planned feature — the `/editor` page. A Canva-inspired slide editor where users can edit text, font sizes, colors, accents, slide type, theme, chart data, swap images, and AI-rewrite any slide, plus a full Markdown blog editor with an LLM assistant sidebar. Architecture validated by research: Canva uses DOM+CSS (not canvas), and our Playwright pipeline already matches the Chart.js rendering engine (Skia), so no visual mismatch.
+
+---
+
+**Backend — 9 new endpoints in `content.py`**
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/content/runs` | List all pipeline runs from disk with metadata |
+| `GET` | `/content/{run_id}/manifest` | File tree: angles, slide counts, png paths, blog flag |
+| `GET` | `/content/{run_id}/slides/{angle}` | Raw slides.json for an angle |
+| `GET` | `/content/{run_id}/slides/{angle}/{n}/preview` | **Live Jinja2 render → HTMLResponse** (powers the iframe) |
+| `POST` | `/content/{run_id}/slides/{angle}/{n}/edit` | Patch slide fields, re-render, re-screenshot |
+| `POST` | `/content/{run_id}/slides/{angle}/{n}/ai-rewrite` | LLM rewrite with feedback |
+| `POST` | `/content/{run_id}/slides/{angle}/{n}/swap-image` | Fetch + download new image, re-render |
+| `POST` | `/content/{run_id}/slides/{angle}/new` | Create blank slide from template |
+| `PUT` | `/content/{run_id}/blog-post` | Save updated markdown, regenerate HTML |
+
+New schemas: `SlideEditRequest`, `SlideEditResponse`, `BlogPostUpdateRequest` in `schemas.py`.
+
+---
+
+**Backend — prerequisite extractions**
+
+- `carousel_generator.py` — `render_and_screenshot_single_slide(html_path, output_path, serve_root)` extracted as public function. `screenshot_slides_node` loops calling it. Used by the edit/swap/ai-rewrite endpoints.
+- `image_fetcher.py` — `fetch_and_download_single_image(query, source, dest_path)` extracted. Used by swap-image endpoint.
+- `contracts.py` — `slide_overrides: dict` added to `Slide` model. Per-slide CSS variable overrides.
+- `_base.html.j2` (aurora + lumina) — override injection block added: renders `--ov-{key}: {val}` CSS variables into `:root` when `slide.slide_overrides` is non-empty.
+
+---
+
+**Frontend — 6 new components**
+
+| File | Purpose |
+|---|---|
+| `app/editor/page.tsx` | Two-panel shell; URL params drive which editor panel shows |
+| `components/editor/FileBrowser.tsx` | Left panel: recent runs (Redux) + all runs (API), expand to slides + blog |
+| `components/editor/SlidePreviewFrame.tsx` | `<iframe>` pointing to `/preview` endpoint; `previewKey` forces reload on save |
+| `components/editor/SlideEditor.tsx` | 5-tab Canva-style editor: Content / Style / Chart / Image / AI |
+| `components/editor/ChartPreview.tsx` | `react-chartjs-2` live preview (same Skia engine as Playwright — no visual mismatch) |
+| `components/editor/MarkdownEditor.tsx` | `@uiw/react-md-editor` dark mode + LLM chat sidebar using existing `api.chat()` |
+
+**New packages:** `react-chartjs-2`, `chart.js`, `@uiw/react-md-editor`
+
+---
+
+**Style controls implemented (per-slide, Canva-style):**
+- Font size (XS/SM/MD/LG/XL) → `slide_overrides.title_font_size`
+- Title color (swatches + `<input type="color">`) → `slide_overrides.title_color`
+- Accent color (preset palette + custom) → `slide_overrides.accent_color`
+- Slide type switcher (hook/content/stat/quote/cta/engage) → re-renders with new template
+- Theme switcher (Aurora dark / Lumina light) → re-renders with correct template family
+
+---
+
+**`/blog-preview` → redirect**
+
+`app/blog-preview/page.tsx` replaced with a redirect to `/editor?run={id}&view=blog`. The editor is now the canonical viewer and editor for blog posts. `BlogExportBar.tsx` "Preview" button updated to point directly to the editor.
+
+---
+
+**`api.ts` additions:** `getRunsList`, `getRunManifest`, `getSlides`, `editSlide`, `aiRewriteSlide`, `swapSlideImage`, `newSlide`, `updateBlogPost` + TypeScript interfaces `RunSummary`, `RunManifest`, `AngleManifest`, `SlideData`, `SlideEditRequest`, `SlideEditResponse`.
+
+**Architecture note:** The live preview uses a server-rendered Jinja2 iframe (same rendering path as Playwright PNG generation). This means what you see in the editor is pixel-accurate to the final PNG — no canvas-based replication needed. Validated by research: this is the same approach used by Slidev, Marp, and conceptually similar to Canva's DOM-based editor with separate rasterization for export.
+
+**TypeScript: 0 errors. E2E: 61/61 passing.**
+
+---
+
+
 
 **Decision:** Second comprehensive audit of the entire backend. Extracted the embedded HTML template, deduplicated `_has_cjk`, moved all remaining hardcoded constants to settings, split two large functions, extracted an LLM prompt, and made a dozen minor clarity fixes. No behaviour changes.
 
@@ -1651,4 +1779,4 @@ Rewrote to the standard Headless UI / Tailwind UI pattern:
 
 ---
 
-_Last updated: 2026-06-14 (Session 34)_
+_Last updated: 2026-06-14 (Session 36)_

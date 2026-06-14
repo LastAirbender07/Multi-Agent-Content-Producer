@@ -23,15 +23,17 @@ class ClaudeLLM(BaseLLM):
         timeout: float = 300.0,
         max_tokens: int = 8192,
         temperature: float = 1.0,
-        max_retries: int = 3
+        max_validation_retries: int = 3,
     ):
+        # max_validation_retries: how many times to retry if Pydantic parsing
+        # of a structured LLM response fails. NOT an HTTP client retry.
         self.api_key = api_key
         self.base_url = base_url
         self.model = model
         self.timeout = timeout
         self.max_tokens = max_tokens
         self.temperature = temperature
-        self.max_retries = max_retries
+        self.max_validation_retries = max_validation_retries
 
         self.client = httpx.AsyncClient(
             timeout=timeout,
@@ -116,7 +118,7 @@ class ClaudeLLM(BaseLLM):
 Return ONLY valid JSON matching:
 {json.dumps(schema_json, indent=2)}"""
 
-        for attempt in range(self.max_retries):
+        for attempt in range(self.max_validation_retries):
             try:
                 response = await self.generate(
                     enhanced_prompt,
@@ -135,7 +137,7 @@ Return ONLY valid JSON matching:
                     "llm_generate_structured_retry",
                     schema_name=schema_name,
                     attempt=attempt + 1,
-                    max_retries=self.max_retries,
+                    max_validation_retries=self.max_validation_retries,
                     error_type=type(e).__name__
                 )
                 await asyncio.sleep(1)
@@ -143,7 +145,7 @@ Return ONLY valid JSON matching:
         logger.error(
             "llm_generate_structured_failed",
             schema_name=schema_name,
-            max_retries=self.max_retries
+            max_validation_retries=self.max_validation_retries
         )
         raise LLMValidationError("Failed structured output")
 

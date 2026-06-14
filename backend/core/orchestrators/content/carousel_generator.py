@@ -117,6 +117,48 @@ async def render_slides_node(state: ContentGraphState) -> dict:
     }
 
 
+async def render_and_screenshot_single_slide(
+    html_path: str,
+    output_path: str,
+    serve_root: Path,
+) -> str:
+    """
+    Render one HTML slide file to a final PNG.
+    Used both by the batch screenshot node and by the editor's per-slide re-render.
+    Returns the output_path as a string.
+    """
+    html_path = str(html_path)
+    output_path = str(output_path)
+
+    async with serve_directory(serve_root) as base_url:
+        async with async_playwright() as pw:
+            browser = await pw.chromium.launch(headless=True)
+            context = await browser.new_context(
+                viewport={"width": _settings.carousel_viewport_size, "height": _settings.carousel_viewport_size},
+                device_scale_factor=_settings.carousel_scale_factor,
+            )
+            page = await context.new_page()
+
+            rel = Path(html_path).relative_to(serve_root)
+            url = f"{base_url}/{str(rel).replace('\\', '/')}"
+
+            await page.goto(url, wait_until="networkidle")
+            await page.evaluate("document.fonts.ready")
+            await page.wait_for_timeout(_settings.carousel_chart_render_wait_ms)
+
+            raw_path = Path(output_path).with_suffix("._raw.png")
+            await page.screenshot(path=str(raw_path), full_page=False)
+
+            img = Image.open(raw_path)
+            img = img.resize((_settings.carousel_viewport_size, _settings.carousel_viewport_size), Image.LANCZOS)
+            img.save(output_path, "PNG", optimize=True)
+            raw_path.unlink(missing_ok=True)
+
+            await browser.close()
+
+    return output_path
+
+
 async def screenshot_slides_node(state: ContentGraphState) -> dict:
     """Screenshot each HTML slide via Playwright; downscale 2160→1080."""
     run_id = state.get("run_id")
@@ -128,9 +170,7 @@ async def screenshot_slides_node(state: ContentGraphState) -> dict:
         / run_id / "content" / f"angle_{angle_index}" / "png"
     )
     output_dir.mkdir(parents=True, exist_ok=True)
-
     serve_root = _BACKEND_ROOT
-
     png_paths: list[str] = []
 
     async with serve_directory(serve_root) as base_url:
@@ -148,8 +188,6 @@ async def screenshot_slides_node(state: ContentGraphState) -> dict:
 
                 await page.goto(url, wait_until="networkidle")
                 await page.evaluate("document.fonts.ready")
-                # Chart.js writes to canvas synchronously but needs a small buffer
-                # for raster flushing before Playwright captures the screenshot
                 await page.wait_for_timeout(_settings.carousel_chart_render_wait_ms)
 
                 raw_path = output_dir / (Path(html_path).stem + "_raw.png")

@@ -54,6 +54,30 @@ export const api = {
   getBlogPostHtml: (runId: string) =>
     fetch(`${BASE}/content/${runId}/blog-post.html`).then(r => { if (!r.ok) throw new Error(r.statusText); return r.text(); }),
 
+  // Editor — run browser
+  getRunsList: (): Promise<{ runs: RunSummary[] }> =>
+    fetch(`${BASE}/content/runs`).then(r => r.json()),
+  getRunManifest: (runId: string): Promise<RunManifest> =>
+    fetch(`${BASE}/content/${runId}/manifest`).then(r => r.json()),
+
+  // Editor — slide data & editing
+  getSlides: (runId: string, angleIndex: number): Promise<{ slides: SlideData[] }> =>
+    fetch(`${BASE}/content/${runId}/slides/${angleIndex}`).then(r => r.json()),
+  editSlide: (runId: string, angleIndex: number, slideNumber: number, body: SlideEditRequest): Promise<SlideEditResponse> =>
+    post(`/content/${runId}/slides/${angleIndex}/${slideNumber}/edit`, body),
+  aiRewriteSlide: (runId: string, angleIndex: number, slideNumber: number, feedback: string) =>
+    post<{ slide: SlideData; message: string }>(`/content/${runId}/slides/${angleIndex}/${slideNumber}/ai-rewrite`, { feedback }),
+  swapSlideImage: (runId: string, angleIndex: number, slideNumber: number, query: string, source: string): Promise<{ png_url: string }> =>
+    post(`/content/${runId}/slides/${angleIndex}/${slideNumber}/swap-image`, { query, source }),
+  newSlide: (runId: string, angleIndex: number, type: string, theme: string) =>
+    post<{ slide: SlideData }>(`/content/${runId}/slides/${angleIndex}/new`, { type, theme }),
+  updateBlogPost: (runId: string, markdown: string) =>
+    fetch(`${BASE}/content/${runId}/blog-post`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ markdown }),
+    }).then(r => r.json()),
+
   // Images
   searchImages: (body: ImageSearchBody) =>
     post<ImageSearchResponse>("/tools/images", body),
@@ -334,6 +358,62 @@ export interface SeedEvidence {
   url?: string;
   source_name?: string;
   credibility_score?: number;
+}
+
+// ── Editor types ──────────────────────────────────────────────────────────────
+
+export interface RunSummary {
+  run_id: string;
+  topic: string;
+  created_at: number;   // Unix timestamp
+  has_content: boolean;
+  has_blog: boolean;
+}
+
+export interface AngleManifest {
+  index: number;
+  slide_count: number;
+  png_paths: string[];
+}
+
+export interface RunManifest {
+  run_id: string;
+  topic: string;
+  angles: AngleManifest[];
+  has_blog: boolean;
+}
+
+export interface SlideData {
+  slide_number: number;
+  type: string;
+  title: string;
+  body: string;
+  bullets: string[];
+  stat_value?: string;
+  stat_label?: string;
+  chart_type?: string;
+  chart_data?: { labels: string[]; values: number[]; datasets?: { label: string; values: number[] }[] };
+  image_query?: string;
+  slide_overrides: Record<string, string>;
+  _theme?: string;
+}
+
+export interface SlideEditRequest {
+  title?: string;
+  body?: string;
+  bullets?: string[];
+  stat_value?: string;
+  stat_label?: string;
+  chart_data?: object;
+  chart_type?: string;
+  slide_overrides?: Record<string, string>;
+  template_type?: string;
+  theme?: string;
+}
+
+export interface SlideEditResponse {
+  png_url: string;
+  updated_at: string;
 }
 
 export interface ParseDocResponse {

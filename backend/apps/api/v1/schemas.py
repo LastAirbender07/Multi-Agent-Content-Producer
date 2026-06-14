@@ -106,3 +106,25 @@ class ParseDocResponse(BaseModel):
     text: str                   # extracted markdown content
     char_count: int
     file_type: str              # "pdf", "docx", "txt", etc.
+
+
+class SlideEditRequest(BaseModel):
+    title: Optional[str] = None
+    body: Optional[str] = None
+    bullets: Optional[list[str]] = None
+    stat_value: Optional[str] = None
+    stat_label: Optional[str] = None
+    chart_data: Optional[dict] = None
+    chart_type: Optional[str] = None
+    slide_overrides: Optional[dict] = None   # {"title_font_size": "52px", "accent_color": "#7c3aed"}
+    template_type: Optional[str] = None      # change slide type: hook|content|stat|quote|cta|engage
+    theme: Optional[str] = None              # "aurora" | "lumina"
+
+
+class SlideEditResponse(BaseModel):
+    png_url: str
+    updated_at: str
+
+
+class BlogPostUpdateRequest(BaseModel):
+    markdown: str

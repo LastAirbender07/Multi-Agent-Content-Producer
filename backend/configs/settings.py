@@ -72,6 +72,7 @@ class Settings(BaseSettings):
     brand_name: str = "TheOpinionBoard"
     brand_logo_path: str = "assets/brand/logo.png"
     instagram_url: str = "https://www.instagram.com/theopinionboard/"
+    instagram_handle: str = "@TheOpinionBoard"
     medium_url: str = "https://medium.com/@theOpinionBoard"
 
     # Server / API Settings
@@ -104,6 +105,15 @@ class Settings(BaseSettings):
     # Normalizer / Evidence Settings
     crawl_markdown_max_chars: int = 2000
     crawl_snippet_max_chars: int = 500
+
+    # News API Settings
+    news_request_timeout_seconds: int = 10
+
+    # Blog generation settings
+    blog_min_images: int = 2
+
+    # Content slide types that never need an image (rendered as colour cards)
+    content_no_image_slide_types: list[str] = ["stat", "cta", "engage"]
 
     class Config:
         env_file = ".env"
