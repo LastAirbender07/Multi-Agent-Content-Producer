@@ -16,6 +16,72 @@ _BACKEND_ROOT = Path(__file__).parents[3]
 _OUTPUTS_ROOT = _BACKEND_ROOT / _settings.content_output_dir
 
 
+async def _run_blog_post_generation(
+    run_id: str,
+    request: ContentRequest,
+    angles_processed: list,
+    all_slides_per_angle: list,
+    all_image_assets_per_angle: list,
+) -> tuple[str, str]:
+    """
+    Generate blog post markdown + HTML from research + carousel data.
+    Non-fatal — returns empty strings if anything fails.
+    """
+    if not request.research_summary or not angles_processed:
+        return "", ""
+    try:
+        from core.orchestrators.content.blog_post_generator import generate_blog_post, BlogAssets
+
+        research_result_path = _OUTPUTS_ROOT / run_id / "research" / "research_result.json"
+        evidence: list[dict] = []
+        synthesis_dict: dict = {}
+        if research_result_path.exists():
+            data = _json.loads(research_result_path.read_text())
+            evidence = data.get("evidence", [])
+            synthesis_dict = data.get("synthesis") or {}
+
+        synthesis = ResearchSynthesis(
+            summary=synthesis_dict.get("summary") or request.research_summary,
+            key_points=synthesis_dict.get("key_points") or request.key_points,
+            contradictions=synthesis_dict.get("contradictions") or [],
+            implications=synthesis_dict.get("implications") or [],
+            confidence_score=synthesis_dict.get("confidence_score") or 0.0,
+            gaps=synthesis_dict.get("gaps") or [],
+        )
+        is_llm_only = all(e.get("source_type") == "llm_knowledge" for e in evidence) if evidence else True
+
+        angle_slide_bundles = [
+            {
+                "angle": request.selected_angles[idx],
+                "angle_index": idx,
+                "slides": all_slides_per_angle[idx],
+                "image_assets": all_image_assets_per_angle[idx],
+            }
+            for idx in angles_processed
+        ]
+
+        assets = BlogAssets(
+            topic=request.topic,
+            synthesis=synthesis,
+            evidence=evidence,
+            all_angle_slides=angle_slide_bundles,
+            run_id=run_id,
+            outputs_root=_OUTPUTS_ROOT,
+            is_llm_only=is_llm_only,
+        )
+
+        md_str, html_str = await generate_blog_post(assets)
+        manager = RunOutputManager(run_id=run_id, outputs_root=_OUTPUTS_ROOT)
+        md_path = manager.save_markdown(".", "blog_post.md", md_str)
+        html_path = manager.save_text(".", "blog_post.html", html_str)
+        logger.info("blog_post_generated", run_id=run_id, md_chars=len(md_str), html_chars=len(html_str))
+        return str(md_path), str(html_path)
+
+    except Exception as e:
+        logger.error("blog_post_generation_failed", run_id=run_id, error=str(e))
+        return "", ""
+
+
 class ContentOrchestrator:
     def __init__(self):
         self._graph = build_content_graph().compile()
@@ -83,70 +149,13 @@ class ContentOrchestrator:
                 all_image_assets_per_angle.append([])
 
         # ── Blog post generation (non-fatal) ──────────────────────────────────
-        blog_post_path = ""
-        blog_post_html_path = ""
-        if request.research_summary and angles_processed:
-            try:
-                from core.orchestrators.content.blog_post_generator import generate_blog_post, BlogAssets
-
-                # Load full synthesis + evidence from research_result.json
-                research_result_path = _OUTPUTS_ROOT / run_id / "research" / "research_result.json"
-                evidence: list[dict] = []
-                synthesis_dict: dict = {}
-                if research_result_path.exists():
-                    data = _json.loads(research_result_path.read_text())
-                    evidence = data.get("evidence", [])
-                    synthesis_dict = data.get("synthesis") or {}
-
-                synthesis = ResearchSynthesis(
-                    summary=synthesis_dict.get("summary") or request.research_summary,
-                    key_points=synthesis_dict.get("key_points") or request.key_points,
-                    contradictions=synthesis_dict.get("contradictions") or [],
-                    implications=synthesis_dict.get("implications") or [],
-                    confidence_score=synthesis_dict.get("confidence_score") or 0.0,
-                    gaps=synthesis_dict.get("gaps") or [],
-                )
-
-                is_llm_only = (
-                    all(e.get("source_type") == "llm_knowledge" for e in evidence)
-                    if evidence else True
-                )
-
-                angle_slide_bundles = [
-                    {
-                        "angle": request.selected_angles[idx],
-                        "angle_index": idx,
-                        "slides": all_slides_per_angle[idx],
-                        "image_assets": all_image_assets_per_angle[idx],
-                    }
-                    for idx in angles_processed
-                ]
-
-                assets = BlogAssets(
-                    topic=request.topic,
-                    synthesis=synthesis,
-                    evidence=evidence,
-                    all_angle_slides=angle_slide_bundles,
-                    run_id=run_id,
-                    outputs_root=_OUTPUTS_ROOT,
-                    is_llm_only=is_llm_only,
-                )
-
-                md_str, html_str = await generate_blog_post(assets)
-
-                manager = RunOutputManager(run_id=run_id, outputs_root=_OUTPUTS_ROOT)
-                md_path = manager.save_markdown(".", "blog_post.md", md_str)
-                html_path = manager.save_text(".", "blog_post.html", html_str)
-                blog_post_path = str(md_path)
-                blog_post_html_path = str(html_path)
-                logger.info(
-                    "blog_post_generated",
-                    run_id=run_id,
-                    md_chars=len(md_str),
-                    html_chars=len(html_str),
-                )
-            except Exception as e:
-                logger.error("blog_post_generation_failed", run_id=run_id, error=str(e))
+        blog_post_path, blog_post_html_path = await _run_blog_post_generation(
+            run_id=run_id,
+            request=request,
+            angles_processed=angles_processed,
+            all_slides_per_angle=all_slides_per_angle,
+            all_image_assets_per_angle=all_image_assets_per_angle,
+        )
 
         status = RunStatus.SUCCESS if not all_errors else (
             RunStatus.PARTIAL_SUCCESS if angles_processed else RunStatus.FAILED

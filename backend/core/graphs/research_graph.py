@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 import re as _re
 from langgraph.graph import START, END, StateGraph
+from core.orchestration.contracts import Evidence
 from core.orchestrators.research.evaluator import evaluate_node
 from core.orchestrators.research.evidence_scorer import score_evidence_node
 from core.orchestrators.research.executor import execute_tools_node
@@ -66,42 +67,53 @@ async def intake_node(state: ResearchGraphState) -> dict:
         mode=request.mode,
         freshness=request.freshness,
     )
-    return {**updates, "messages": state.get("messages", []) + ["intake complete."]}
+
+    # ── Fix 3: Pre-seed evidence from caller (discover snippet, uploaded docs) ──
+    seeded: list = []
+    if request.seeded_evidence:
+        for item in request.seeded_evidence:
+            try:
+                seeded.append(Evidence(
+                    evidence=item.get("evidence", ""),
+                    source_type=item.get("source_type", "document"),
+                    title=item.get("title", "Attached source"),
+                    url=item.get("url", ""),
+                    snippet=item.get("snippet"),
+                    source_name=item.get("source_name"),
+                    credibility_score=float(item.get("credibility_score", 0.85)),
+                    relevance_score=0.5,
+                    retrieval_time=datetime.now(timezone.utc),
+                ))
+            except Exception as e:
+                logger.warning("intake_seed_evidence_skip", run_id=run_id, error=str(e)[:80])
+        if seeded:
+            logger.info("intake_seeded_evidence", run_id=run_id, count=len(seeded),
+                        types=list({e.source_type for e in seeded}))
+
+    base_updates = {**updates, "messages": state.get("messages", []) + ["intake complete."]}
+    if seeded:
+        base_updates["evidence"] = seeded
+    return base_updates
 
 
-async def _route_node_tracked(state: ResearchGraphState) -> dict:
-    progress.update(state["run_id"], "route", 2)
-    return await route_node(state)
+# ── Progress-tracked node wrappers ────────────────────────────────────────────
+# Each underlying node function is wrapped to report progress before delegating.
 
+def _tracked(underlying_fn, step: int):
+    """Wrap a node function to report progress before delegating."""
+    async def wrapper(state: ResearchGraphState) -> dict:
+        progress.update(state["run_id"], underlying_fn.__name__, step)
+        return await underlying_fn(state)
+    wrapper.__name__ = f"_{underlying_fn.__name__}_tracked"
+    return wrapper
 
-async def _llm_knowledge_node_tracked(state: ResearchGraphState) -> dict:
-    progress.update(state["run_id"], "llm_knowledge", 3)
-    return await llm_knowledge_node(state)
-
-
-async def _execute_tools_node_tracked(state: ResearchGraphState) -> dict:
-    progress.update(state["run_id"], "execute_tools", 4)
-    return await execute_tools_node(state)
-
-
-async def _normalize_node_tracked(state: ResearchGraphState) -> dict:
-    progress.update(state["run_id"], "normalize", 5)
-    return await normalize_evidence_node(state)
-
-
-async def _score_evidence_node_tracked(state: ResearchGraphState) -> dict:
-    progress.update(state["run_id"], "score_evidence", 6)
-    return await score_evidence_node(state)
-
-
-async def _synthesize_node_tracked(state: ResearchGraphState) -> dict:
-    progress.update(state["run_id"], "synthesize", 7)
-    return await synthesize_node(state)
-
-
-async def _evaluate_node_tracked(state: ResearchGraphState) -> dict:
-    progress.update(state["run_id"], "evaluate", 8)
-    return await evaluate_node(state)
+_route_node_tracked          = _tracked(route_node,              2)
+_llm_knowledge_node_tracked  = _tracked(llm_knowledge_node,      3)
+_execute_tools_node_tracked  = _tracked(execute_tools_node,       4)
+_normalize_node_tracked      = _tracked(normalize_evidence_node,  5)
+_score_evidence_node_tracked = _tracked(score_evidence_node,      6)
+_synthesize_node_tracked     = _tracked(synthesize_node,          7)
+_evaluate_node_tracked       = _tracked(evaluate_node,            8)
 
 
 async def refine_node(state: ResearchGraphState) -> dict:

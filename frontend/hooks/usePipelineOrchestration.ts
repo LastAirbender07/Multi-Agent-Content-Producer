@@ -11,6 +11,7 @@ export function usePipelineOrchestration() {
   const {
     topic, mode, freshness, angleMode, imageSource, llmResearchMode,
     stages, researchResult, preprocessedQueries, discoverUrl,
+    discoveryArticle, attachedEvidence,
     maxTools, maxSources, maxLoops, maxSlides, minSlides, maxCrawlUrls,
     maxAnglesSelect, needsClaimVerification,
   } = useAppSelector((s) => s.pipeline);
@@ -78,11 +79,33 @@ export function usePipelineOrchestration() {
     }
 
     try {
+      // Build seeded evidence: discover article snippet + any uploaded documents
+      const seededEvidence = [];
+      if (discoveryArticle?.snippet && discoverUrl) {
+        seededEvidence.push({
+          title: discoveryArticle.title,
+          evidence: discoveryArticle.snippet,
+          source_type: "discover" as const,
+          url: discoverUrl,
+          source_name: discoveryArticle.category,
+          credibility_score: 0.85,
+        });
+      }
+      attachedEvidence.forEach(doc => seededEvidence.push({
+        title: doc.title,
+        evidence: doc.evidence,
+        source_type: "document" as const,
+        url: doc.url ?? "",
+        source_name: doc.fileName,
+        credibility_score: 0.9,
+      }));
+
       const res = await api.runResearch({
         topic, mode, freshness, run_id: pendingRunId,
         needs_claim_verification: needsClaimVerification,
         explicit_urls: discoverUrl ? [discoverUrl] : undefined,
         preprocessed_queries: preprocessedQueries.length > 0 ? preprocessedQueries : undefined,
+        seeded_evidence: seededEvidence.length > 0 ? seededEvidence : undefined,
         budget: {
           max_tool_calls: maxTools,
           max_sources: maxSources,

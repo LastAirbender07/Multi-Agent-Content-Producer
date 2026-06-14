@@ -1,5 +1,6 @@
 import json
 from langchain_core.messages import HumanMessage, SystemMessage
+from configs.settings import get_settings
 from core.orchestration.contracts import Evidence
 from core.prompts.prompt_loader import load_prompt
 from core.prompts.system_prompts import get_system_prompt
@@ -8,15 +9,13 @@ from infra.llm.langchain_adapter import get_langchain_llm
 from infra.logging import get_logger
 
 logger = get_logger(__name__)
-
-_MAX_ITEMS = 25
-_SNIPPET_LEN = 200
+_settings = get_settings()
 
 
 def _build_scoring_block(evidence: list[Evidence]) -> str:
     lines = []
     for i, e in enumerate(evidence, start=1):
-        snippet = (e.snippet or e.evidence or "")[:_SNIPPET_LEN].replace("\n", " ")
+        snippet = (e.snippet or e.evidence or "")[:_settings.evidence_snippet_len].replace("\n", " ")
         lines.append(f"[{i}] {e.title}\n    {snippet}")
     return "\n\n".join(lines)
 
@@ -73,8 +72,8 @@ async def score_evidence_node(state: ResearchGraphState) -> dict:
     external_items = [e for e in evidence if e.source_type != "llm_knowledge"]
 
     # Score only external items — cap to avoid oversized prompts
-    to_score = external_items[:_MAX_ITEMS]
-    rest = external_items[_MAX_ITEMS:]
+    to_score = external_items[:_settings.evidence_score_max_items]
+    rest = external_items[_settings.evidence_score_max_items:]
 
     try:
         scores = await _score_batch(topic, to_score)

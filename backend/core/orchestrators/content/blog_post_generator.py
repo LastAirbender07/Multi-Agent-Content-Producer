@@ -4,14 +4,19 @@ import httpx
 from dataclasses import dataclass
 from pathlib import Path
 
+from jinja2 import Environment, FileSystemLoader
 from core.orchestration.contracts import ResearchSynthesis
 from core.prompts.prompt_loader import load_prompt
 from core.prompts.system_prompts import get_system_prompt
 from core.tools.metadata_helper import get_llm_metadata_block
+from configs.settings import get_settings
 from infra.llm.factory import LLMFactory
 from infra.logging import get_logger
 
 logger = get_logger(__name__)
+_settings = get_settings()
+_BLOG_TEMPLATE_DIR = Path(__file__).parents[3] / "core" / "templates" / "blog"
+_jinja_env = Environment(loader=FileSystemLoader(str(_BLOG_TEMPLATE_DIR)), autoescape=False)
 
 
 @dataclass
@@ -78,12 +83,12 @@ def _img_url(item: dict, run_id: str) -> str:
         return item["original_url"]
     sn = item["slide_number"]
     ai = item["angle_index"]
-    return f"http://localhost:8000/outputs/{run_id}/content/angle_{ai}/images/slide_{sn:02d}.jpg"
+    return f"{_settings.backend_base_url}/outputs/{run_id}/content/angle_{ai}/images/slide_{sn:02d}.jpg"
 
 
 async def _is_url_alive(url: str) -> bool:
     """HEAD request to verify the image URL is reachable. Returns True for localhost paths."""
-    if url.startswith("http://localhost"):
+    if url.startswith(_settings.backend_base_url):
         return True
     try:
         async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
@@ -238,55 +243,8 @@ def _assemble_markdown(prose: str, assets: BlogAssets, images: list[dict]) -> st
 def _markdown_to_html(md: str, topic: str, tags: list[str]) -> str:
     import markdown as md_lib
     body_html = md_lib.markdown(md, extensions=["extra", "tables", "toc"])
-
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{topic}</title>
-  <style>
-    :root {{
-      --text: #1a1a1a; --muted: #555; --accent: #7c3aed;
-      --bg: #fff; --border: #e5e7eb; --callout-bg: #fef9c3;
-    }}
-    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-    body {{ font-family: Georgia, 'Times New Roman', serif; background: var(--bg);
-            color: var(--text); line-height: 1.75; max-width: 760px;
-            margin: 48px auto; padding: 0 24px; }}
-    h1 {{ font-size: 2.4rem; font-weight: 700; line-height: 1.2; margin-bottom: 12px; }}
-    h2 {{ font-size: 1.5rem; font-weight: 600; margin: 40px 0 12px;
-          border-bottom: 2px solid var(--accent); padding-bottom: 4px; }}
-    h3 {{ font-size: 1.15rem; font-weight: 600; margin: 28px 0 8px; color: var(--accent); }}
-    p {{ margin-bottom: 20px; font-size: 1.08rem; }}
-    blockquote {{ border-left: 4px solid var(--accent); padding: 12px 20px;
-                  margin: 24px 0; background: #f5f3ff; border-radius: 4px;
-                  font-style: italic; color: #374151; }}
-    blockquote strong {{ font-size: 1.4rem; color: var(--accent); }}
-    img {{ width: 100%; max-height: 480px; object-fit: cover;
-           border-radius: 8px; margin: 24px 0 8px; display: block; }}
-    em {{ display: block; text-align: center; font-size: 0.85rem;
-          color: var(--muted); margin-bottom: 20px; }}
-    a {{ color: var(--accent); text-decoration: none; }}
-    a:hover {{ text-decoration: underline; }}
-    .callout {{ background: var(--callout-bg); border: 1px solid #fde68a;
-                border-radius: 6px; padding: 16px 20px; margin: 24px 0; font-size: 0.95rem; }}
-    .tags {{ margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); }}
-    .tag {{ display: inline-block; background: #f3f4f6; color: var(--muted);
-             padding: 3px 10px; border-radius: 12px; font-size: 0.8rem;
-             margin: 4px; font-family: sans-serif; }}
-    .footer {{ margin-top: 32px; font-size: 0.8rem; color: var(--muted);
-               text-align: center; font-family: sans-serif; }}
-    @media (max-width: 600px) {{
-      body {{ padding: 0 16px; margin: 24px auto; }}
-      h1 {{ font-size: 1.8rem; }}
-    }}
-  </style>
-</head>
-<body>
-  {body_html}
-</body>
-</html>"""
+    template = _jinja_env.get_template("blog_post.html.j2")
+    return template.render(title=topic, body_html=body_html)
 
 
 def _slides_summary(slides: list[dict]) -> str:

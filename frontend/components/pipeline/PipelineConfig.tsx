@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Zap, Loader2, Search, SlidersHorizontal, X } from "lucide-react";
+import { Zap, Loader2, Search, SlidersHorizontal, X, Paperclip } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { setTopic, setMode, setFreshness, setAngleMode, setLlmResearchMode, setDiscoveryArticle, setDiscoverUrl } from "@/store/slices/pipelineSlice";
@@ -35,6 +35,7 @@ const ANGLE_OPTIONS = [
 export function PipelineConfig() {
   const dispatch = useAppDispatch();
   const { topic, mode, freshness, angleMode, llmResearchMode } = useAppSelector((s) => s.pipeline);
+  const attachedCount = useAppSelector((s) => s.pipeline.attachedEvidence.length);
 
   const { isRunning, handleRun, handleGenerateAngles, stages } = usePipelineOrchestration();
 
@@ -121,6 +122,16 @@ export function PipelineConfig() {
               <Search size={12} />
               Discover
             </button>
+            {attachedCount > 0 && (
+              <button
+                onClick={openDrawer}
+                className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-violet-500/10 border border-violet-500/25 text-violet-400 text-xs font-semibold transition-all hover:bg-violet-500/15 mt-0.5"
+                title="View attached sources"
+              >
+                <Paperclip size={11} />
+                {attachedCount}
+              </button>
+            )}
           </div>
 
           {/* Refine hint */}

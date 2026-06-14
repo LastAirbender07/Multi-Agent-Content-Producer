@@ -46,7 +46,7 @@ def _make_slides(count: int, cta_positions: list[int] | None = None) -> list[dic
 
 class TestHasCjkSlideValidator:
     def setup_method(self):
-        from core.orchestrators.content.slide_validator import _has_cjk
+        from core.utils.text_utils import has_cjk as _has_cjk
         self.fn = _has_cjk
 
     def test_latin_returns_false(self):
@@ -272,7 +272,8 @@ class TestValidateContentNode:
 
 class TestImageFetcherScoring:
     def setup_method(self):
-        from core.orchestrators.content.image_fetcher import _has_cjk, _score_image
+        from core.utils.text_utils import has_cjk as _has_cjk
+        from core.orchestrators.content.image_fetcher import _score_image
         self.has_cjk = _has_cjk
         self.score = _score_image
 

@@ -1,5 +1,6 @@
 from configs.settings import get_settings
 from core.orchestration.contracts import Angle, AngleRequest, AutoSelectionOutput
+from core.prompts.prompt_loader import load_prompt
 from core.schemas.workflow_state import AngleGraphState
 from infra.llm.factory import LLMFactory
 from infra.logging import get_logger
@@ -18,14 +19,15 @@ async def llm_select_node(state: AngleGraphState) -> dict:
             f"Index {i}:\n  Statement: {a.statement}\n  Hook: {a.emotional_hook}\n  Evidence: {a.supporting_evidence}"
             for i, a in enumerate(angles)
         )
-        _prompt = (
-            f"From these {len(angles)} content angles for the topic '{request.topic}', "
-            f"select the {request.max_angles_to_select} strongest for an Instagram carousel post. "
-            f"Prefer angles that are contrarian, data-backed, and emotionally provocative.\n\n"
-            f"{angle_descriptions}"
+        prompt = load_prompt(
+            "angle_auto_select",
+            angle_count=len(angles),
+            topic=request.topic,
+            max_to_select=request.max_angles_to_select,
+            angle_descriptions=angle_descriptions,
         )
         result = await LLMFactory.get_client_with_retry(
-            lambda llm: llm.generate_structured(prompt=_prompt, output_schema=AutoSelectionOutput)
+            lambda llm: llm.generate_structured(prompt=prompt, output_schema=AutoSelectionOutput)
         )
 
         valid_indices = [i for i in result.selected_indices if i < len(angles)]

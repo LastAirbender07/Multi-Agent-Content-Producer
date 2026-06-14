@@ -18,6 +18,18 @@ export const api = {
   refineQuery: (topic: string) =>
     post<ProcessedQuery>("/tools/query-refine", { topic }),
 
+  // Document parsing (multipart — NOT JSON)
+  parseDoc: (file: File): Promise<ParseDocResponse> => {
+    const form = new FormData();
+    form.append("file", file);
+    return fetch(`${BASE}/tools/parse-doc`, { method: "POST", body: form })
+      .then(async r => {
+        if (!r.ok) { const t = await r.text(); throw new Error(`${r.status}: ${t}`); }
+        return r.json() as Promise<ParseDocResponse>;
+      });
+  },
+
+
   // Research
   runResearch: (body: ResearchRequestBody) =>
     post<ResearchResponse>("/research/run", body),
@@ -92,6 +104,7 @@ export interface ResearchRequestBody {
   selected_tools?: string[];
   strict_tools?: boolean;
   preprocessed_queries?: string[];
+  seeded_evidence?: SeedEvidence[];
 }
 
 export interface Evidence {
@@ -312,4 +325,27 @@ export interface ChatBody {
 export interface ChatResponse {
   reply: string;
   error?: string;
+}
+
+export interface SeedEvidence {
+  title: string;
+  evidence: string;
+  source_type: "discover" | "document" | "news" | "web_search" | "crawl" | "llm_knowledge";
+  url?: string;
+  source_name?: string;
+  credibility_score?: number;
+}
+
+export interface ParseDocResponse {
+  title: string;
+  text: string;
+  char_count: number;
+  file_type: string;
+}
+
+export interface AttachedEvidence extends SeedEvidence {
+  id: string;        // client-side UUID for list keying
+  fileName: string;
+  charCount: number;
+  fileType: string;
 }

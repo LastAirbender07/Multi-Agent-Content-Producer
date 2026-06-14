@@ -1,0 +1,7 @@
+Filter image search results for the query: "{query}".
+Return ONLY the URLs that are genuinely relevant (relevance >= {threshold}).
+Input JSON:
+{pairs}
+
+Output: a JSON array of relevant image URLs only, e.g. ["url1", "url2"].
+Return an empty array [] if none are relevant. No explanation.

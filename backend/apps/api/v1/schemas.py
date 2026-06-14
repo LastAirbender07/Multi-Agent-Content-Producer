@@ -99,3 +99,10 @@ class TopicFromUrlResponse(BaseModel):
     freshness: str                  # "breaking" | "recent" | "evergreen"
     entities: list[str] = []
     crawl_failed: bool = False      # True when article couldn't be fetched
+
+
+class ParseDocResponse(BaseModel):
+    title: str                  # filename stem (without extension)
+    text: str                   # extracted markdown content
+    char_count: int
+    file_type: str              # "pdf", "docx", "txt", etc.

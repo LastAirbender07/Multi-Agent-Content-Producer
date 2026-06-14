@@ -137,27 +137,27 @@ async def screenshot_slides_node(state: ContentGraphState) -> dict:
         async with async_playwright() as pw:
             browser = await pw.chromium.launch(headless=True)
             context = await browser.new_context(
-                viewport={"width": 1080, "height": 1080},
-                device_scale_factor=2,
+                viewport={"width": _settings.carousel_viewport_size, "height": _settings.carousel_viewport_size},
+                device_scale_factor=_settings.carousel_scale_factor,
             )
             page = await context.new_page()
 
             for html_path in html_paths:
                 rel = Path(html_path).relative_to(_BACKEND_ROOT)
-                url = f"{base_url}/{str(rel).replace(chr(92), '/')}"
+                url = f"{base_url}/{str(rel).replace('\\', '/')}"
 
                 await page.goto(url, wait_until="networkidle")
                 await page.evaluate("document.fonts.ready")
                 # Chart.js writes to canvas synchronously but needs a small buffer
                 # for raster flushing before Playwright captures the screenshot
-                await page.wait_for_timeout(300)
+                await page.wait_for_timeout(_settings.carousel_chart_render_wait_ms)
 
                 raw_path = output_dir / (Path(html_path).stem + "_raw.png")
                 await page.screenshot(path=str(raw_path), full_page=False)
 
                 final_path = output_dir / (Path(html_path).stem.replace("_raw", "") + ".png")
                 img = Image.open(raw_path)
-                img = img.resize((1080, 1080), Image.LANCZOS)
+                img = img.resize((_settings.carousel_viewport_size, _settings.carousel_viewport_size), Image.LANCZOS)
                 img.save(str(final_path), "PNG", optimize=True)
                 raw_path.unlink(missing_ok=True)
 

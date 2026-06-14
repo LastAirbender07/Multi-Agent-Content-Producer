@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { ResearchResponse, AngleResponse, ContentResponse, Angle } from "@/lib/api";
+import { ResearchResponse, AngleResponse, ContentResponse, Angle, AttachedEvidence } from "@/lib/api";
 import { PipelineRun } from "./historySlice";
 
 export type StageStatus = "idle" | "running" | "done" | "error";
@@ -26,6 +26,7 @@ interface PipelineState {
   preprocessedQueries: string[];
   discoveryArticle: DiscoveryArticle | null;
   discoverUrl: string | null;
+  attachedEvidence: AttachedEvidence[];
 
   // Budget controls
   maxTools: number;
@@ -63,6 +64,7 @@ const initialState: PipelineState = {
   preprocessedQueries: [],
   discoveryArticle: null,
   discoverUrl: null,
+  attachedEvidence: [],
 
   maxTools: 6,
   maxSources: 15,
@@ -120,6 +122,13 @@ export const pipelineSlice = createSlice({
     setMaxAnglesSelect: (state, action: PayloadAction<number>) => { state.maxAnglesSelect = action.payload; },
     setNeedsClaimVerification: (state, action: PayloadAction<boolean>) => { state.needsClaimVerification = action.payload; },
     setDiscoverUrl: (state, action: PayloadAction<string | null>) => { state.discoverUrl = action.payload; },
+    addAttachedEvidence: (state, action: PayloadAction<AttachedEvidence>) => {
+      state.attachedEvidence.push(action.payload);
+    },
+    removeAttachedEvidence: (state, action: PayloadAction<string>) => {
+      state.attachedEvidence = state.attachedEvidence.filter(e => e.id !== action.payload);
+    },
+    clearAttachedEvidence: (state) => { state.attachedEvidence = []; },
     setLlmResearchMode: (state, action: PayloadAction<boolean>) => {
       state.llmResearchMode = action.payload;
     },
@@ -169,6 +178,7 @@ export const pipelineSlice = createSlice({
         maxAnglesSelect: state.maxAnglesSelect,
         needsClaimVerification: state.needsClaimVerification,
         discoverUrl: state.discoverUrl,
+        attachedEvidence: state.attachedEvidence,
       };
     },
     loadRun: (state, action: PayloadAction<PipelineRun>) => {
@@ -201,6 +211,9 @@ export const {
   setMaxAnglesSelect,
   setNeedsClaimVerification,
   setDiscoverUrl,
+  addAttachedEvidence,
+  removeAttachedEvidence,
+  clearAttachedEvidence,
   setLlmResearchMode,
   setPreprocessedQueries,
   setDiscoveryArticle,

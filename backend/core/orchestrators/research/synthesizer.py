@@ -3,25 +3,11 @@ from core.orchestration.contracts import ResearchSynthesis
 from core.prompts.prompt_loader import load_prompt
 from core.prompts.system_prompts import get_system_prompt
 from core.schemas.workflow_state import ResearchGraphState
+from core.utils.text_utils import format_evidence_block
 from infra.llm.langchain_adapter import get_langchain_llm
 from infra.logging import get_logger
 
 logger = get_logger(__name__)
-
-def _build_evidence_block(state: ResearchGraphState) -> str:
-    """Format top evidence items into a numbered block for the prompt"""
-    lines = []
-    for idx, evidence in enumerate(state.get("evidence", [])[:12], start=1):
-        lines.append(f"[{idx}] {evidence.title}")
-        lines.append(f"Source: {evidence.source_name or evidence.source_type}")
-        lines.append(f"URL: {evidence.url}")
-        if evidence.snippet:
-            lines.append(f"Snippet: {evidence.snippet[:400]}")
-        if evidence.extracted_content:
-            lines.append(f"Extracted Content: {evidence.extracted_content[:600]}")
-        lines.append("")
-
-    return "\n".join(lines)
 
 async def synthesize_node(state: ResearchGraphState) -> dict:
     request = state["request"]
@@ -38,7 +24,7 @@ async def synthesize_node(state: ResearchGraphState) -> dict:
         llm = get_langchain_llm()
         structured_llm = llm.with_structured_output(ResearchSynthesis)
         system_prompt = get_system_prompt("research")
-        evidence_block = _build_evidence_block(state)
+        evidence_block = format_evidence_block(state.get("evidence", []), max_items=12)
         user_prompt = load_prompt("research_synthesis", topic=request.topic, evidence_block=evidence_block)
         messages = [
             SystemMessage(content=system_prompt),

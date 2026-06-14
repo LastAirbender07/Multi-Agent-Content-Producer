@@ -71,6 +71,39 @@ class Settings(BaseSettings):
     # Brand Settings
     brand_name: str = "TheOpinionBoard"
     brand_logo_path: str = "assets/brand/logo.png"
+    instagram_url: str = "https://www.instagram.com/theopinionboard/"
+    medium_url: str = "https://medium.com/@theOpinionBoard"
+
+    # Server / API Settings
+    backend_base_url: str = "http://localhost:8000"
+    cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+
+    # Images / Document Settings
+    pexels_base_url: str = "https://api.pexels.com/v1"
+    document_max_upload_bytes: int = 10 * 1024 * 1024  # 10 MB
+    document_supported_formats: list[str] = [
+        "pdf", "docx", "doc", "pptx", "ppt", "xlsx", "xls",
+        "txt", "md", "markdown", "json", "csv", "xml", "html", "htm",
+    ]
+    image_relevance_threshold: float = 0.4
+    image_max_tags: int = 5
+    image_tag_stopwords: list[str] = ["with", "from", "that", "this", "about", "into", "over", "under"]
+
+    # Discovery / News Settings
+    discover_cache_ttl_seconds: int = 1800  # 30 minutes
+
+    # Evidence Scoring Settings
+    evidence_score_max_items: int = 25
+    evidence_snippet_len: int = 200
+
+    # Carousel Rendering Settings
+    carousel_viewport_size: int = 1080   # Final PNG dimensions (square)
+    carousel_scale_factor: int = 2       # Render at 2x then downscale for crisp text
+    carousel_chart_render_wait_ms: int = 300  # Wait for Chart.js canvas flush
+
+    # Normalizer / Evidence Settings
+    crawl_markdown_max_chars: int = 2000
+    crawl_snippet_max_chars: int = 500
 
     class Config:
         env_file = ".env"

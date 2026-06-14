@@ -13,6 +13,7 @@ from core.orchestration.contracts import (
     RunStatus,
 )
 from core.prompts.prompt_loader import load_prompt
+from core.utils.text_utils import make_llm_url, strip_fences
 from infra.llm.factory import LLMFactory
 from infra.logging import get_logger
 from infra.output_manager import RunOutputManager
@@ -23,16 +24,8 @@ _OUTPUTS_ROOT_DIR = Path(__file__).parents[3] / _settings.research_output_dirs
 logger = get_logger(__name__)
 
 
-def _strip_fences(text: str) -> str:
-    text = text.strip()
-    if text.startswith("```"):
-        text = re.sub(r"^```[a-z]*\n?", "", text)
-        text = re.sub(r"\n?```$", "", text.rstrip())
-    return text.strip()
-
-
 def _evidence_from_dict(d: dict, now: datetime, index: int, topic_slug: str) -> Evidence:
-    url = d.get("url") or f"llm://knowledge/{topic_slug}/{index}"
+    url = d.get("url") or make_llm_url(topic_slug, index)
     evidence_text = d.get("evidence", "")
     return Evidence(
         evidence=evidence_text,
@@ -113,7 +106,7 @@ async def draft_research(
     )
     llm = await LLMFactory.get_client()
     raw = await llm.generate(prompt=prompt)
-    payload = json.loads(_strip_fences(raw.content))
+    payload = json.loads(strip_fences(raw.content))
 
     response = _build_response(run_id, topic, payload, "", topic_slug)
     output_path = await _save(run_id, response)
@@ -150,7 +143,7 @@ async def refine_research(
     )
     llm = await LLMFactory.get_client()
     raw = await llm.generate(prompt=prompt)
-    payload = json.loads(_strip_fences(raw.content))
+    payload = json.loads(strip_fences(raw.content))
 
     response = _build_response(run_id, topic, payload, "", topic_slug)
     output_path = await _save(run_id, response)

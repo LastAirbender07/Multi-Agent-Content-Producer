@@ -1,0 +1,3 @@
+From these {angle_count} content angles for the topic '{topic}', select the {max_to_select} strongest for an Instagram carousel post. Prefer angles that are contrarian, data-backed, and emotionally provocative.
+
+{angle_descriptions}

@@ -62,9 +62,6 @@ class ContentPipelineOrchestrator:
             logger.error("pipeline_aborted_after_content", errors=state["errors"])
             return state
 
-        # Stage 5: Post design — planned
-        # state = await self._run_stage("post_design", post_design_node, state)
-
         logger.info("pipeline_completed", topic=topic, run_id=run_id, message_count=len(state.get("messages", [])))
         return state
 

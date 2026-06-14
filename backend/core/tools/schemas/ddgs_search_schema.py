@@ -68,6 +68,8 @@ class ImageResult(BaseModel):
     width: Optional[int] = Field(None, description="Image width")
     source: Optional[str] = Field(None, description="Image source")
 
+
+# Reserved for future video search capability — DDGSSearch.search_videos()
 class VideoResult(BaseModel):
     """A single video result from DDGS."""
     title: str = Field(..., description="Video title")

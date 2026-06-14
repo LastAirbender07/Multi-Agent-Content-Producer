@@ -9,16 +9,18 @@ from apps.api.v1.research import router as research_router
 from apps.api.v1.content import router as content_router
 from apps.api.v1.tools import router as tools_router
 from apps.api.v1.chat import router as chat_router
+from configs.settings import get_settings
 from infra.logging import get_logger
 from fastapi.responses import RedirectResponse
 
 logger = get_logger(__name__)
+_settings = get_settings()
 
 app = FastAPI(title="Multi-Agent Content Producer API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=_settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -37,7 +39,6 @@ _outputs_dir.mkdir(exist_ok=True)
 app.mount("/outputs", StaticFiles(directory=str(_outputs_dir)), name="outputs")
 
 
-
 @app.get("/health")
 async def health() -> dict:
     return {"status": "ok"}
@@ -48,5 +49,5 @@ async def root():
 
 
 if __name__ == "__main__":
-    logger.info("backend_started")
+    logger.info("backend_started", environment=_settings.environment)
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

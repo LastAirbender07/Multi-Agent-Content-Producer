@@ -1,3 +1,4 @@
+from configs.settings import get_settings
 from core.orchestration.contracts import ContentRequest, CaptionOutput
 from core.prompts.prompt_loader import load_prompt
 from core.prompts.system_prompts import get_system_prompt
@@ -6,6 +7,7 @@ from infra.llm.factory import LLMFactory
 from infra.logging import get_logger
 
 logger = get_logger(__name__)
+_settings = get_settings()
 
 async def generate_caption_node(state: ContentGraphState) -> dict:
     request = ContentRequest.model_validate(state["request"])
@@ -39,7 +41,7 @@ async def generate_caption_node(state: ContentGraphState) -> dict:
         )
 
         logger.info("generate_caption_node_complete", run_id=state.get("run_id"))
-        caption = result.caption.rstrip() + "\n\nRead the full story → https://medium.com/@theOpinionBoard"
+        caption = result.caption.rstrip() + f"\n\nRead the full story → {_settings.medium_url}\n\nFollow us on Instagram: {_settings.instagram_url}"
         return {
             "caption": caption,
             "hashtags": result.hashtags,

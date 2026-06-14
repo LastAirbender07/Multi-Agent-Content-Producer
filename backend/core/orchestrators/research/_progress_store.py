@@ -19,7 +19,7 @@ NODE_LABELS: dict[str, str] = {
     "finalize_partial": "Saving results…",
 }
 
-_TOTAL = 9
+_TOTAL = 9  # nodes: intake, route, llm_knowledge, execute_tools, normalize, score_evidence, synthesize, evaluate, refine
 
 
 def update(run_id: str, node: str, step: int) -> None:

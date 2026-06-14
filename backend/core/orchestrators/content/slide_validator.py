@@ -2,19 +2,11 @@ import json
 from core.orchestration.contracts import ContentRequest
 from core.prompts.prompt_loader import load_prompt
 from core.schemas.workflow_state import ContentGraphState
+from core.utils.text_utils import has_cjk
 from infra.llm.factory import LLMFactory
 from infra.logging import get_logger
 
 logger = get_logger(__name__)
-
-
-def _has_cjk(text: str) -> bool:
-    return any(
-        "一" <= c <= "鿿"   # CJK Unified Ideographs
-        or "぀" <= c <= "ヿ"  # Hiragana + Katakana
-        or "가" <= c <= "힯"  # Hangul
-        for c in text
-    )
 
 
 def _make_cta_slide(topic: str, angle_statement: str, slide_number: int) -> dict:

@@ -1,6 +1,8 @@
 "use client";
-import { Search, RefreshCw, X, ExternalLink, ArrowRight } from "lucide-react";
+import { Search, RefreshCw, X, ExternalLink, ArrowRight, Paperclip } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAppSelector } from "@/store/hooks";
+import { AttachedSourcesPanel } from "./AttachedSourcesPanel";
 import type { DiscoverArticle } from "@/lib/api";
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -33,6 +35,7 @@ export function DiscoverDrawer({
 }: DiscoverDrawerProps) {
   const allCategories = ["all", ...Array.from(new Set(articles.map((a) => a.category)))];
   const filtered = filter === "all" ? articles : articles.filter((a) => a.category === filter);
+  const attachedCount = useAppSelector((s) => s.pipeline.attachedEvidence.length);
 
   return (
     <AnimatePresence>
@@ -63,6 +66,12 @@ export function DiscoverDrawer({
                 {articles.length > 0 && (
                   <span className="text-[10px] text-zinc-600 font-medium tabular-nums">
                     {articles.length} articles
+                  </span>
+                )}
+                {attachedCount > 0 && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-500/15 text-violet-400 text-[10px] font-black">
+                    <Paperclip size={9} />
+                    {attachedCount}
                   </span>
                 )}
               </div>
@@ -188,6 +197,11 @@ export function DiscoverDrawer({
                   </div>
                 </motion.div>
               ))}
+            </div>
+
+            {/* Attached sources panel — pinned at bottom */}
+            <div className="shrink-0">
+              <AttachedSourcesPanel />
             </div>
           </motion.div>
         </>

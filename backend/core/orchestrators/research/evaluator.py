@@ -7,6 +7,7 @@ from core.orchestration.contracts import EvaluationResult, LLMEvaluationOutput
 from core.prompts.prompt_loader import load_prompt
 from core.prompts.system_prompts import get_system_prompt
 from core.schemas.workflow_state import ResearchGraphState
+from core.utils.text_utils import format_evidence_block
 from infra.llm.langchain_adapter import get_langchain_llm
 from infra.logging import get_logger
 
@@ -15,6 +16,11 @@ logger = get_logger(__name__)
 _settings = get_settings()
 MIN_SOURCES: int = _settings.research_quality_min_sources
 MIN_COMBINED_CONFIDENCE: float = _settings.research_quality_min_confidence
+
+# Source scoring saturation points — with 3 tools always running, counts are high.
+# Denominators calibrated so scores stay meaningful and don't instantly saturate.
+_COVERAGE_SATURATION = 15.0   # saturates at 15 evidence items (was 8)
+_DIVERSITY_SATURATION = 8.0   # saturates at 8 unique domains (was 4)
 
 
 def _source_identifier(e) -> str:
@@ -25,26 +31,9 @@ def _source_identifier(e) -> str:
 
 
 def _compute_source_score(evidence: list, source_ids: set) -> float:
-    # With 3 tools always running, source counts will be high.
-    # Use higher denominators so the score stays meaningful.
-    # Coverage: saturates at 15 items (was 8)
-    # Diversity: saturates at 8 unique domains (was 4)
-    coverage = min(1.0, len(evidence) / 15.0)
-    diversity = min(1.0, len(source_ids) / 8.0)
+    coverage = min(1.0, len(evidence) / _COVERAGE_SATURATION)
+    diversity = min(1.0, len(source_ids) / _DIVERSITY_SATURATION)
     return round(0.5 * coverage + 0.5 * diversity, 4)
-
-
-def _build_evidence_block_for_eval(evidence: list, max_items: int = 10) -> str:
-    lines = []
-    for idx, e in enumerate(evidence[:max_items], start=1):
-        lines.append(f"[{idx}] {e.title}")
-        lines.append(f"    Source: {e.source_name or e.source_type} | URL: {e.url}")
-        text = e.snippet or (e.extracted_content[:300] if e.extracted_content else "")
-        if text:
-            lines.append(f"    Excerpt: {text[:300]}")
-        lines.append("")
-    return "\n".join(lines)
-
 
 async def _run_llm_judge(topic: str, synthesis, evidence: list) -> LLMEvaluationOutput:
     try:
@@ -52,7 +41,7 @@ async def _run_llm_judge(topic: str, synthesis, evidence: list) -> LLMEvaluation
         structured_llm = llm.with_structured_output(LLMEvaluationOutput)
         system_prompt = get_system_prompt("research")
         key_points_text = "\n".join(f"- {p}" for p in (synthesis.key_points or []))
-        evidence_block = _build_evidence_block_for_eval(evidence)
+        evidence_block = format_evidence_block(evidence, max_items=10, compact=True)
         user_prompt = load_prompt(
             "content_evaluation",
             topic=topic,

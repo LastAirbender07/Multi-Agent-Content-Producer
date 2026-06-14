@@ -5,6 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from core.utils.text_utils import strip_fences
 from infra.llm.factory import LLMFactory
 from infra.logging import get_logger
 
@@ -41,13 +42,7 @@ class QueryPreprocessor:
         raw = response.content
 
         try:
-            # Strip markdown fences if the model wraps output anyway
-            text = raw.strip()
-            if text.startswith("```"):
-                text = text.split("```")[1]
-                if text.startswith("json"):
-                    text = text[4:]
-            data = json.loads(text.strip())
+            data = json.loads(strip_fences(raw))
             result = ProcessedQuery.model_validate(data)
         except Exception as e:
             logger.warning("query_preprocessor_parse_error", error=str(e), raw=raw[:200])

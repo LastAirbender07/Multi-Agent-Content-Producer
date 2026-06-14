@@ -6,7 +6,193 @@
 
 ---
 
-## 2026-06-13 - Session 30: Full Pipeline UI Overhaul + Discover Flow Redesign + Component Cleanup
+## 2026-06-14 - Session 34: Backend Round 2 — Full Audit & Cleanup Pass
+
+**Decision:** Second comprehensive audit of the entire backend. Extracted the embedded HTML template, deduplicated `_has_cjk`, moved all remaining hardcoded constants to settings, split two large functions, extracted an LLM prompt, and made a dozen minor clarity fixes. No behaviour changes.
+
+---
+
+**Change 1 — HTML template extracted from `blog_post_generator.py`**
+
+47 lines of inline HTML+CSS removed from `_markdown_to_html()`. Moved to `core/templates/blog/blog_post.html.j2`. Function now uses `jinja2.Environment` to render the template — same library already used for carousel templates. `_BLOG_TEMPLATE_DIR` path constant added at module level.
+
+---
+
+**Change 2 — `_has_cjk()` deduplicated**
+
+Function was defined identically in both `slide_validator.py` and `image_fetcher.py`. Added as `has_cjk(text)` to `core/utils/text_utils.py`. Both files now import from there. Test file updated to import from new location.
+
+---
+
+**Change 3 — Image relevance LLM prompt extracted**
+
+Inline f-string prompt in `apps/api/v1/tools_images.py` (used for LLM filtering of DDGS image results) moved to `core/prompts/templates/image_relevance_filter.txt`. Called via `load_prompt("image_relevance_filter", ...)`.
+
+---
+
+**Change 4 — 11 new settings added to `configs/settings.py`**
+
+All remaining hardcoded values consolidated:
+
+| Setting | Was hardcoded in |
+|---|---|
+| `medium_url` | `caption_generator.py` |
+| `backend_base_url` | `blog_post_generator.py` |
+| `cors_origins` | `main.py` |
+| `image_relevance_threshold` | `tools_images.py` |
+| `image_max_tags` | `tools_images.py` |
+| `image_tag_stopwords` | `tools_images.py` |
+| `carousel_viewport_size` | `carousel_generator.py` (×2) |
+| `carousel_scale_factor` | `carousel_generator.py` |
+| `carousel_chart_render_wait_ms` | `carousel_generator.py` |
+| `crawl_markdown_max_chars` | `normalizer.py` |
+| `crawl_snippet_max_chars` | `normalizer.py` |
+
+---
+
+**Change 5 — `execute_tools_node` split (executor.py)**
+
+`execute_tools_node` was 132 lines — a single function running 4 tools in sequence with ~30 lines each. Extracted four module-level helpers:
+- `_run_ddgs_text(ddgs, query)`
+- `_run_ddgs_news(ddgs, query)`
+- `_run_news_api(query, run_id, degraded_flags)`
+- `_run_crawl4ai(plan, max_crawl_urls)`
+
+Node becomes a 40-line coordinator using a `_TOOL_RUNNERS` dispatch dict. Commented-out stale code also removed.
+
+---
+
+**Change 6 — `_run_blog_post_generation()` extracted (content orchestrator)**
+
+65-line deeply nested blog generation block extracted from `ContentOrchestrator.run()` into a module-level `_run_blog_post_generation(run_id, request, angles_processed, all_slides, all_assets) -> tuple[str, str]`. `run()` calls it as one line.
+
+---
+
+**Change 7 — Evaluator saturation constants**
+
+Magic numbers `15.0` and `8.0` in `evaluator.py` replaced with named constants `_COVERAGE_SATURATION` and `_DIVERSITY_SATURATION` with comments explaining the rationale (calibrated for 3 always-on tools).
+
+---
+
+**Minor fixes**
+
+- `_progress_store.py`: `_TOTAL = 9` annotated with inline comment listing all 9 node names
+- `run_workflow.py`: deleted stale commented-out `post_design` stage line
+- `main.py`: CORS origins from `settings.cors_origins`; startup log includes `environment` field
+- `tools_images.py`: stopwords and max-tags use settings; `load_prompt` for LLM filter
+
+**44 backend tests + 61/61 E2E — all passing.**
+
+---
+
+## 2026-06-14 - Session 33: Backend Round 1 — Modularisation & Cleanup
+
+**Decision:** First comprehensive backend audit and cleanup pass. Extracted inline prompts, eliminated duplicate code, removed dead code, moved inline imports to file tops, cleaned up `langchain_adapter.py`, added constants to settings, split functions, added credibility constants.
+
+---
+
+**Changes made:**
+
+- `core/utils/text_utils.py` (new) — `strip_fences()`, `format_evidence_block()`, `make_llm_url()`, `LLM_EVIDENCE_URL_PREFIX`
+- `core/prompts/templates/topic_from_url.txt` (new) — extracted from `tools_news.py`
+- `core/prompts/templates/angle_auto_select.txt` (new) — extracted from `auto_selector.py`
+- `infra/llm/langchain_adapter.py` — deleted unused `create_langchain_llm()` (40 lines); replaced `getattr()` with direct settings access
+- `llm_drafter.py` + `query_preprocessor.py` — deleted local `_strip_fences()` duplicates; now import from `text_utils`
+- `synthesizer.py` + `evaluator.py` — deleted local `_build_evidence_block*()` duplicates; now use `format_evidence_block()`
+- `llm_knowledge.py` + `llm_drafter.py` — inconsistent `llm://background/` vs `llm://knowledge/` URLs unified via `make_llm_url()`
+- `tools_news.py` + `tools_images.py` — inline `import json` moved to file tops
+- `normalizer.py` — `_CRED_WEB/NEWS/CRAWL/API` named constants replace magic `0.4/0.6/0.7/0.8`
+- `research_graph.py` — 7 `_*_tracked` wrapper functions replaced by `_tracked(fn, step)` factory; `Evidence` import moved to top
+- `configs/settings.py` — added `pexels_base_url`, `document_max_upload_bytes`, `document_supported_formats`, `discover_cache_ttl_seconds`, `evidence_score_max_items`, `evidence_snippet_len`, `instagram_url`
+- `caption_generator.py` — Instagram URL from settings
+- `tools_docs.py` — file size limit and supported formats from settings
+- `tools_news.py` — cache TTL from settings; uses `load_prompt()` for topic-from-url
+- `tools_images.py` — Pexels base URL from settings
+- `main.py` — CORS and logging improvements
+- `ddgs_search_schema.py` — `VideoResult` documented as reserved for future video search
+- `_progress_store.py` — `_TOTAL` comment added
+- `routing.py` — design rationale comment added
+
+**44 backend tests + 61/61 E2E — all passing.**
+
+---
+
+
+
+**Decision:** Two evidence pipeline gaps filled: (1) the full article content already fetched during Discover was being discarded after topic drafting — now injected as a seeded evidence item into the research pipeline; (2) users can now attach documents (PDF, DOCX, TXT, MD, JSON, CSV, PPTX, XLSX, etc.) from the Discover drawer and have them incorporated as high-credibility evidence in the research run.
+
+---
+
+**Change 1 — New `source_type` values in `contracts.py`**
+
+`Evidence.source_type` Literal extended to include `"discover"` (credibility 0.85 — real published article) and `"document"` (credibility 0.9 — user explicitly chose this source). `url` field changed from required to `default=""` to support document uploads without a URL.
+
+---
+
+**Change 2 — `seeded_evidence` field in `ResearchRequest`**
+
+`backend/core/orchestration/contracts.py` — added `seeded_evidence: list[dict] = []`. The `intake_node` in `backend/core/graphs/research_graph.py` reads this field and pre-populates `state["evidence"]` before tool execution. Seeded items bypass tool selection and are always present — the normalizer's existing URL dedup means the article URL won't be re-fetched redundantly.
+
+---
+
+**Change 3 — `POST /tools/parse-doc` endpoint**
+
+`backend/apps/api/v1/tools.py` — new multipart endpoint. Uses **markitdown** (Microsoft, `uv add markitdown`) to convert PDF, DOCX, PPTX, XLSX, HTML, CSV, XML → Markdown. Plain text types (txt, md, json) handled without markitdown for speed. 10MB size limit enforced. Processes in memory — no files stored on disk. Returns `ParseDocResponse { title, text, char_count, file_type }`.
+
+---
+
+**Change 4 — Frontend evidence wiring**
+
+- `frontend/store/slices/pipelineSlice.ts` — added `attachedEvidence: AttachedEvidence[]`; actions `addAttachedEvidence`, `removeAttachedEvidence`, `clearAttachedEvidence`; preserved through `resetPipeline`.
+- `frontend/hooks/usePipelineOrchestration.ts` — `handleRun` now builds `seeded_evidence` array from both `discoveryArticle.snippet` (if present) and all `attachedEvidence` items, then passes as `seeded_evidence` to `api.runResearch`.
+- `frontend/lib/api.ts` — added `api.parseDoc(file)` (FormData, no Content-Type header), `SeedEvidence`, `ParseDocResponse`, `AttachedEvidence` interfaces; `seeded_evidence?: SeedEvidence[]` added to `ResearchRequestBody`.
+
+---
+
+**Change 5 — `AttachedSourcesPanel.tsx` component (new)**
+
+`frontend/components/pipeline/AttachedSourcesPanel.tsx` — drag-and-drop + click-to-upload panel. Each file calls `api.parseDoc()` with a per-file loading spinner. On success dispatches to Redux with char count. On error shows inline error chip (auto-clears after 4s). Files shown as a list with filename, char count, type icon. `[×]` removes from Redux.
+
+---
+
+**Change 6 — Discover Drawer UI update**
+
+`frontend/components/pipeline/DiscoverDrawer.tsx` — `AttachedSourcesPanel` pinned at the bottom of the drawer. Header shows a `📎 N` badge when any evidence is attached. Clicking the badge re-opens the drawer.
+
+`frontend/components/pipeline/PipelineConfig.tsx` — when `attachedEvidence.length > 0`, a violet `📎 N` chip appears in the topic row next to the Discover button.
+
+---
+
+**TypeScript: 0 errors. E2E: 61/61 passing.**
+
+---
+
+
+
+**Decision:** Audited every non-test `.tsx`/`.ts` file for inline component definitions and large page files. Extracted all remaining inline components into dedicated files organised by feature folder. Every page is now pure layout wiring — no component or business logic defined inline.
+
+---
+
+**Files decomposed:**
+
+| Page (before → after) | Extracted to |
+|---|---|
+| `app/images/page.tsx` 480 → 168 lines | `components/images/ImageCard.tsx` (`PexelsCard`, `DDGSCard`, `SelectOverlay`), `components/images/ImageTagChips.tsx`, `components/images/SelectionActionBar.tsx`, `hooks/useImageSearch.ts` (all search + download logic) |
+| `app/research/page.tsx` 428 → 224 lines | `components/research/ConfidenceBar.tsx` (`ConfidenceBar`, `Badge`), `components/research/EvidenceCard.tsx`, `components/research/ResearchConfigPanel.tsx` (full left sidebar) |
+| `app/news/page.tsx` 307 → 177 lines | `components/news/NewsCard.tsx` |
+| `app/chat/page.tsx` 210 → 153 lines | `components/chat/MessageBubble.tsx` (`MessageBubble`, `TypingIndicator`) |
+
+**New folders created:** `components/images/`, `components/research/`, `components/news/`, `components/chat/`, `hooks/`
+
+**Pattern applied consistently across all pages:**
+- Reusable UI → `components/<feature>/ComponentName.tsx`
+- Business/async logic → `hooks/useFeatureName.ts`
+- Page files contain only: imports, state wiring, layout JSX
+
+**No logic changes** — pure structural refactor. TypeScript: 0 errors. E2E: 61/61 passing.
+
+---
+
 
 **Decision:** Three compounding sessions of UI work culminating in a fully decomposed, maintainable pipeline frontend with a modern command bar, enriched topic discovery, and zero dead code.
 
@@ -1465,4 +1651,4 @@ Rewrote to the standard Headless UI / Tailwind UI pattern:
 
 ---
 
-_Last updated: 2026-06-13 (Session 30)_
+_Last updated: 2026-06-14 (Session 34)_

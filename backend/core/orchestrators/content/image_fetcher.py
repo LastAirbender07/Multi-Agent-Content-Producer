@@ -7,6 +7,7 @@ from mcp.client.stdio import stdio_client
 from core.orchestration.contracts import ContentRequest, ImageAsset
 from core.schemas.workflow_state import ContentGraphState
 from core.tools.Search.ddgs_search import DDGSSearch
+from core.utils.text_utils import has_cjk
 from configs.settings import get_settings
 from infra.logging import get_logger
 
@@ -61,21 +62,12 @@ async def _search_ddgs(query: str, max_results: int = 15) -> list[dict]:
     return []
 
 
-def _has_cjk(text: str) -> bool:
-    return any(
-        "一" <= c <= "鿿"   # CJK Unified Ideographs
-        or "぀" <= c <= "ヿ"  # Hiragana + Katakana
-        or "가" <= c <= "힯"  # Hangul
-        for c in text
-    )
-
-
 def _score_image(img: dict, query: str = "") -> float:
     """Score an image candidate — bigger, squarer, query-relevant wins; CJK disqualifies."""
     title = img.get("title", "") or ""
     url = img.get("url", "") or ""
 
-    if _has_cjk(title + url):
+    if has_cjk(title + url):
         return -99.0
 
     score = 10.0

@@ -33,6 +33,7 @@ class ResearchRequest(BaseModel):
     include_debug_trace: bool = Field(default=True, description="Whether to include debug trace information in the research results")
     budget: BudgetConfig = Field(default_factory=BudgetConfig, description="Budget configuration for the research run")
     preprocessed_queries: list[str] = Field(default_factory=list, description="Pre-generated search queries from the query preprocessor; if non-empty, routing policy uses these instead of generating generic variants from the topic")
+    seeded_evidence: list[dict] = Field(default_factory=list, description="Pre-supplied evidence items (discover article content, uploaded documents) to inject before tool execution")
 
 class ToolTrace(BaseModel):
     tool_name: str = Field(..., description="Name of the tool called")
@@ -56,9 +57,9 @@ class SkippedTool(BaseModel):
 
 class Evidence(BaseModel):
     evidence: str = Field(..., description="The evidence collected during the research run")
-    source_type: Literal["news", "web_search", "crawl", "llm_knowledge"] = Field(..., description="The type of source from which the evidence was collected")
+    source_type: Literal["news", "web_search", "crawl", "llm_knowledge", "discover", "document"] = Field(..., description="The type of source from which the evidence was collected")
     title: str = Field(..., description="Title of the source from which the evidence was collected")
-    url: str = Field(..., description="URL of the source from which the evidence was collected")
+    url: str = Field(default="", description="URL of the source from which the evidence was collected")
     snippet: Optional[str] = Field(default=None, description="Optional snippet of the evidence collected")
     extracted_content: Optional[str] = Field(default=None, description="Optional extracted content from the source, if applicable")
     published_at: Optional[datetime] = Field(default=None, description="Optional publication date of the source, if available")

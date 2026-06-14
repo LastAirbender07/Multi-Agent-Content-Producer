@@ -1,9 +1,18 @@
 from datetime import datetime, timezone
+from configs.settings import get_settings
 from core.orchestration.contracts import Evidence
 from core.schemas.workflow_state import ResearchGraphState
 from infra.logging import get_logger
 
 logger = get_logger(__name__)
+_settings = get_settings()
+
+# Credibility scores by source type — reflect how reliably the source reports facts.
+# Neutral relevance (0.5) is set here; score_evidence_node replaces it with LLM scores.
+_CRED_WEB = 0.4
+_CRED_DDGS_NEWS = 0.6
+_CRED_CRAWL = 0.7
+_CRED_NEWS_API = 0.8
 
 
 async def normalize_evidence_node(state: ResearchGraphState) -> dict:
@@ -34,7 +43,7 @@ async def normalize_evidence_node(state: ResearchGraphState) -> dict:
                 url=url,
                 snippet=item.body,
                 retrieval_time=now,
-                credibility_score=0.4,
+                credibility_score=_CRED_WEB,
                 relevance_score=0.5,
             ))
 
@@ -55,7 +64,7 @@ async def normalize_evidence_node(state: ResearchGraphState) -> dict:
                 published_at=item.date,
                 source_name=item.source,
                 retrieval_time=now,
-                credibility_score=0.6,
+                credibility_score=_CRED_DDGS_NEWS,
                 relevance_score=0.5,
             ))
 
@@ -77,7 +86,7 @@ async def normalize_evidence_node(state: ResearchGraphState) -> dict:
                 published_at=item.published_at,
                 source_name=item.source_name,
                 retrieval_time=now,
-                credibility_score=0.8,
+                credibility_score=_CRED_NEWS_API,
                 relevance_score=0.5,
             ))
 
@@ -91,14 +100,14 @@ async def normalize_evidence_node(state: ResearchGraphState) -> dict:
         seen_urls.add(url)
         markdown = item.content.markdown or ""
         evidence.append(Evidence(
-            evidence=markdown[:2000],
+            evidence=markdown[:_settings.crawl_markdown_max_chars],
             source_type="crawl",
             title=item.content.title or url,
             url=url,
-            snippet=markdown[:500] if markdown else None,
+            snippet=markdown[:_settings.crawl_snippet_max_chars] if markdown else None,
             extracted_content=markdown,
             retrieval_time=now,
-            credibility_score=0.7,
+            credibility_score=_CRED_CRAWL,
             relevance_score=0.5,
         ))
 

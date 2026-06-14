@@ -3,6 +3,7 @@ from core.orchestration.contracts import Evidence
 from core.prompts.prompt_loader import load_prompt
 from core.prompts.system_prompts import get_system_prompt
 from core.schemas.workflow_state import ResearchGraphState
+from core.utils.text_utils import make_llm_url
 from infra.llm.factory import LLMFactory
 from infra.logging import get_logger
 
@@ -33,7 +34,7 @@ async def llm_knowledge_node(state: ResearchGraphState) -> dict:
             evidence=content,
             source_type="llm_knowledge",
             title=f"LLM Background Knowledge: {topic}",
-            url=f"llm://background/{topic.replace(' ', '_')}",
+            url=make_llm_url(topic.replace(" ", "_")),
             snippet=content[:400],
             retrieval_time=now,
             credibility_score=0.5,
