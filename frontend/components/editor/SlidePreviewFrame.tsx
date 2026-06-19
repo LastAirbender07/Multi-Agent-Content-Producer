@@ -2,21 +2,24 @@
 import { useRef, useState, useEffect } from "react";
 
 const BASE = "http://localhost:8000/api/v1";
-const SLIDE_NATIVE_SIZE = 1080; // slides render at 1080×1080
+const SLIDE_NATIVE_SIZE = 1080;
 
 interface SlidePreviewFrameProps {
   runId: string;
   angleIndex: number;
   slideNumber: number;
   previewKey: number;
+  onElementClick?: (field: "title" | "body" | "bullet" | "image") => void;
 }
 
-export function SlidePreviewFrame({ runId, angleIndex, slideNumber, previewKey }: SlidePreviewFrameProps) {
+export function SlidePreviewFrame({
+  runId, angleIndex, slideNumber, previewKey, onElementClick,
+}: SlidePreviewFrameProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const src = `${BASE}/content/${runId}/slides/${angleIndex}/${slideNumber}/preview`;
 
-  // Recalculate scale whenever container resizes
+  // Scale iframe to fit container
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -30,12 +33,23 @@ export function SlidePreviewFrame({ runId, angleIndex, slideNumber, previewKey }
     return () => ro.disconnect();
   }, []);
 
+  // Listen for postMessage from the iframe's embedded click-detection script
+  useEffect(() => {
+    if (!onElementClick) return;
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === "SLIDE_ELEMENT_CLICK") {
+        onElementClick(e.data.field as "title" | "body" | "bullet" | "image");
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [onElementClick]);
+
   return (
     <div
       ref={containerRef}
       className="relative w-full h-full rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800/60 shadow-2xl shadow-black/50"
     >
-      {/* iframe is always native 1080×1080, scaled down to fit container */}
       <iframe
         key={previewKey}
         src={src}

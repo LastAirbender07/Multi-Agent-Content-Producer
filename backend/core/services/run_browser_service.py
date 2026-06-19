@@ -86,3 +86,40 @@ def get_run_manifest(run_id: str) -> dict:
         "angles": angles,
         "has_blog": (run_dir / "blog_post.md").exists(),
     }
+
+
+def create_blank_run(topic: str) -> dict:
+    """
+    Create a new run folder with empty slides.json and placeholder research_result.json.
+    Returns {"run_id": ..., "topic": ...} — no research or angles are generated.
+    """
+    import uuid as _uuid
+    import json as _json_local
+
+    run_id = str(_uuid.uuid4())
+    angle_dir = _OUTPUTS_ROOT / run_id / "content" / "angle_0"
+    for sub in ("images", "slides", "png"):
+        (angle_dir / sub).mkdir(parents=True, exist_ok=True)
+
+    # Minimal slides.json matching the format expected by read_slides()
+    slides_data = {
+        "run_id": run_id,
+        "angle_index": 0,
+        "angle": {"statement": "Custom post", "emotional_hook": "Curiosity"},
+        "slides": [],
+        "caption": "",
+        "hashtags": [],
+    }
+    (angle_dir / "slides.json").write_text(_json_local.dumps(slides_data, indent=2), encoding="utf-8")
+
+    # Minimal image_assets.json
+    (angle_dir / "image_assets.json").write_text(_json_local.dumps({"image_assets": []}, indent=2), encoding="utf-8")
+
+    # Placeholder research_result.json (makes read_topic() work)
+    research_dir = _OUTPUTS_ROOT / run_id / "research"
+    research_dir.mkdir(parents=True, exist_ok=True)
+    research_data = {"run_id": run_id, "topic": topic, "status": "manual", "evidence": [], "synthesis": None}
+    (research_dir / "research_result.json").write_text(_json_local.dumps(research_data, indent=2), encoding="utf-8")
+
+    logger.info("blank_run_created", run_id=run_id, topic=topic[:60])
+    return {"run_id": run_id, "topic": topic}

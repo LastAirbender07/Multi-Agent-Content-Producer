@@ -27,6 +27,13 @@ def _get_template_name(emotional_hook: str) -> str:
     return _TEMPLATE_MAP.get(emotional_hook, "aurora")
 
 
+def _canvas_template_id(slide_type: str, theme: str, layout_variant: int, has_image: bool) -> str:
+    """Compute the Fabric canvas template identifier for this slide."""
+    if slide_type == "content":
+        return f"{theme}-content-text" if not has_image else f"{theme}-content-{layout_variant}"
+    return f"{theme}-{slide_type}"
+
+
 def _layout_variant_for_image(image_path: str, landscape_counter: list) -> int:
     """
     Choose layout variant from the actual downloaded image's aspect ratio.
@@ -92,6 +99,14 @@ async def render_slides_node(state: ContentGraphState) -> dict:
         else:
             layout_variant = 0
 
+        # Store canvas template ID on the slide dict for the editor
+        slide_dict = slide.model_dump()
+        slide_dict["canvas_template"] = _canvas_template_id(
+            slide.type.value, template_name, layout_variant, has_image
+        )
+        # Mutate the Slide object so it propagates to state["slides"]
+        slide.canvas_template = slide_dict["canvas_template"]
+
         template = env.get_template(f"{slide.type.value}.html.j2")
         html = template.render(
             slide=slide,
@@ -113,6 +128,8 @@ async def render_slides_node(state: ContentGraphState) -> dict:
     logger.info("render_slides_node_complete", count=len(html_paths))
     return {
         "slide_html_paths": html_paths,
+        # Return updated slides so canvas_template is persisted by finalizer
+        "slides": [s.model_dump() for s in slides],
         "messages": state.get("messages", []) + [f"Rendered {len(html_paths)} HTML slides"],
     }
 

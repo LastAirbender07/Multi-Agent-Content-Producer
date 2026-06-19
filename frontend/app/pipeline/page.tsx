@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, startTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   FlaskConical,
@@ -9,6 +10,7 @@ import {
   History,
   Brain,
   ChevronDown,
+  PencilRuler,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -28,6 +30,7 @@ import { BlogExportBar } from "@/components/pipeline/BlogExportBar";
 
 export default function PipelinePage() {
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const { stages, researchResult, angleResult, contentResult, errors, angleMode, runId, topic, llmResearchMode, maxAnglesSelect } =
     useAppSelector((state) => state.pipeline);
   const { runs } = useAppSelector((state) => state.history);
@@ -368,7 +371,16 @@ export default function PipelinePage() {
                       <CarouselViewer contentResult={contentResult} angleResult={angleResult} />
                     )}
                     {contentResult && stages.content.status === "done" && runId && (
-                      <BlogExportBar runId={runId} topic={topic} />
+                      <div className="space-y-2">
+                        <BlogExportBar runId={runId} topic={topic} />
+                        <button
+                          onClick={() => router.push(`/editor?run=${runId}&view=slide&angle=0&slide=1`)}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-violet-500/40 bg-violet-500/5 text-violet-400 text-sm font-bold hover:bg-violet-500/10 transition-all"
+                        >
+                          <PencilRuler size={14} />
+                          Open in Editor
+                        </button>
+                      </div>
                     )}
                   </div>
                 </StageCard>

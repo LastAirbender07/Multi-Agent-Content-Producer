@@ -1,11 +1,14 @@
 "use client";
 import { useState, useEffect } from "react";
-import { ChevronRight, Image as ImageIcon, FileText, Folder, History, Loader2, ChevronDown, PanelLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronRight, Image as ImageIcon, FileText, Folder, History, Loader2, ChevronDown, PanelLeft, Plus, X, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppSelector } from "@/store/hooks";
 import { api, RunSummary, RunManifest } from "@/lib/api";
 
-interface FileBrowserProps {
+const SLIDE_TYPES = ["hook", "content", "stat", "quote", "cta", "engage"] as const;
+
+export interface FileBrowserProps {
   selectedRunId: string | null;
   selectedAngle: number | null;
   selectedSlide: number | null;
@@ -14,13 +17,16 @@ interface FileBrowserProps {
   onSelectBlog: (runId: string) => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  hideHeader?: boolean;
 }
 
 export function FileBrowser({
   selectedRunId, selectedAngle, selectedSlide, selectedView,
   onSelectSlide, onSelectBlog,
   collapsed, onToggleCollapse,
+  hideHeader = false,
 }: FileBrowserProps) {
+  const router = useRouter();
   const recentRuns = useAppSelector(s => s.history.runs);
   const [mounted, setMounted] = useState(false);
   const [allRuns, setAllRuns] = useState<RunSummary[]>([]);
@@ -29,11 +35,50 @@ export function FileBrowser({
   useEffect(() => { setMounted(true); }, []);
   const [allRunsLoading, setAllRunsLoading] = useState(false);
   const [allRunsExpanded, setAllRunsExpanded] = useState(false);
-  // Per-run expand state
   const [expandedRuns, setExpandedRuns] = useState<Set<string>>(new Set());
-  // Per-run per-angle expand state: "runId:angleIdx"
   const [expandedAngles, setExpandedAngles] = useState<Set<string>>(new Set());
   const [manifests, setManifests] = useState<Record<string, RunManifest>>({});
+
+  // New Post state
+  const [newPostInput, setNewPostInput] = useState("");
+  const [newPostOpen, setNewPostOpen] = useState(false);
+  const [newPostLoading, setNewPostLoading] = useState(false);
+
+  // Add Slide state: "runId:angleIdx" → type picker open
+  const [addSlideTarget, setAddSlideTarget] = useState<string | null>(null);
+  const [addSlideType, setAddSlideType] = useState<string>("content");
+  const [addSlideLoading, setAddSlideLoading] = useState(false);
+
+  async function handleCreateBlankRun() {
+    if (!newPostInput.trim()) return;
+    setNewPostLoading(true);
+    try {
+      const { run_id } = await api.createBlankRun(newPostInput.trim());
+      setNewPostOpen(false);
+      setNewPostInput("");
+      // Navigate to editor and force add-slide open via URL param
+      router.push(`/editor?run=${run_id}&view=slide&angle=0&addslide=1`);
+    } catch {}
+    finally { setNewPostLoading(false); }
+  }
+
+  async function handleAddSlide(runId: string, angleIndex: number) {
+    setAddSlideLoading(true);
+    try {
+      // Create the blank slide
+      const { slide } = await api.newSlide(runId, angleIndex, addSlideType, "aurora");
+      const newSlideNum = slide.slide_number as number;
+      // Trigger first render by calling editSlide with basic title
+      await api.editSlide(runId, angleIndex, newSlideNum, { title: "New Slide", body: "" });
+      // Reload the manifest so the new slide appears
+      const m = await api.getRunManifest(runId);
+      setManifests(prev => ({ ...prev, [runId]: m }));
+      setAddSlideTarget(null);
+      // Navigate to the new slide
+      onSelectSlide(runId, angleIndex, newSlideNum);
+    } catch {}
+    finally { setAddSlideLoading(false); }
+  }
 
   async function loadAllRuns() {
     if (allRuns.length > 0) return;
@@ -161,6 +206,41 @@ export function FileBrowser({
                                 </button>
                               );
                             })}
+
+                            {/* Add slide button + type picker */}
+                            {addSlideTarget === `${run.run_id}:${angle.index}` ? (
+                              <div className="px-3 py-2 space-y-2">
+                                <div className="flex flex-wrap gap-1">
+                                  {SLIDE_TYPES.map(t => (
+                                    <button key={t} onClick={() => setAddSlideType(t)}
+                                      className={`px-2 py-0.5 rounded-md text-[10px] font-semibold capitalize transition-all ${addSlideType === t ? "bg-violet-600 text-white" : "bg-zinc-800 text-zinc-400 hover:text-zinc-200"}`}>
+                                      {t}
+                                    </button>
+                                  ))}
+                                </div>
+                                <div className="flex gap-1.5">
+                                  <button
+                                    onClick={() => handleAddSlide(run.run_id, angle.index)}
+                                    disabled={addSlideLoading}
+                                    className="flex items-center gap-1 px-3 py-1 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-[10px] font-bold transition-all"
+                                  >
+                                    {addSlideLoading ? <Loader2 size={9} className="animate-spin" /> : <Check size={9} />}
+                                    Add
+                                  </button>
+                                  <button onClick={() => setAddSlideTarget(null)} className="text-zinc-600 hover:text-zinc-400 transition-colors">
+                                    <X size={11} />
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => { setAddSlideTarget(`${run.run_id}:${angle.index}`); setAddSlideType("content"); }}
+                                className="w-full flex items-center gap-1.5 px-3 py-1 text-left text-zinc-700 hover:text-zinc-500 transition-all"
+                              >
+                                <Plus size={10} />
+                                <span className="text-[10px]">Add slide</span>
+                              </button>
+                            )}
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -201,14 +281,56 @@ export function FileBrowser({
   }
 
   return (
-    <div className="flex flex-col h-full bg-zinc-950 border-r border-zinc-800/50 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2.5 border-b border-zinc-800/50 shrink-0">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Files</p>
-        <button onClick={onToggleCollapse} className="text-zinc-600 hover:text-zinc-300 transition-colors" title="Collapse">
-          <PanelLeft size={14} />
-        </button>
-      </div>
+    <div className="flex flex-col h-full bg-zinc-950 overflow-hidden">
+      {/* Header — hidden when rendered inside EditorLeftPanel (which provides its own tab bar) */}
+      {!hideHeader && (
+        <div className="flex items-center justify-between px-3 py-2.5 border-b border-zinc-800/50 shrink-0">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Files</p>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setNewPostOpen(o => !o)}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black text-zinc-600 hover:text-violet-400 hover:bg-zinc-800/40 transition-all"
+              title="New blank post"
+            >
+              <Plus size={11} /> New
+            </button>
+            <button onClick={onToggleCollapse} className="text-zinc-600 hover:text-zinc-300 transition-colors" title="Collapse">
+              <PanelLeft size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* New Post input */}
+      <AnimatePresence>
+        {newPostOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="overflow-hidden border-b border-zinc-800/40 bg-zinc-900/30"
+          >
+            <div className="flex items-center gap-2 px-3 py-2.5">
+              <input
+                value={newPostInput}
+                onChange={e => setNewPostInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") handleCreateBlankRun(); if (e.key === "Escape") { setNewPostOpen(false); setNewPostInput(""); } }}
+                placeholder="Post title…"
+                autoFocus
+                className="flex-1 bg-zinc-800/60 border border-zinc-700/60 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-violet-500/50"
+              />
+              <button onClick={handleCreateBlankRun} disabled={!newPostInput.trim() || newPostLoading}
+                className="w-6 h-6 flex items-center justify-center rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white transition-all shrink-0">
+                {newPostLoading ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+              </button>
+              <button onClick={() => { setNewPostOpen(false); setNewPostInput(""); }} className="text-zinc-600 hover:text-zinc-400 shrink-0">
+                <X size={11} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {/* Recent runs — only after hydration (Redux state is client-only) */}

@@ -6,6 +6,232 @@
 
 ---
 
+## 2026-06-18 - Session 39: Canvas Template System + Chart Editor — Master Plan + Phase 0-1 Implementation
+
+**Decision:** Designed and began implementing the full canvas-first editor — faithful Fabric.js templates that match the Jinja2 PNG output, plus a 13-type user chart editor. Consolidated all prior planning docs into one authoritative plan.
+
+---
+
+**Planning work:**
+
+**`Docs/editor/EDITOR_MASTER_PLAN.md`** (new — supersedes all prior editor plans)
+
+Merged `CANVAS_TEMPLATE_SYSTEM_PLAN.md` + `CHART_EDITOR_PLAN.md` into a single document. Key decisions:
+
+- **9 Aurora templates** (`aurora-hook`, `aurora-content-{0/1/2/text}`, `aurora-stat`, `aurora-quote`, `aurora-cta`, `aurora-engage`) + Lumina variants (thin wrappers, zero code duplication via `lw()` helper)
+- **Backdrop filter**: Offscreen canvas `ctx.filter = "blur(16px)"` → crop to card region → FabricImage. Safari fallback: high-opacity solid rect. `stackblur-canvas` rejected (CPU-bound, unnecessary dependency)
+- **Charts**: Chart.js offscreen → `toDataURL()` → `FabricImage` for Tier 1+2 types; `fabric.Group` for funnel/progress/number-stat (Tier 3). Single `createChartObject()` dispatcher used by both pipeline templates and user insert
+- **Lumina = Aurora + LUMINA tokens** — `lw()` one-liner in registry, no separate template files
+- **`originX: "left", originY: "top"` on every Fabric object** — hard rule, root cause of all prior left-clip bugs
+- **`canvas_template` field added to `Slide` model** — optional, backward-compatible. Backend writes it in `carousel_generator.py` via `_canvas_template_id()` (5-line addition)
+- Deleted `CANVAS_EDITOR_IMPLEMENTATION_PLAN.md`, `CANVAS_TEMPLATE_SYSTEM_PLAN.md`, `CHART_EDITOR_PLAN.md` — all superseded
+
+**Bugs caught during plan audit (vs. original drafts):**
+1. Quote slide: `slide.title` = quote text, `slide.body` = attribution (NOT swapped)
+2. Quote slide has "Key Insights" section from `slide.bullets` (omitted in draft)
+3. Stat slide hierarchy: `stat_value` BIG beside `stat_label`, `slide.title` = context text
+4. Engage ≠ CTA (gradient bg + rings vs. dark bg + glows)
+5. `carousel_generator.py` already computes `layout_variant` + `has_image` — just needs to write field
+
+---
+
+**Implementation — Phase 0 (Foundation, no deps):**
+
+| File | Purpose |
+|---|---|
+| `frontend/types/chart.ts` | `ChartType` union (13 types), `ChartData`, `ChartSeries`, `ScatterPoint`, `BubblePoint`, `ChartObjectData` |
+| `frontend/utils/canvasTokens.ts` | `AURORA` + `LUMINA` tokens, `CHART_PALETTE` (aurora/lumina), `getTokens()`, `applyOverrides()` |
+| `frontend/utils/canvasFonts.ts` | `loadCanvasFonts()` singleton — loads Syne-Bold + Plus Jakarta Sans (3 weights) via FontFace API. Non-fatal: `Promise.allSettled()` so canvas works even if fonts unavailable |
+| `frontend/utils/parseChartCsv.ts` | `parseChartCsv(csv)` — auto-detects single-series, multi-series, scatter, bubble from header shape |
+
+**Implementation — Phase 1 (Chart rendering engine):**
+
+`frontend/utils/canvasTemplates/chartRenderer.ts` — single file, used by both pipeline templates and user-created charts:
+
+- `renderChartToDataURL(type, data, theme, w?, h?)` — renders Chart.js to offscreen `<canvas>` → PNG dataURL. Throws for Tier 3 types (funnel/progress/number-stat)
+- `createChartFabricImage(...)` — wraps dataURL as `fabric.FabricImage` with `data: ChartObjectData` for re-editing
+- `createFunnelGroup(...)` — Fabric Group replicating CSS funnel: gradient bars + right-aligned labels + value text inside bars
+- `createProgressGroup(...)` — Fabric Group: label + track rect + gradient fill rect + percentage text per row
+- `createBigNumberGroup(...)` — Fabric Group: giant Syne stat value + label + context text
+- `createChartObject(...)` — single dispatcher; caller doesn't need to know which tier a chart type belongs to
+- `buildConfig(type, data, palette)` — internal Chart.js config builder covering all 10 Chart.js types (bar, column, line, area, donut, radar, stacked-bar, stacked-column, comparison, scatter, bubble)
+
+All chart palettes match the Jinja2 templates exactly: `#7C6EFA` primary, `#2DD4BF` secondary, etc.
+
+---
+
+**Build order (remaining):**
+
+| Phase | Status |
+|---|---|
+| Phase 0: Foundation | ✅ Done |
+| Phase 1: Chart renderer | ✅ Done |
+| Phase 2: shared.ts (Fabric components) | 🚧 Next |
+| Phase 3: Aurora templates (6 files) | Pending |
+| Phase 4: Template registry + buildSlideCanvas() | Pending |
+| Phase 5: Backend canvas_template field | Pending |
+| Phase 6: FabricCanvas.loadInitial() wiring | Pending |
+| Phase 7: Chart UI (ChartTypePicker, ChartDataTable, ChartEditorPanel) | Pending |
+| Phase 8: RightPanel split + chart wiring | Pending |
+| Phase 9-11: TemplatesPanel + EditorLeftPanel + user templates backend | Pending |
+
+**TypeScript: 0 errors across all new files. 61/61 E2E tests passing (unchanged).**
+
+---
+
+## 2026-06-18 - Session 38: Architecture Decision — Editor Pivot from Iframe to Canvas-First (Fabric.js)
+
+**Decision:** Retired the iframe-preview editor architecture in favour of a canvas-first redesign using Fabric.js. Requirements documented in `Docs/editor/EDITOR_REQUIREMENTS.md`.
+
+---
+
+### Why the iframe approach cannot grow
+
+The editor built in Session 37 works like this:
+
+```
+Backend Jinja2 template → Playwright PNG → served as iframe → side-panel fields → save → iframe reloads
+```
+
+This hit three hard walls:
+
+1. **In-place editing is a postMessage workaround, not real editing.** Clicking the slide sends a message to the parent; the parent focuses a sidebar textarea. The user edits in a panel, not on the slide. True in-place editing — click text on the image and type there — is impossible because the iframe is a rendered static HTML snapshot, not an interactive object graph.
+
+2. **Auto-save races with the user's keystrokes.** A debounced save fires a backend call that re-renders the Jinja2 HTML and reloads the iframe. If the user is mid-word when the 300ms debounce fires, the iframe reload interrupts them. The only safe fix is to block saves until the user stops typing — which is exactly "explicit save button", making auto-save meaningless.
+
+3. **No concept of canvas objects.** The slide has no element model — it is a rendered image. There is no way to drag an image box, resize a text element in-place, set transparency on a background, or apply per-element filters. These require a scene graph, not a screenshot.
+
+---
+
+### Chosen approach: Fabric.js canvas
+
+**Why Fabric.js over alternatives:**
+
+| Library | Fit | Reason |
+|---|---|---|
+| **Fabric.js v7.x** | ✅ Best | Native `Textbox` (cursor, selection, per-char styles); `Image.filters.*` (brightness, contrast, blur, grayscale built-in); `canvas.toJSON()` exact serialization; MIT, 31k stars, v7.4.0 May 2026 |
+| react-konva | ✓ Strong alt | Good transformer/resize handles, but text editing requires manual `<textarea>` DOM overlay — replicating what Fabric already ships |
+| tldraw | ✗ Skip | Designed for infinite canvas; commercial license for production |
+| Polotno SDK | ✗ Skip | Vendor lock-in; paid; overkill |
+
+Reference implementations validated: **Fabritor** (1.2k ★, MIT, Fabric.js + React — production Canva clone), **react-image-editor** (544 ★, MIT, Konva — undo/redo reference).
+
+---
+
+### What changes
+
+**Retired components:**
+- `SlidePreviewFrame.tsx` — iframe approach retired
+- `ImageEditModal.tsx` — popup approach replaced by persistent panel
+- `use-undoable` hook — replaced by Command Pattern
+
+**New architecture:**
+```
+/editor
+├── LeftPanel (collapsible tabs)
+│   ├── FilesTab       — current FileBrowser (unchanged)
+│   └── ImagesTab      — persistent asset library (search cache + uploads + run images)
+├── CanvasArea
+│   ├── CanvasToolbar  — undo/redo, save, zoom, export
+│   ├── FabricCanvas   — main 1080×1080 editing canvas
+│   └── ContextToolbar — floating toolbar above selected object (type-sensitive)
+└── RightPanel (collapsible)
+    ├── (text selected)  → Font, Size, Color, Alignment
+    ├── (image selected) → Filters, Opacity, Crop, Set as BG
+    └── (nothing)        → Slide properties (theme, background color)
+```
+
+**Undo/Redo: Command Pattern (industry standard)**
+
+Each user action pushes a `{ label, snapshot: FabricJSON }` onto a local `commandStack[]`. Undo pops the stack and restores the snapshot. The server receives a save only when the user explicitly clicks Save (or after a long inactivity timeout — async, never blocking UI). This is the Figma/Canva/Google Docs pattern: local undo stack, async background save, UI never waits.
+
+**Images: persistent left panel (not a modal)**
+
+Canva, Figma, and Adobe Express all use a persistent left asset panel. Search results and uploads survive across slides. Images are dragged from the panel onto the canvas, becoming first-class `fabric.Image` objects with resize/rotate handles.
+
+**Backend changes needed:**
+- `GET /content/{run_id}/slides/{ai}/{sn}/canvas` — returns Fabric JSON (converts legacy slide JSON on first load)
+- `PUT /content/{run_id}/slides/{ai}/{sn}/canvas` — stores Fabric JSON (explicit save)
+- Playwright PNG export still used for download/generation — rendering pipeline untouched
+
+**Migration path:** Pipeline still generates slides via Jinja2 → Playwright. "Open in Editor" converts the generated slide JSON to an initial Fabric canvas JSON (one-time). The user edits in Fabric. On Save → Fabric JSON stored; PNG re-exported for download. Backend rendering pipeline is unchanged.
+
+**New dependency:** `pnpm add fabric` (v7.x, TypeScript types included)
+
+**Status:** 🚧 Requirements captured. Implementation not yet started. Reference: `Docs/editor/EDITOR_REQUIREMENTS.md`.
+
+---
+
+## 2026-06-15 - Session 37: Editor Overhaul — In-Place Editing, Image Modal, Undo/Redo, Add Slide, New Blank Post
+
+**Decision:** Implemented all 6 requirements from `Docs/editor/EDITOR_PLAN.md` on top of the existing iframe-preview editor. This is the **first iteration** — later superseded by the canvas-first pivot (Session 38).
+
+---
+
+**R1 — In-place editing via postMessage**
+
+`backend/core/services/slide_editor_service.py` — `_CLICK_LISTENER_SCRIPT` constant injected before `</body>` in every `get_slide_html_preview()` call. Script attaches `click` listeners to `.hook-headline`, `.slide-title`, `.slide-body`, `.bullet-text`, `.bg-image`, `.image-card` — each fires `window.parent.postMessage({type: 'SLIDE_ELEMENT_CLICK', field: 'title'|'body'|'bullet'|'image'}, '*')`.
+
+`SlidePreviewFrame.tsx` — added `onElementClick` prop; `useEffect` on `window.message` calls it when `e.data.type === 'SLIDE_ELEMENT_CLICK'`.
+
+`SlideEditor.tsx` — `handleElementClick(field)` switches to Content tab + focuses the matching textarea (`id="slide-field-title"` etc.) with a 200ms yellow flash animation. Image field → opens `ImageEditModal`.
+
+---
+
+**R2 — Image management modal (`ImageEditModal.tsx` — new)**
+
+Three-tab modal:
+- **Search** — Pexels or Web (DDG), 12-result grid, click to stage (violet border), Apply → `api.swapSlideImage()`
+- **Upload** — `react-dropzone` v15; accepts JPG/PNG/WEBP ≤ 10MB; drag-drop or click; calls new `api.uploadSlideImage()`
+- **URL** — paste URL, live `<img>` thumbnail preview, "Use This Image" → `api.swapSlideImageUrl()`
+
+New backend endpoints:
+- `POST /content/{run_id}/slides/{ai}/{sn}/upload-image` — Pillow converts to JPG, saves, re-renders PNG
+- `POST /content/{run_id}/slides/{ai}/{sn}/swap-image-url` — httpx downloads URL, validates content-type, same save/render pipeline
+
+New service functions in `slide_editor_service.py`: `upload_image()`, `swap_image_url()`.
+New schemas: `SwapImageUrlRequest`.
+
+---
+
+**R3 — Pipeline → Editor button**
+
+`frontend/app/pipeline/page.tsx` — "Open in Editor" button added after Stage 3 carousels complete. Appears alongside `BlogExportBar`. Navigates to `/editor?run={runId}&view=slide&angle=0&slide=1`.
+
+---
+
+**R4 — Undo/Redo with `use-undoable`**
+
+`SlideEditor.tsx` — replaced all individual `useState` fields with `useUndoable<SlideSnapshot>`. `resetInitialState(loaded)` called after server load so the undo stack doesn't go past the load point. `Ctrl+Z`/`Cmd+Z` → `undo()`, `Ctrl+Shift+Z`/`Cmd+Shift+Z` → `redo()`. Undo/Redo buttons in top bar. Status indicator shows "⟳ Saving…" / "● Saved".
+
+**Note:** Auto-save (300ms debounce) was included in this iteration but later identified as a problem — see Session 38 for why this approach was superseded.
+
+**New dependency:** `pnpm add use-undoable` (v5.0.0, zero deps)
+
+---
+
+**R5 — Add slide wired to UI**
+
+`FileBrowser.tsx` — inline type picker (Hook/Content/Stat/Quote/CTA/Engage) below each expanded angle's slide list. Confirm → `api.newSlide()` → `api.editSlide()` for first render → reload manifest → navigate to new slide.
+
+---
+
+**R6 — New blank post (no pipeline)**
+
+`FileBrowser.tsx` — `+ New` button in header, inline title input (Enter to confirm). Calls `api.createBlankRun(topic)`.
+
+`backend/core/services/run_browser_service.py` — `create_blank_run(topic)`: UUID, creates directory structure, writes minimal `slides.json` + `research_result.json`, returns `{run_id, topic}`.
+
+New endpoint: `POST /content/new-blank-run`.
+
+---
+
+**Backend route count:** 15 (was 12, +3: `new-blank-run`, `upload-image`, `swap-image-url`)
+**New packages:** `use-undoable` (frontend), `react-dropzone` v15 (frontend)
+**Tests:** 61/61 E2E passing.
+
+---
+
 ## 2026-06-14 - Session 36: Backend Round 3 — Service Layer Extraction & Final Cleanup
 
 **Decision:** Third comprehensive backend audit and refactor pass. Tackled the biggest remaining structural problem (`content.py` at 483 lines mixing routing + business logic + I/O) plus duplicate JWT detection, scattered helper functions, and remaining hardcoded constants.
@@ -1779,4 +2005,4 @@ Rewrote to the standard Headless UI / Tailwind UI pattern:
 
 ---
 
-_Last updated: 2026-06-14 (Session 36)_
+_Last updated: 2026-06-18 (Session 39)_

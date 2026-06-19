@@ -71,6 +71,52 @@ export const api = {
     post(`/content/${runId}/slides/${angleIndex}/${slideNumber}/swap-image`, { query, source }),
   newSlide: (runId: string, angleIndex: number, type: string, theme: string) =>
     post<{ slide: SlideData }>(`/content/${runId}/slides/${angleIndex}/new`, { type, theme }),
+
+  // Editor — new blank run (no pipeline needed)
+  createBlankRun: (topic: string): Promise<{ run_id: string; topic: string }> =>
+    post("/content/new-blank-run", { topic }),
+
+  // Editor — image management
+  uploadSlideImage: async (runId: string, angleIndex: number, slideNumber: number, file: File): Promise<{ png_url: string }> => {
+    const form = new FormData();
+    form.append("file", file);
+    const r = await fetch(`${BASE}/content/${runId}/slides/${angleIndex}/${slideNumber}/upload-image`, { method: "POST", body: form });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+  swapSlideImageUrl: (runId: string, angleIndex: number, slideNumber: number, url: string): Promise<{ png_url: string }> =>
+    post(`/content/${runId}/slides/${angleIndex}/${slideNumber}/swap-image-url`, { url }),
+
+  // Asset library
+  getImageLibrary: (runId: string): Promise<ImageLibraryResponse> =>
+    fetch(`${BASE}/content/assets/library?run_id=${encodeURIComponent(runId)}`).then(r => r.json()),
+  uploadToLibrary: async (file: File): Promise<ImageLibraryItem> => {
+    const form = new FormData();
+    form.append("file", file);
+    const r = await fetch(`${BASE}/content/assets/upload`, { method: "POST", body: form });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+  deleteImage: async (path: string): Promise<{ deleted: boolean }> => {
+    const r = await fetch(`${BASE}/content/assets/image`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  // Canvas save/load
+  saveCanvas: (runId: string, ai: number, sn: number, fabricJson: object): Promise<{ saved: boolean }> =>
+    fetch(`${BASE}/content/${runId}/slides/${ai}/${sn}/canvas`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fabric_json: fabricJson }),
+    }).then(async r => { if (!r.ok) throw new Error(await r.text()); return r.json(); }),
+  getCanvas: (runId: string, ai: number, sn: number): Promise<{ canvas_json: object | null; slide: SlideData | null }> =>
+    fetch(`${BASE}/content/${runId}/slides/${ai}/${sn}/canvas`).then(r => r.json()),
+
   updateBlogPost: (runId: string, markdown: string) =>
     fetch(`${BASE}/content/${runId}/blog-post`, {
       method: "PUT",
@@ -428,4 +474,18 @@ export interface AttachedEvidence extends SeedEvidence {
   fileName: string;
   charCount: number;
   fileType: string;
+}
+
+// ── Asset library types ───────────────────────────────────────────────────────
+
+export interface ImageLibraryItem {
+  filename: string;
+  url: string;
+  path: string;
+  slide_number?: number;
+}
+
+export interface ImageLibraryResponse {
+  run_images: Record<string, ImageLibraryItem[]>; // key = "angle_0", "angle_1", etc.
+  user_uploads: ImageLibraryItem[];
 }

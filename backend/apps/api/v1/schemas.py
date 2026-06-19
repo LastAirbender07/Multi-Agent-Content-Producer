@@ -101,6 +101,14 @@ class TopicFromUrlResponse(BaseModel):
     crawl_failed: bool = False      # True when article couldn't be fetched
 
 
+class NewBlankRunRequest(BaseModel):
+    topic: str
+
+
+class SwapImageUrlRequest(BaseModel):
+    url: str
+
+
 class ParseDocResponse(BaseModel):
     title: str                  # filename stem (without extension)
     text: str                   # extracted markdown content
@@ -128,3 +136,11 @@ class SlideEditResponse(BaseModel):
 
 class BlogPostUpdateRequest(BaseModel):
     markdown: str
+
+
+class ImageDeleteRequest(BaseModel):
+    path: str  # must start with "outputs/runs/" or "assets/user_uploads/"
+
+
+class CanvasSaveRequest(BaseModel):
+    fabric_json: dict  # full fabric.Canvas.toJSON(["data"]) output
