@@ -176,6 +176,8 @@ async def edit_slide(
             pass
     if request.theme is not None:
         slide_data["_theme"] = request.theme
+    if request.canvas_template is not None:
+        slide_data["canvas_template"] = request.canvas_template
 
     write_slides(path, slides_raw)
 

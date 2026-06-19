@@ -234,18 +234,20 @@ export function createOverlay(
 // ── Gradient background (for CTA / Engage) ───────────────────────────────────
 
 export function createGradientBg(t: CanvasTokens, height = CS - t.brandBarH, angle = 135): fabric.Rect {
-  const rad = (angle * Math.PI) / 180;
-  const x2 = Math.cos(rad) * height;
-  const y2 = Math.sin(rad) * height;
+  // CSS 135deg = gradient from top-right (primary) to bottom-left (secondary)
+  // Fabric gradient uses (x1,y1)→(x2,y2) vectors in canvas coordinates.
+  // For CSS 135deg: start corner = top-right (width, 0), end corner = bottom-left (0, height)
   const rect = new fabric.Rect({
     left: 0, top: 0, width: CS, height,
     fill: new fabric.Gradient({
-      type: "linear", coords: { x1: 0, y1: 0, x2, y2 },
+      type: "linear",
+      coords: { x1: CS, y1: 0, x2: 0, y2: height },  // top-right → bottom-left = CSS 135deg
       colorStops: [{ offset: 0, color: t.primary }, { offset: 1, color: t.secondary }],
     }),
     selectable: false, evented: false,
     originX: "left" as const, originY: "top" as const,
   });
+  void angle;  // angle param kept for API compatibility
   setData(rect, { role: "engage_bg" });
   return rect;
 }
@@ -254,10 +256,14 @@ export function createGradientBg(t: CanvasTokens, height = CS - t.brandBarH, ang
 
 export function createAccentLine(t: CanvasTokens, width = 44, left = 0, top = 0): fabric.Rect {
   const rect = new fabric.Rect({
-    left, top, width, height: 4, rx: 2,
+    left, top, width, height: 5, rx: 3,  // slightly taller + rounder for bolder look
     fill: new fabric.Gradient({
       type: "linear", coords: { x1: 0, y1: 0, x2: width, y2: 0 },
-      colorStops: [{ offset: 0, color: t.primary }, { offset: 1, color: t.secondary }],
+      colorStops: [
+        { offset: 0,   color: t.primary },
+        { offset: 0.6, color: t.secondary },
+        { offset: 1,   color: t.secondary + "CC" },  // slight fade at end
+      ],
     }),
     originX: "left" as const, originY: "top" as const,
   });

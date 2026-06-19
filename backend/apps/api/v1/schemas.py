@@ -127,6 +127,7 @@ class SlideEditRequest(BaseModel):
     slide_overrides: Optional[dict] = None   # {"title_font_size": "52px", "accent_color": "#7c3aed"}
     template_type: Optional[str] = None      # change slide type: hook|content|stat|quote|cta|engage
     theme: Optional[str] = None              # "aurora" | "lumina"
+    canvas_template: Optional[str] = None    # e.g. "aurora-content-2", "aurora-hook"
 
 
 class SlideEditResponse(BaseModel):

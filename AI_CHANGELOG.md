@@ -6,6 +6,86 @@
 
 ---
 
+## 2026-06-19 - Session 40: GAN-Style Template Validation + Visual Fixes
+
+**Decision:** Introduced adversarial iteration methodology (GAN-style) to validate Fabric.js canvas templates against Jinja2/Playwright reference PNGs, then fixed all identified bugs over 7 iterations.
+
+---
+
+**Method: GAN-Style Adversarial Testing**
+
+Standard software testing checks "does it run." This method checks "does it look right" — the hardest thing to test in a visual editor.
+
+```
+Loop:
+  Generator  → Playwright renders all 12 slides via browser editor
+  Discriminator → pixelmatch computes per-pixel diff vs reference PNGs
+  Signal     → diff % per slide + composite images (ref | generated | diff)
+  Fix        → worst-scoring templates patched
+  Repeat     → until 0 POOR slides
+```
+
+Tooling: `scripts/gan_iterate.js` — renders, compares, saves `report.json` + composite images per iteration.
+
+**Why this works:** The "discriminator" (pixel comparison) is objective and fast. Each iteration takes ~3 minutes for all 12 slides. The composite images let you visually inspect exactly which pixels differ, making root cause identification instant.
+
+---
+
+**7 Iterations — 52.6% Improvement**
+
+| Iter | Avg Diff | POOR | Key Fix |
+|---|---|---|---|
+| 1 | 22.1% | 3 | Baseline |
+| 2 | 20.6% | 3 | Image panel sizing rewrite |
+| 3 | 17.1% | 3 | `absolutePositioned:true` on Fabric clipPath |
+| 4 | 13.7% | 2 | Correct layout variants (content-1, content-2) from HTML flex-direction check |
+| 5 | 12.7% | 1 | CSS 135deg gradient direction (top-right→bottom-left, not top-left→bottom-right) |
+| 6 | 11.3% | 1 | Visual polish pass |
+| **7** | **10.5%** | **0** | Stat label dynamic width, layout-2 top-align |
+
+**Final: 10/12 GOOD, 2/12 FAIR, 0/12 POOR.** The two FAIR slides are image crop mismatches — same photo, same layout, but CSS `object-fit:cover` and Fabric's clipPath crop to different pixel boundaries.
+
+---
+
+**Root Causes Found**
+
+| Bug | Discovery | Fix |
+|---|---|---|
+| Image panel tiny thumbnail | Iter 1 visual | `loadPanelImage()` with cover-scale. Old code set `width/height` on `FabricImage` which resizes bounding box but not visual output |
+| Image not clipped to panel | Iter 2 | `absolutePositioned:true` on clipPath rect — Fabric v7 interprets clipPath in canvas space not local space |
+| Wrong layout variants | Iter 3 | Checked rendered HTML `flex-direction` values to identify which variant each slide used; patched `canvas_template` into slides.json |
+| Engage gradient flipped | Iter 4 | CSS `linear-gradient(135deg)` = top-right→bottom-left. Fabric gradient used `cos(135°)*h` which computed the wrong vector |
+| Stat label overlaps number | Iter 6 | Dynamic stat_value width: `min(660, charCount * 67px)` instead of fixed 520px |
+| Layout-2 missing bullets | Iter 6 | Accidentally omitted bullet loop in layout-2 block (content with top-image) |
+| Line chart no area fill | Iter 6 | `fill:true` + `backgroundColor: primary+'44'` in Chart.js config to match reference |
+
+---
+
+**Visual Improvements Applied**
+
+All from user visual review of iteration 5 generated slides:
+
+- **Hook**: Swipe hint → subtle frosted-glass pill (`rgba(255,255,255,0.07)` rect + border)
+- **Stat**: Removed wrongly-placed top accent line; accent divider only AFTER stat block
+- **Quote**: Attribution set to `INNER_W=936px` to prevent single-word line wrapping
+- **CTA**: Radial glows enlarged (rx:520/480 vs 270/215) to cover ~40% of slide for modern drama
+- **CTA/Engage**: Modern gradient pill buttons with `BTN_H/2` border-radius
+- **Engage**: Larger rings (720/480/240px) positioned at corners for dramatic depth
+- **Line chart**: Purple area fill under curve
+- **All**: Accent lines: height 5px (was 4px), 3-stop gradient with fade, rounder (rx:3)
+- **Layout-2**: Top-align image crop (people photos show faces, not torsos)
+- **Content**: Tighter line-height (1.45-1.5 vs 1.6-1.65)
+
+---
+
+**Documentation consolidated**
+
+Three editor docs (`EDITOR_REQUIREMENTS.md`, `EDITOR_MASTER_PLAN.md`, `EDITOR_FIXES_IMPLEMENTATION.md`) merged into one: **`Docs/editor/EDITOR_COMPLETE_RECORD.md`** — includes full requirements history, architecture decisions, implementation plan, bug fix sprints, and GAN testing methodology.
+
+**Tests: 61/61 E2E passing.**
+
+---
+
 ## 2026-06-18 - Session 39: Canvas Template System + Chart Editor — Master Plan + Phase 0-1 Implementation
 
 **Decision:** Designed and began implementing the full canvas-first editor — faithful Fabric.js templates that match the Jinja2 PNG output, plus a 13-type user chart editor. Consolidated all prior planning docs into one authoritative plan.
@@ -2005,4 +2085,4 @@ Rewrote to the standard Headless UI / Tailwind UI pattern:
 
 ---
 
-_Last updated: 2026-06-18 (Session 39)_
+_Last updated: 2026-06-19 (Session 40)_

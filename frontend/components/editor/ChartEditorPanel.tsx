@@ -9,6 +9,34 @@ import type { ChartType, ChartData } from "@/types/chart";
 const MULTI_SERIES_TYPES: ChartType[] = ["stacked-bar", "stacked-column", "comparison", "radar"];
 const NO_PREVIEW_TYPES: ChartType[] = ["funnel", "progress", "number-stat"];
 
+function getChartWarnings(type: ChartType, data: ChartData): string[] {
+  const w: string[] = [];
+  const vals = data.values ?? [];
+
+  if (type === "donut" && vals.length > 0) {
+    const sum = vals.reduce((a, b) => a + b, 0);
+    if (sum < 80 || sum > 120) {
+      w.push(`Values sum to ${Math.round(sum)} — donut charts should sum to ~100%`);
+    }
+  }
+
+  if (type === "funnel" && vals.length > 1) {
+    for (let i = 1; i < vals.length; i++) {
+      if (vals[i] > vals[i - 1]) {
+        w.push(`Step ${i + 1} (${vals[i]}) > step ${i} (${vals[i - 1]}) — funnel values should decrease`);
+        break;
+      }
+    }
+  }
+
+  const long = (data.labels ?? []).filter(l => String(l).length > 22);
+  if (long.length > 0) {
+    w.push(`${long.length} label${long.length > 1 ? "s" : ""} exceed 22 chars and will be truncated`);
+  }
+
+  return w;
+}
+
 const DEFAULT_DATA: Record<ChartType, ChartData> = {
   "bar":            { labels: ["Option A","Option B","Option C","Option D"], values: [120,200,150,80] },
   "column":         { labels: ["Q1","Q2","Q3","Q4"], values: [120,200,150,180] },
@@ -71,10 +99,27 @@ export function ChartEditorPanel({
 
   const handleTypeChange = useCallback((type: ChartType) => {
     setChartType(type);
-    if (!chartData.labels?.length && !chartData.points?.length && !chartData.progressItems?.length) {
-      setChartData(DEFAULT_DATA[type]);
+    const defaults = DEFAULT_DATA[type];
+    const isMulti = MULTI_SERIES_TYPES.includes(type);
+
+    if (isMulti) {
+      // Preserve user's existing series if they have data; fall back to defaults
+      const existingSeries = chartData.series?.length ? chartData.series : defaults.series;
+      setChartData({
+        ...defaults,
+        labels: chartData.labels?.length ? chartData.labels : defaults.labels,
+        values: chartData.values?.length ? chartData.values : (defaults.values ?? []),
+        series: existingSeries,
+      });
     } else if (type !== chartType) {
-      setChartData({ ...DEFAULT_DATA[type], labels: chartData.labels, values: chartData.values });
+      // Single-series: carry over labels/values, strip series to avoid stale data
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { series: _s, ...rest } = defaults;
+      setChartData({
+        ...rest,
+        labels: chartData.labels?.length ? chartData.labels : defaults.labels,
+        values: chartData.values?.length ? chartData.values : (defaults.values ?? []),
+      });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartType, chartData]);
@@ -217,6 +262,22 @@ export function ChartEditorPanel({
           )}
         </div>
       </div>
+
+      {/* Validation warnings — shown above Apply button, never blocking */}
+      {(() => {
+        const warnings = getChartWarnings(chartType, chartData);
+        return warnings.length > 0 ? (
+          <div className="px-4 pb-2 shrink-0">
+            <div className="rounded-xl bg-amber-500/8 border border-amber-500/20 px-3 py-2 space-y-1">
+              {warnings.map((msg, i) => (
+                <p key={i} className="text-[10px] text-amber-400 flex items-start gap-1.5 leading-relaxed">
+                  <span className="shrink-0 mt-px">⚠</span><span>{msg}</span>
+                </p>
+              ))}
+            </div>
+          </div>
+        ) : null;
+      })()}
 
       {/* Footer */}
       <div className="shrink-0 flex gap-2 px-4 py-3 border-t border-zinc-800/60">

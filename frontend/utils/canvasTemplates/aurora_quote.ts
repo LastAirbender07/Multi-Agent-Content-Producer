@@ -1,5 +1,5 @@
 import * as fabric from "fabric";
-import { createBrandBar, createBgImage, createOverlay, createInsightItem, makeText } from "./shared";
+import { createBrandBar, createBgImage, createOverlay, makeText } from "./shared";
 import type { CanvasTokens } from "@/utils/canvasTokens";
 import type { SlideData } from "@/lib/api";
 import type { SlideMeta } from "./index";
@@ -20,9 +20,7 @@ export async function buildAuroraQuote(
     if (bg) objects.push(bg);
   } else {
     objects.push(new fabric.Rect({
-      left: 0, top: 0, width: CS, height: CS,
-      fill: new fabric.Gradient({ type: "linear", coords: { x1: 0, y1: 0, x2: CS, y2: CS },
-        colorStops: [{ offset: 0, color: "#0D0B18" }, { offset: 1, color: "#1a1535" }] }),
+      left: 0, top: 0, width: CS, height: CS, fill: "#090909",
       selectable: false, evented: false,
       originX: "left" as const, originY: "top" as const,
     }));
@@ -31,26 +29,36 @@ export async function buildAuroraQuote(
   // 2. Overlay
   objects.push(createOverlay("quote", t));
 
-  // Estimate inner block height for vertical centering
-  const INNER_X = 72, INNER_W = CS - 144;
-  const quoteText = slide.title || "Your quote text here";
-  const attrText  = slide.body ? slide.body.replace(/^[-–—]\s*/, "") : "";
-  const hasBullets = slide.bullets && slide.bullets.length > 0;
+  // Inner layout constants
+  const INNER_X = 72;
+  const INNER_W = CS - 144;   // 936px — wide enough so attribution fits on one line
 
-  const markH     = 100 * 0.65 + 12;
-  const quoteLines = Math.ceil(quoteText.length / 30);
-  const quoteH    = quoteLines * 40 * 1.42 + 22;
-  const attrH     = attrText ? 30 : 0;
-  const dividerH  = hasBullets ? 1 + 64 : 0;
-  const insightsH = hasBullets ? (slide.bullets!.length * (21 * 1.55 + 14)) : 0;
-  const totalH    = markH + quoteH + attrH + dividerH + insightsH;
+  const quoteText  = slide.title || "Your quote text here";
+  const attrText   = slide.body ? slide.body.replace(/^[-–—]\s*/, "") : "";
+  const hasBullets = (slide.bullets?.length ?? 0) > 0;
+
+  // Height estimates
+  const markH      = Math.round(100 * 0.65) + 12;   // decorative quote mark
+  const quoteLines = Math.max(1, Math.ceil(quoteText.length / (INNER_W / (40 * 0.58))));
+  const quoteH     = quoteLines * 40 * 1.42 + 18;
+  const attrH      = attrText ? 28 : 0;
+  const divH       = hasBullets ? 48 : 0;
+  const labelH     = hasBullets ? 36 : 0;
+  const insightH   = hasBullets
+    ? slide.bullets!.reduce((acc, b) => {
+        const lines = Math.max(1, Math.ceil(b.length / (INNER_W / (21 * 0.58))));
+        return acc + lines * 21 * 1.55 + 10;
+      }, 0)
+    : 0;
+  const totalH = markH + quoteH + attrH + divH + labelH + insightH;
 
   const CONTENT_H = CS - t.brandBarH;
-  let curY = Math.max(60, (CONTENT_H - totalH) / 2);
+  let curY = Math.max(52, (CONTENT_H - totalH) / 2);
 
-  // 3. Quote mark
+  // 3. Large decorative quote mark
   objects.push(makeText('"', {
-    role: "quote_mark", fontSize: 100, fontWeight: "700",
+    role: "quote_mark",
+    fontSize: 100, fontWeight: "700",
     fontFamily: `${t.fontTitle}, sans-serif`,
     fill: t.primary, opacity: 0.55, lineHeight: 0.65,
     left: INNER_X, top: curY,
@@ -58,49 +66,71 @@ export async function buildAuroraQuote(
   }));
   curY += markH;
 
-  // 4. Quote text (slide.title in quote slides)
+  // 4. Quote text (italic, prominent)
   objects.push(makeText(quoteText, {
-    role: "quote_text", fontSize: 40, fontWeight: "600", fontStyle: "italic",
-    fill: t.text, lineHeight: 1.42, width: INNER_W,
+    role: "quote_text",
+    fontSize: 40, fontWeight: "600", fontStyle: "italic",
+    fill: t.text, lineHeight: 1.42,
+    width: INNER_W,
     left: INNER_X, top: curY,
     originX: "left" as const, originY: "top" as const,
   }));
   curY += quoteH;
 
-  // 5. Attribution (slide.body)
+  // 5. Attribution — full INNER_W so it stays on one line
   if (attrText) {
     objects.push(makeText(`— ${attrText}`, {
-      role: "quote_attr", fontSize: 20, fill: t.muted,
+      role: "quote_attr",
+      fontSize: 20, fill: t.muted,
+      width: INNER_W,   // wide enough — prevents wrapping
       left: INNER_X, top: curY,
       originX: "left" as const, originY: "top" as const,
     }));
     curY += attrH;
   }
 
-  // 6. Insights section (slide.bullets)
+  // 6. Key Insights section
   if (hasBullets) {
-    // Divider
-    const div = new fabric.Rect({
-      left: INNER_X, top: curY + 32, width: INNER_W, height: 1,
-      fill: "rgba(255,255,255,0.10)", selectable: false, evented: false,
+    // Thin divider
+    curY += 20;
+    objects.push(new fabric.Rect({
+      left: INNER_X, top: curY, width: INNER_W, height: 1,
+      fill: "rgba(255,255,255,0.10)",
+      selectable: false, evented: false,
       originX: "left" as const, originY: "top" as const,
-    });
-    (div as fabric.Rect & { data?: unknown }).data = { role: "quote_divider" };
-    objects.push(div);
-    curY += 32 + 1 + 26;
+    }));
+    curY += 20;
 
     // "KEY INSIGHTS" label
     objects.push(makeText("KEY INSIGHTS", {
-      role: "insights_label", fontSize: 13, fontWeight: "700",
-      fill: t.secondary, charSpacing: 120,
+      role: "insights_label",
+      fontSize: 12, fontWeight: "700", fill: t.secondary, charSpacing: 120,
       left: INNER_X, top: curY,
       originX: "left" as const, originY: "top" as const,
     }));
-    curY += 18 + 18;
+    curY += 22;
 
-    slide.bullets!.forEach((b, i) => {
-      objects.push(createInsightItem(b, t, INNER_X, curY, INNER_W));
-      curY += Math.ceil(b.length / (INNER_W / (21 * 0.6))) * (21 * 1.55) + 14;
+    // Insight items — compact, dot + text
+    slide.bullets!.forEach((b) => {
+      // Dot
+      const dot = new fabric.Circle({
+        radius: 4, left: INNER_X, top: curY + 7,
+        fill: t.primary, selectable: false, evented: false,
+        originX: "left" as const, originY: "top" as const,
+      });
+      (dot as fabric.Circle & { data?: unknown }).data = { role: "insight_dot" };
+      objects.push(dot);
+
+      // Text
+      const bLines = Math.max(1, Math.ceil(b.length / (INNER_W / (21 * 0.58))));
+      objects.push(makeText(b, {
+        role: "insight_text",
+        fontSize: 21, fill: "rgba(250,250,250,0.80)", lineHeight: 1.5,
+        width: INNER_W - 22,
+        left: INNER_X + 22, top: curY,
+        originX: "left" as const, originY: "top" as const,
+      }));
+      curY += bLines * 21 * 1.5 + 10;   // tighter gap between bullets
     });
   }
 

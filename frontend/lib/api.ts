@@ -455,6 +455,7 @@ export interface SlideEditRequest {
   slide_overrides?: Record<string, string>;
   template_type?: string;
   theme?: string;
+  canvas_template?: string;   // e.g. "aurora-content-2"
 }
 
 export interface SlideEditResponse {

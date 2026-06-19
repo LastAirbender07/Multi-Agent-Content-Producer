@@ -14,46 +14,53 @@ export async function buildAuroraEngage(
 ): Promise<fabric.FabricObject[]> {
   const objects: fabric.FabricObject[] = [];
 
-  // 1. Gradient background (primary → secondary)
-  objects.push(createGradientBg(t, CS - t.brandBarH, 135));
+  const CONTENT_H = CS - t.brandBarH;
 
-  // 2. Decorative rings
+  // 1. Gradient background (primary top-right → secondary bottom-left = CSS 135deg)
+  objects.push(createGradientBg(t, CONTENT_H, 135));
+
+  // 2. Decorative rings — larger, more dramatic, peeking from corners
   const makeRing = (size: number, left: number, top: number, opacity = 1) => {
     const el = new fabric.Circle({
       radius: size / 2, left, top,
-      fill: "transparent", stroke: "rgba(255,255,255,0.14)", strokeWidth: 1,
+      fill: "transparent",
+      stroke: "rgba(255,255,255,0.14)", strokeWidth: 1.5,
       opacity, selectable: false, evented: false,
       originX: "left" as const, originY: "top" as const,
     });
     (el as fabric.Circle & { data?: unknown }).data = { role: "deco_ring" };
     return el;
   };
-  objects.push(makeRing(560, -180, -200));
-  objects.push(makeRing(360, -100, CS - t.brandBarH - 360 + 140));
-  objects.push(makeRing(200, CS - 260, CS - t.brandBarH - 280, 0.6));
+  // Large ring top-right — partially off canvas for drama
+  objects.push(makeRing(720, CS - 280, -320));
+  // Medium ring bottom-left
+  objects.push(makeRing(480, -200, CONTENT_H - 260));
+  // Small accent ring
+  objects.push(makeRing(240, CS - 200, CONTENT_H - 240, 0.55));
 
-  // 3. Inner content — centered vertically
-  const CONTENT_H = CS - t.brandBarH;
-  const eyebrowH  = 40 + 28;
-  const titleLines = Math.ceil((slide.title?.length ?? 20) / 30);
-  const titleH    = titleLines * 46 * 1.18 + 28;
-  const bodyH     = slide.body ? Math.ceil(slide.body.length / 42) * (22 * 1.6) + 28 : 0;
-  const pillH     = 52 + 28;
+  // 3. Inner content — vertically centered
+  const eyebrowH  = 36 + 24;
+  const titleLines = Math.max(1, Math.ceil((slide.title?.length ?? 30) / 28));
+  const titleH    = titleLines * 46 * 1.18 + 24;
+  const bodyLines = slide.body ? Math.max(1, Math.ceil(slide.body.length / 44)) : 0;
+  const bodyH     = bodyLines * 22 * 1.5 + 28;
+  const pillH     = 60 + 24;
   const totalH    = eyebrowH + titleH + bodyH + pillH;
-  let curY = Math.max(60, (CONTENT_H - totalH) / 2);
+  let curY = Math.max(56, (CONTENT_H - totalH) / 2);
 
   // Eyebrow pill
   const EYEBROW_TEXT = "Follow for more insights";
-  const eyebrowW = EYEBROW_TEXT.length * 9 + 40;
+  const eyebrowW = EYEBROW_TEXT.length * 8.5 + 48;
   const eyebrowLeft = (CS - eyebrowW) / 2;
   const eyebrowBg = new fabric.Rect({
     left: 0, top: 0, width: eyebrowW, height: 36, rx: 999,
-    fill: "rgba(255,255,255,0.12)", stroke: "rgba(255,255,255,0.20)", strokeWidth: 1,
+    fill: "rgba(255,255,255,0.14)", stroke: "rgba(255,255,255,0.22)", strokeWidth: 1,
     originX: "left" as const, originY: "top" as const,
   });
   const eyebrowText = new fabric.Text(EYEBROW_TEXT, {
-    left: eyebrowW / 2, top: 18, fontSize: 14, fontWeight: "700",
-    fill: "rgba(255,255,255,0.70)", fontFamily: t.fontBody, charSpacing: 140,
+    left: eyebrowW / 2, top: 18,
+    fontSize: 13, fontWeight: "700",
+    fill: "rgba(255,255,255,0.80)", fontFamily: t.fontBody, charSpacing: 80,
     originX: "center" as const, originY: "center" as const,
   });
   const eyebrowGroup = new fabric.Group([eyebrowBg, eyebrowText], {
@@ -77,23 +84,26 @@ export async function buildAuroraEngage(
   if (slide.body) {
     objects.push(makeText(slide.body, {
       role: "engage_body", fontSize: 22, fill: "rgba(255,255,255,0.82)",
-      lineHeight: 1.6, textAlign: "center", width: CS - 240, left: 120, top: curY,
+      lineHeight: 1.5, textAlign: "center", width: CS - 240, left: 120, top: curY,
       originX: "left" as const, originY: "top" as const,
     }));
     curY += bodyH;
   }
 
-  // Bottom pill CTA
+  // Modern pill CTA button
   const PILL_TEXT = "Hit Follow — it's worth it";
-  const pillW    = PILL_TEXT.length * 10 + 72;
+  const pillW    = Math.round(PILL_TEXT.length * 9.5 + 72);
+  const pillH_px = 60;
   const pillLeft = (CS - pillW) / 2;
   const pillBg = new fabric.Rect({
-    left: 0, top: 0, width: pillW, height: 52, rx: 999,
-    fill: "rgba(255,255,255,0.20)", stroke: "rgba(255,255,255,0.30)", strokeWidth: 1,
+    left: 0, top: 0, width: pillW, height: pillH_px, rx: pillH_px / 2,
+    fill: "rgba(255,255,255,0.20)",
+    stroke: "rgba(255,255,255,0.32)", strokeWidth: 1.5,
     originX: "left" as const, originY: "top" as const,
   });
   const pillText = new fabric.Text(PILL_TEXT, {
-    left: pillW / 2, top: 26, fontSize: 18, fontWeight: "600",
+    left: pillW / 2, top: pillH_px / 2,
+    fontSize: 18, fontWeight: "700",
     fill: "#fff", fontFamily: t.fontBody, charSpacing: 20,
     originX: "center" as const, originY: "center" as const,
   });

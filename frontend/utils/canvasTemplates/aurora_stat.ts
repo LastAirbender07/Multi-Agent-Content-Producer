@@ -1,5 +1,5 @@
 import * as fabric from "fabric";
-import { createBrandBar, createAccentLine, makeText, makeTitleText } from "./shared";
+import { createBrandBar, makeText, makeTitleText } from "./shared";
 import { createChartObject } from "./chartRenderer";
 import type { CanvasTokens } from "@/utils/canvasTokens";
 import type { SlideData } from "@/lib/api";
@@ -16,100 +16,118 @@ export async function buildAuroraStat(
 ): Promise<fabric.FabricObject[]> {
   const objects: fabric.FabricObject[] = [];
 
-  // Background (dark surface, no full-bleed image on stat slides)
+  // Background — very dark, near-black
   objects.push(new fabric.Rect({
-    left: 0, top: 0, width: CS, height: CS, fill: t.surface,
+    left: 0, top: 0, width: CS, height: CS, fill: "#090909",
     selectable: false, evented: false,
     originX: "left" as const, originY: "top" as const,
   }));
 
   const hasChart = !!(slide.chart_data && slide.chart_type);
-  let curY = hasChart ? 52 : CS * 0.22;  // flex-start if chart, else center-ish
 
-  // Accent line
-  objects.push(createAccentLine(t, 60, 64, curY));
-  curY += 22;
+  // Top position — tighter when chart is present
+  const TOP_Y = hasChart ? 44 : Math.round(CS * 0.18);
 
-  // Stat value (huge number)
-  const statVal = slide.stat_value ?? "—";
-  const statVTextbox = makeTitleText(statVal, {
-    t,
-    role: "stat_value",
-    fontSize: 116,
+  // ── Stat hero block ──────────────────────────────────────────────────────────
+  // Estimate how wide the stat_value text actually is at 116px Syne Bold
+  // Average char width at 116px is ~0.58× = ~67px per char
+  const statValStr  = slide.stat_value ?? "—";
+  const estimatedStatW = Math.min(660, Math.max(180, statValStr.length * 67));
+  const STAT_LEFT  = 64;
+  const STAT_WIDTH = estimatedStatW;
+  const META_GAP   = 28;
+  const META_LEFT  = STAT_LEFT + STAT_WIDTH + META_GAP;
+  const META_WIDTH = CS - META_LEFT - 64;
+
+  let curY = TOP_Y;
+
+  // Big stat number — Syne Bold, gradient fill
+  objects.push(makeTitleText(slide.stat_value ?? "—", {
+    t, role: "stat_value",
     fontFamily: `${t.fontTitle}, sans-serif`,
+    fontSize: 116, lineHeight: 0.88,
     fill: new fabric.Gradient({
-      type: "linear", coords: { x1: 0, y1: 0, x2: 400, y2: 0 },
+      type: "linear", coords: { x1: 0, y1: 0, x2: STAT_WIDTH, y2: 0 },
       colorStops: [{ offset: 0, color: t.primary }, { offset: 1, color: t.secondary }],
     }) as unknown as string,
-    lineHeight: 0.88,
-    left: 64, top: curY,
-    width: 560,
-  });
-  objects.push(statVTextbox);
+    width: STAT_WIDTH,
+    left: STAT_LEFT, top: curY,
+  }));
 
-  // Stat label + title beside stat value
-  const metaLeft = 64 + 400 + 28;
-  const metaW    = CS - metaLeft - 64;
-  let metaY = curY + 10;
+  // Meta column: stat_label (large) + title (small) stacked beside the number
+  // These are vertically centered relative to the stat value block
+  const statBlockH = Math.round(116 * 0.88);  // ~102px
+  let metaY = curY + 8;  // slight top align, not dead-center
 
   if (slide.stat_label) {
+    const labelLines = Math.max(1, Math.ceil(slide.stat_label.length / (META_WIDTH / (24 * 0.58))));
     objects.push(makeText(slide.stat_label, {
-      role: "stat_label", fontSize: 24, fontWeight: "600", fill: t.text,
-      lineHeight: 1.3, width: metaW, left: metaLeft, top: metaY,
+      role: "stat_label", fontSize: 24, fontWeight: "700", fill: t.text,
+      lineHeight: 1.25, width: META_WIDTH,
+      left: META_LEFT, top: metaY,
       originX: "left" as const, originY: "top" as const,
     }));
-    metaY += Math.ceil(slide.stat_label.length / (metaW / (24 * 0.6))) * (24 * 1.3) + 8;
+    metaY += labelLines * 24 * 1.25 + 6;
   }
 
   if (slide.title) {
     objects.push(makeText(slide.title, {
-      role: "stat_title", fontSize: 16, fill: t.muted,
-      lineHeight: 1.4, width: metaW, left: metaLeft, top: metaY,
+      role: "stat_title", fontSize: 15, fill: t.muted,
+      lineHeight: 1.4, width: META_WIDTH,
+      left: META_LEFT, top: metaY,
       originX: "left" as const, originY: "top" as const,
     }));
   }
 
-  curY += 116 * 0.88 + 28;
+  curY += statBlockH + 24;
 
-  // Divider
+  // ── Accent divider (AFTER stat block, not before) ────────────────────────────
   const divider = new fabric.Rect({
-    left: 64, top: curY, width: 60, height: 3, rx: 2,
+    left: STAT_LEFT, top: curY, width: 56, height: 3, rx: 2,
     fill: new fabric.Gradient({
-      type: "linear", coords: { x1: 0, y1: 0, x2: 60, y2: 0 },
+      type: "linear", coords: { x1: 0, y1: 0, x2: 56, y2: 0 },
       colorStops: [{ offset: 0, color: t.primary }, { offset: 1, color: t.secondary }],
     }),
     originX: "left" as const, originY: "top" as const,
   });
   (divider as fabric.Rect & { data?: unknown }).data = { role: "stat_divider" };
   objects.push(divider);
-  curY += 28;
+  curY += 20;
 
-  // Body text
+  // ── Body text ────────────────────────────────────────────────────────────────
   if (slide.body) {
-    // Left border accent
+    const words    = slide.body.split(" ");
+    const maxWords = hasChart ? 26 : 100;
+    const bodyText = words.slice(0, maxWords).join(" ") + (words.length > maxWords ? "…" : "");
+
     const accentBar = new fabric.Rect({
-      left: 64, top: curY, width: 3, height: Math.ceil(slide.body.length / 54) * (20 * 1.6) + 8,
-      fill: "rgba(124,110,250,0.35)",
+      left: STAT_LEFT, top: curY,
+      width: 3,
+      height: Math.max(1, Math.ceil(bodyText.length / 52)) * (20 * 1.6) + 8,
+      fill: "rgba(124,110,250,0.4)",
       originX: "left" as const, originY: "top" as const,
     });
     (accentBar as fabric.Rect & { data?: unknown }).data = { role: "stat_body_accent" };
     objects.push(accentBar);
-    objects.push(makeText(slide.body, {
+
+    objects.push(makeText(bodyText, {
       role: "stat_body", fontSize: 20, fill: "rgba(250,250,250,0.72)",
-      lineHeight: 1.6, width: CS - 64 - 64 - 20, left: 64 + 18, top: curY,
+      lineHeight: 1.6,
+      width: CS - STAT_LEFT - 64 - 20,
+      left: STAT_LEFT + 18, top: curY,
       originX: "left" as const, originY: "top" as const,
     }));
-    curY += Math.ceil(slide.body.length / 54) * (20 * 1.6) + 24;
+    curY += Math.max(1, Math.ceil(bodyText.length / 52)) * (20 * 1.6) + 20;
   }
 
-  // Chart
+  // ── Chart ────────────────────────────────────────────────────────────────────
   if (hasChart) {
-    const chartH = Math.max(200, CS - t.brandBarH - curY - 32);
+    const chartH = Math.max(220, CS - t.brandBarH - curY - 28);
     const chartObj = await createChartObject(
       slide.chart_type as ChartType,
       slide.chart_data as ChartData,
       t,
-      { left: 64, top: curY, width: CS - 128, height: chartH },
+      { left: STAT_LEFT, top: curY, width: CS - STAT_LEFT * 2, height: chartH },
       "aurora",
     );
     objects.push(chartObj);

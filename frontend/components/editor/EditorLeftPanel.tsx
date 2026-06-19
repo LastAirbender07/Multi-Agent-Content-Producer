@@ -14,10 +14,11 @@ interface EditorLeftPanelProps extends FileBrowserProps {
   runId: string | null;
   onImageApply: (url: string) => void;
   onInsertChart?: (type: ChartType, data: ChartData) => Promise<void>;
+  onChartEditorOpen?: () => void;
 }
 
 export function EditorLeftPanel({
-  runId, onImageApply, onInsertChart,
+  runId, onImageApply, onInsertChart, onChartEditorOpen,
   selectedRunId, selectedAngle, selectedSlide, selectedView,
   onSelectSlide, onSelectBlog,
   collapsed, onToggleCollapse,
@@ -192,6 +193,7 @@ export function EditorLeftPanel({
               onSelectSlide(rid, ai, sn);
             }}
             onInsertChart={onInsertChart}
+            onChartEditorOpen={onChartEditorOpen}
           />
         )}
       </div>

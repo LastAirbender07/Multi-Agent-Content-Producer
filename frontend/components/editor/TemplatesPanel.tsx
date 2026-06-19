@@ -11,18 +11,32 @@ interface TemplatesPanelProps {
   angleIndex: number | null;
   onSlideCreated?: (runId: string, angleIndex: number, slideNumber: number) => void;
   onInsertChart?: (type: ChartType, data: ChartData) => Promise<void>;
+  onChartEditorOpen?: () => void;
 }
 
 // ── Slide type tiles ─────────────────────────────────────────────────────────
 
 const SLIDE_TYPES = [
-  { type: "hook",    label: "Hook",    desc: "Opening slide",      color: "#7C6EFA", emoji: "🎯" },
-  { type: "content", label: "Content", desc: "Text + image",       color: "#2DD4BF", emoji: "📝" },
-  { type: "stat",    label: "Stat",    desc: "Big number",         color: "#F59E0B", emoji: "📊" },
-  { type: "quote",   label: "Quote",   desc: "Pull quote",         color: "#EC4899", emoji: "💬" },
-  { type: "cta",     label: "CTA",     desc: "Call to action",     color: "#10B981", emoji: "🚀" },
-  { type: "engage",  label: "Engage",  desc: "Engagement slide",   color: "#6366F1", emoji: "✨" },
-] as const;
+  { type: "hook",    label: "Hook",       desc: "Opening slide",   color: "#7C6EFA", emoji: "🎯", template: "aurora-hook" },
+  { type: "content", label: "Img Right",  desc: "Text ← Image",    color: "#2DD4BF", emoji: "📝", template: "aurora-content-0" },
+  { type: "content", label: "Img Bottom", desc: "Text ↑ Image",    color: "#2DD4BF", emoji: "📐", template: "aurora-content-1" },
+  { type: "content", label: "Img Top",    desc: "Image ↑ Text",    color: "#2DD4BF", emoji: "🖼", template: "aurora-content-2" },
+  { type: "content", label: "Text Only",  desc: "No image",        color: "#2DD4BF", emoji: "📄", template: "aurora-content-text" },
+  { type: "stat",    label: "Stat",       desc: "Big number",      color: "#F59E0B", emoji: "📊", template: "aurora-stat" },
+  { type: "quote",   label: "Quote",      desc: "Pull quote",      color: "#EC4899", emoji: "💬", template: "aurora-quote" },
+  { type: "cta",     label: "CTA",        desc: "Call to action",  color: "#10B981", emoji: "🚀", template: "aurora-cta" },
+  { type: "engage",  label: "Engage",     desc: "Engagement",      color: "#6366F1", emoji: "✨", template: "aurora-engage" },
+] as { type: string; label: string; desc: string; color: string; emoji: string; template: string }[];
+
+// Meaningful placeholder content per slide type
+const STARTER_CONTENT: Record<string, { title: string; body: string; stat_value?: string; stat_label?: string }> = {
+  hook:    { title: "Your Headline Here", body: "" },
+  content: { title: "Your Key Insight", body: "Add 30–55 words of specific insight here. Make it dense, concrete, and actionable for your reader." },
+  stat:    { title: "This number changes everything", body: "Here's the context behind why this stat matters.", stat_value: "42%", stat_label: "Key metric label" },
+  quote:   { title: "The most powerful thing I learned was this.", body: "— Source, Year" },
+  cta:     { title: "Follow for weekly research breakdowns", body: "We turn dense research into 2-minute reads." },
+  engage:  { title: "Did this surprise you? Follow for more.", body: "We publish research-backed insights every week." },
+};
 
 // ── Component tiles ──────────────────────────────────────────────────────────
 
@@ -39,17 +53,16 @@ const COMPONENTS = [
 
 type TabId = "slides" | "charts" | "components" | "saved";
 
-export function TemplatesPanel({ runId, angleIndex, onSlideCreated, onInsertChart }: TemplatesPanelProps) {
+export function TemplatesPanel({ runId, angleIndex, onSlideCreated, onInsertChart, onChartEditorOpen }: TemplatesPanelProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabId>("slides");
   const [creating, setCreating] = useState<string | null>(null);
   const [chartEditorOpen, setChartEditorOpen] = useState(false);
   const [selectedChartType, setSelectedChartType] = useState<ChartType>("column");
 
-  async function createSlideWithType(slideType: string) {
+  async function createSlideWithType(slideType: string, canvasTemplate?: string) {
     setCreating(slideType);
     try {
-      // Create a blank run if no run is selected
       let targetRunId = runId;
       let targetAngle = angleIndex ?? 0;
       if (!targetRunId) {
@@ -59,18 +72,32 @@ export function TemplatesPanel({ runId, angleIndex, onSlideCreated, onInsertChar
       }
       const { slide } = await api.newSlide(targetRunId, targetAngle, slideType, "aurora");
       const slideNum = (slide as { slide_number?: number }).slide_number ?? 1;
+
+      // Seed with meaningful placeholder content + canvas_template
+      const starter = STARTER_CONTENT[slideType] ?? { title: "New Slide", body: "" };
+      await api.editSlide(targetRunId, targetAngle, slideNum, {
+        title:           starter.title,
+        body:            starter.body,
+        stat_value:      starter.stat_value,
+        stat_label:      starter.stat_label,
+        canvas_template: canvasTemplate,
+      });
+
       if (onSlideCreated) {
         onSlideCreated(targetRunId, targetAngle, slideNum);
       } else {
         router.push(`/editor?run=${targetRunId}&view=slide&angle=${targetAngle}&slide=${slideNum}`);
       }
-    } catch {}
+    } catch (e) {
+      console.error("createSlideWithType failed:", e);
+    }
     setCreating(null);
   }
 
   function openChartEditor(type: ChartType) {
     setSelectedChartType(type);
     setChartEditorOpen(true);
+    onChartEditorOpen?.();  // deselect canvas object to avoid duplicate chart picker
   }
 
   async function handleChartApply(type: ChartType, data: ChartData) {
@@ -128,10 +155,10 @@ export function TemplatesPanel({ runId, angleIndex, onSlideCreated, onInsertChar
               Click a type to add a new slide to the current post.
             </p>
             <div className="grid grid-cols-2 gap-2">
-              {SLIDE_TYPES.map(t => (
+              {SLIDE_TYPES.map((t, idx) => (
                 <button
-                  key={t.type}
-                  onClick={() => createSlideWithType(t.type)}
+                  key={t.template ?? `${t.type}-${idx}`}
+                  onClick={() => createSlideWithType(t.type, t.template)}
                   disabled={creating === t.type}
                   className="flex flex-col items-start gap-1.5 p-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-600 transition-all group"
                 >
@@ -215,7 +242,7 @@ export function TemplatesPanel({ runId, angleIndex, onSlideCreated, onInsertChar
           <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
             <Bookmark size={28} className="text-zinc-700" />
             <p className="text-[11px] text-zinc-600">No saved templates yet.</p>
-            <p className="text-[10px] text-zinc-700 max-w-[160px] leading-relaxed">
+            <p className="text-[10px] text-zinc-700 max-w-40 leading-relaxed">
               Use "Save as template" in the toolbar to save the current slide.
             </p>
           </div>

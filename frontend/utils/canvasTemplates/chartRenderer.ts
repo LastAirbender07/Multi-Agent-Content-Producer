@@ -16,7 +16,7 @@ export function defaultSize(type: ChartType): { w: number; h: number } {
     "number-stat":{ w: 952, h: 280 },
     progress:     { w: 780, h: 0 },  // height computed dynamically from progressItems
   };
-  return MAP[type] ?? { w: 952, h: 420 };
+  return MAP[type] ?? { w: 952, h: 500 };  // taller default for better readability
 }
 
 // ── Chart.js types (Tier 1 + 2) ─────────────────────────────────────────────
@@ -42,10 +42,31 @@ export async function renderChartToDataURL(
   const canvas = document.createElement("canvas");
   canvas.width  = W;
   canvas.height = H;
-  canvas.style.cssText = `position:fixed;left:-9999px;top:-9999px;background:${palette.BG}`;
+  // Fix 1-B: no background in cssText — canvas toDataURL is transparent by default.
+  // Lumina background applied via plugin below if needed.
+  canvas.style.cssText = "position:fixed;left:-9999px;top:-9999px;";
   document.body.appendChild(canvas);
 
-  const instance = new Chart(canvas, buildConfig(chartType, chartData, palette) as ConstructorParameters<typeof Chart>[1]);
+  const config = buildConfig(chartType, chartData, palette) as ConstructorParameters<typeof Chart>[1];
+
+  // Fix 1-B: lumina needs white bg so donut/radar legend text is readable on dark Fabric canvas
+  if (theme === "lumina") {
+    const bgPlugin = {
+      id: "chartBg",
+      beforeDraw(chart: { ctx: CanvasRenderingContext2D; width: number; height: number }) {
+        const { ctx, width, height } = chart;
+        ctx.save();
+        ctx.globalCompositeOperation = "destination-over";
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, width, height);
+        ctx.restore();
+      },
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (config as any).plugins = [...((config as any).plugins ?? []), bgPlugin];
+  }
+
+  const instance = new Chart(canvas, config);
   // animation:false → synchronous render; one rAF ensures the canvas is flushed
   await new Promise<void>(r => requestAnimationFrame(() => r()));
 
@@ -232,17 +253,54 @@ function buildConfig(type: ChartType, data: ChartData, palette: ChartPalette) {
   const yScale = { grid: { display: showGrid ?? true,  color: palette.GRID }, ticks: { color: palette.TICK, font: { size: 15 } } };
 
   switch (type) {
+    // Fix 1-A: explicit per-bar colors + borderSkipped + transparent border
     case "bar":
-      return { type: "bar", data: { labels, datasets: [{ data: values, backgroundColor: bg, borderRadius: 6 }] },
-        options: { ...base, indexAxis: "y", plugins: { legend: { display: false } }, scales: { y: { ...xScale, grid: { display: false }, ticks: { color: palette.TICK, font: { size: 17 } } }, x: yScale } } };
+      return {
+        type: "bar" as const,
+        data: { labels, datasets: [{
+          data: values,
+          backgroundColor: values.map((_, i) => palette.COLORS[i % palette.COLORS.length]),
+          borderRadius: 6,
+          borderSkipped: false,
+          borderColor: "transparent",
+          borderWidth: 0,
+        }] },
+        options: { ...base, indexAxis: "y" as const,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { grid: { display: false }, ticks: { color: palette.TICK, font: { size: 17 } } },
+            x: { grid: { color: palette.GRID }, ticks: { color: palette.TICK, font: { size: 15 } } },
+          } },
+      };
 
     case "column":
-      return { type: "bar", data: { labels, datasets: [{ data: values, backgroundColor: bg, borderRadius: 7, borderSkipped: false }] },
-        options: { ...base, indexAxis: "x", plugins: { legend: { display: false } }, scales: { x: { ...xScale, grid: { display: false } }, y: yScale } } };
+      return {
+        type: "bar" as const,
+        data: { labels, datasets: [{
+          data: values,
+          backgroundColor: values.map((_, i) => palette.COLORS[i % palette.COLORS.length]),
+          borderRadius: 8,
+          borderSkipped: false,
+          borderColor: "transparent",
+          borderWidth: 0,
+        }] },
+        options: { ...base, indexAxis: "x" as const,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: palette.TICK, font: { size: 15 } } },
+            y: { grid: { color: palette.GRID }, ticks: { color: palette.TICK, font: { size: 15 } } },
+          } },
+      };
 
     case "line":
-      return { type: "line", data: { labels, datasets: [{ data: values, borderColor: palette.COLORS[0], backgroundColor: "transparent",
-          pointBackgroundColor: palette.COLORS[0], pointRadius: 7, tension: 0.35, borderWidth: 3, fill: false }] },
+      // Line chart with gradient area fill below the line (matches Jinja2 reference)
+      return { type: "line", data: { labels, datasets: [{ data: values,
+          borderColor: palette.COLORS[0],
+          backgroundColor: `${palette.COLORS[0]}44`,  // semi-transparent fill under line
+          pointBackgroundColor: palette.COLORS[0],
+          pointBorderColor: "rgba(0,0,0,0.3)",
+          pointRadius: 6, pointBorderWidth: 2,
+          tension: 0.4, borderWidth: 3, fill: true }] },
         options: { ...base, plugins: { legend: { display: false } }, scales: { x: xScale, y: yScale } } };
 
     case "area":
@@ -267,21 +325,21 @@ function buildConfig(type: ChartType, data: ChartData, palette: ChartPalette) {
     }
 
     case "stacked-bar": {
-      const ds = (series ?? []).map((s, i) => ({ label: s.label, data: s.values, backgroundColor: s.color ?? palette.COLORS[i], borderRadius: 4, stack: "s" }));
+      const ds = (series ?? []).map((s, i) => ({ label: s.label, data: s.values, backgroundColor: s.color ?? palette.COLORS[i], borderRadius: 4, stack: "s", borderColor: "transparent", borderWidth: 0 }));
       return { type: "bar", data: { labels, datasets: ds },
         options: { ...base, indexAxis: "y", plugins: { legend: { display: true, labels: { color: palette.LABEL } } },
           scales: { y: { stacked: true, grid: { display: false }, ticks: { color: palette.TICK } }, x: { stacked: true, ...yScale } } } };
     }
 
     case "stacked-column": {
-      const ds = (series ?? []).map((s, i) => ({ label: s.label, data: s.values, backgroundColor: s.color ?? palette.COLORS[i], borderRadius: 4, stack: "s" }));
+      const ds = (series ?? []).map((s, i) => ({ label: s.label, data: s.values, backgroundColor: s.color ?? palette.COLORS[i], borderRadius: 4, stack: "s", borderColor: "transparent", borderWidth: 0 }));
       return { type: "bar", data: { labels, datasets: ds },
         options: { ...base, indexAxis: "x", plugins: { legend: { display: true, labels: { color: palette.LABEL } } },
           scales: { x: { stacked: true, grid: { display: false }, ticks: { color: palette.TICK } }, y: { stacked: true, ...yScale } } } };
     }
 
     case "comparison": {
-      const ds = (series ?? []).map((s, i) => ({ label: s.label, data: s.values, backgroundColor: s.color ?? palette.COLORS[i], borderRadius: 6, borderSkipped: false }));
+      const ds = (series ?? []).map((s, i) => ({ label: s.label, data: s.values, backgroundColor: s.color ?? palette.COLORS[i], borderRadius: 6, borderSkipped: false, borderColor: "transparent", borderWidth: 0 }));
       return { type: "bar", data: { labels, datasets: ds },
         options: { ...base, plugins: { legend: { display: true, labels: { color: palette.LABEL } } }, scales: { x: { ...xScale, grid: { display: false } }, y: yScale } } };
     }

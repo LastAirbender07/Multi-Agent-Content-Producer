@@ -3,6 +3,24 @@ from infra.logging import get_logger
 logger = get_logger(__name__)
 
 
+def _truncate_chart_labels(chart_data: dict, max_chars: int = 22) -> dict:
+    """Fix 4-B: truncate chart labels to prevent Chart.js visual truncation."""
+    result = dict(chart_data)
+    if "labels" in result:
+        result["labels"] = [
+            str(lbl)[:max_chars - 1] + "…" if len(str(lbl)) > max_chars else str(lbl)
+            for lbl in result["labels"]
+        ]
+    if "datasets" in result:
+        new_ds = []
+        for ds in result["datasets"]:
+            if "label" in ds and len(str(ds["label"])) > max_chars:
+                ds = {**ds, "label": str(ds["label"])[:max_chars - 1] + "…"}
+            new_ds.append(ds)
+        result["datasets"] = new_ds
+    return result
+
+
 def _is_valid_chart(slide: dict) -> bool:
     chart_type = slide.get("chart_type")
     chart_data = slide.get("chart_data")
@@ -13,7 +31,7 @@ def _is_valid_chart(slide: dict) -> bool:
     if chart_type == "radar":
         labels = chart_data.get("labels", [])
         datasets = chart_data.get("datasets", [])
-        if not labels or len(labels) < 2:
+        if not labels or len(labels) < 3:  # Fix 4-D: radar needs at least 3 axes
             return False
         if not datasets or not isinstance(datasets, list) or len(datasets) < 1:
             return False
@@ -51,6 +69,12 @@ def _is_valid_chart(slide: dict) -> bool:
         if any(n < 0 for n in nums):
             return False
 
+    # Fix 4-A: funnel values must be non-increasing (each stage ≤ previous × 1.05 tolerance)
+    if chart_type == "funnel":
+        for i in range(1, len(nums)):
+            if nums[i] > nums[i - 1] * 1.05:
+                return False
+
     return True
 
 
@@ -86,6 +110,10 @@ def validate_and_fix_slides(slides: list[dict]) -> list[dict]:
 
             # Chart validation
             if slide.get("chart_type"):
+                # Truncate labels first (Fix 4-B)
+                chart_data_raw = slide.get("chart_data") or {}
+                slide = {**slide, "chart_data": _truncate_chart_labels(dict(chart_data_raw))}
+
                 # Reject charts where all labels are single characters (placeholder data)
                 chart_data = slide.get("chart_data") or {}
                 labels = chart_data.get("labels", [])

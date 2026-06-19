@@ -41,6 +41,7 @@ interface FabricCanvasProps {
   onCanvasChanged: () => void;
   registerCanvasRef: (api: FabricCanvasAPI | null) => void;
   onUndoRedoStateChange: (canUndo: boolean, canRedo: boolean) => void;
+  onSlideLoaded?: (theme: "aurora" | "lumina") => void;
 }
 
 const CANVAS_SIZE = 1080;
@@ -49,6 +50,7 @@ export function FabricCanvas({
   runId, angleIndex, slideNumber, zoomLevel,
   onObjectSelected, onCanvasChanged,
   registerCanvasRef, onUndoRedoStateChange,
+  onSlideLoaded,
 }: FabricCanvasProps) {
   const canvasElRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -188,6 +190,14 @@ export function FabricCanvas({
       const { canvas_json, slide } = await api.getCanvas(runId, angleIndex, slideNumber);
       if (token !== loadTokenRef.current || !canvasRef.current) return;
 
+      // Emit slide theme so parent can use correct tokens for chart insertion (Fix 3-D)
+      if (slide) {
+        const tmpl = (slide as { canvas_template?: string }).canvas_template ?? "";
+        const thm  = tmpl.startsWith("lumina") || (slide as { _theme?: string })._theme === "lumina"
+          ? "lumina" : "aurora";
+        onSlideLoaded?.(thm);
+      }
+
       if (canvas_json) {
         await c.loadFromJSON(canvas_json);
         if (token !== loadTokenRef.current || !canvasRef.current) return;
@@ -282,42 +292,96 @@ export function FabricCanvas({
   useEffect(() => {
     const outer = outerRef.current; if (!outer) return;
     function onDragOver(e: DragEvent) { e.preventDefault(); }
+
     async function onDrop(e: DragEvent) {
       e.preventDefault();
-      const url = e.dataTransfer?.getData("imageUrl");
-      if (!url || !canvasRef.current || !containerRef.current) return;
-      const c = canvasRef.current;
-      commit("drop image");
-      try {
-        const s = currentScale();
-        const rect = containerRef.current.getBoundingClientRect();
-        const canvasX = (e.clientX - rect.left) / s;
-        const canvasY = (e.clientY - rect.top) / s;
+      if (!canvasRef.current || !containerRef.current) return;
 
-        // Use native Image to get reliable dimensions
-        const naturalSize = await new Promise<{ w: number; h: number }>((resolve) => {
-          const el = new Image(); el.crossOrigin = "anonymous";
-          el.onload = () => resolve({ w: el.naturalWidth, h: el.naturalHeight });
-          el.onerror = () => resolve({ w: 400, h: 400 });
-          el.src = url;
-        });
+      const imageUrl    = e.dataTransfer?.getData("imageUrl");
+      const componentId = e.dataTransfer?.getData("componentId");
+      const c           = canvasRef.current;
+      const s           = currentScale();
+      const rect        = containerRef.current.getBoundingClientRect();
+      const dropX       = (e.clientX - rect.left) / s;
+      const dropY       = (e.clientY - rect.top) / s;
 
-        const img = await fabric.FabricImage.fromURL(url, { crossOrigin: "anonymous" });
-        const targetSize = 300;
-        const imgScale = Math.min(targetSize / naturalSize.w, targetSize / naturalSize.h);
-        img.set({
-          left: Math.max(0, Math.min(canvasX - targetSize / 2, CANVAS_SIZE - targetSize)),
-          top:  Math.max(0, Math.min(canvasY - targetSize / 2, CANVAS_SIZE - targetSize)),
-          scaleX: imgScale, scaleY: imgScale,
-          originX: "left" as const, originY: "top" as const,
-        });
-        (img as fabric.FabricImage & { data?: { role: string } }).data = { role: "dropped_image" };
-        c.add(img); c.setActiveObject(img); c.renderAll(); onCanvasChanged();
-      } catch (err) { console.error("Drop image error:", err); }
+      if (imageUrl) {
+        // ── Image from Images panel ──────────────────────────────────────
+        commit("drop image");
+        try {
+          const naturalSize = await new Promise<{ w: number; h: number }>((resolve) => {
+            const el = new Image(); el.crossOrigin = "anonymous";
+            el.onload = () => resolve({ w: el.naturalWidth, h: el.naturalHeight });
+            el.onerror = () => resolve({ w: 400, h: 400 });
+            el.src = imageUrl;
+          });
+          const img = await fabric.FabricImage.fromURL(imageUrl, { crossOrigin: "anonymous" });
+          const targetSize = 300;
+          const imgScale = Math.min(targetSize / naturalSize.w, targetSize / naturalSize.h);
+          img.set({
+            left: Math.max(0, Math.min(dropX - targetSize / 2, CANVAS_SIZE - targetSize)),
+            top:  Math.max(0, Math.min(dropY - targetSize / 2, CANVAS_SIZE - targetSize)),
+            scaleX: imgScale, scaleY: imgScale,
+            originX: "left" as const, originY: "top" as const,
+          });
+          (img as fabric.FabricImage & { data?: { role: string } }).data = { role: "dropped_image" };
+          c.add(img); c.setActiveObject(img); c.renderAll(); onCanvasChanged();
+        } catch (err) { console.error("Drop image error:", err); }
+
+      } else if (componentId) {
+        // ── Component from Templates panel ───────────────────────────────
+        commit("drop component");
+        try {
+          const { createBrandBar, createAccentLine, createBulletItem } = await import("@/utils/canvasTemplates/shared");
+          const { createBigNumberGroup } = await import("@/utils/canvasTemplates/chartRenderer");
+          const { getTokens } = await import("@/utils/canvasTokens");
+          const t = getTokens("aurora-hook");
+
+          switch (componentId) {
+            case "brand-bar": {
+              const objs = await createBrandBar(
+                t, "http://localhost:8000/assets/brand/logo.png", "THEOPINIONBOARD", 1, 11
+              );
+              for (const obj of objs) c.add(obj);
+              break;
+            }
+            case "accent-line": {
+              const line = createAccentLine(t, 44, Math.max(0, dropX - 22), Math.max(0, dropY - 2));
+              c.add(line); c.setActiveObject(line);
+              break;
+            }
+            case "stat-block": {
+              const group = createBigNumberGroup(
+                { statValue: "42%", statLabel: "Key Metric", statContext: "Source: 2024", labels: [], values: [] },
+                t, { left: Math.max(0, dropX - 476), top: Math.max(0, dropY - 150) },
+              );
+              c.add(group); c.setActiveObject(group);
+              break;
+            }
+            case "bullet-list": {
+              const texts = ["Key insight number one", "Key insight number two", "Key insight number three"];
+              for (let i = 0; i < texts.length; i++) {
+                const bullet = createBulletItem(texts[i], i, t, 22);
+                bullet.set({ left: Math.max(0, dropX - 400), top: Math.max(0, dropY - 80 + i * 54) });
+                c.add(bullet);
+              }
+              break;
+            }
+            default:
+              console.warn(`Unknown component: ${componentId}`);
+          }
+
+          c.renderAll(); onCanvasChanged();
+        } catch (err) { console.error("Component drop error:", err); }
+      }
     }
+
     outer.addEventListener("dragover", onDragOver);
     outer.addEventListener("drop", onDrop);
-    return () => { outer.removeEventListener("dragover", onDragOver); outer.removeEventListener("drop", onDrop); };
+    return () => {
+      outer.removeEventListener("dragover", onDragOver);
+      outer.removeEventListener("drop", onDrop);
+    };
   }, [commit, onCanvasChanged]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────────

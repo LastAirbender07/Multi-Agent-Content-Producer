@@ -40,7 +40,8 @@ function EditorContent() {
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [exportStatus, setExportStatus] = useState<"idle" | "exporting" | "exported">("idle");
   const [zoom, setZoom] = useState(1);
-  // changeKey increments on every canvas mutation — forces RightPanel re-render (Issue 5)
+  // Track current slide's theme so chart insertion uses the correct color palette
+  const [slideTheme, setSlideTheme] = useState<"aurora" | "lumina">("aurora");
   const [changeKey, setChangeKey] = useState(0);
   // Track canvas instance for ContextToolbar + RightPanel
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -185,12 +186,12 @@ function EditorContent() {
     const canvas = canvasApiRef.current?.getCanvas();
     if (!canvas) return;
     const activeObj = canvas.getActiveObject();
-    const tokens = getTokens("aurora-hook");
+    const tokens = getTokens(`${slideTheme}-hook`);
     const left   = (activeObj as { left?: number } | null)?.left ?? 64;
     const top    = (activeObj as { top?: number }  | null)?.top  ?? 300;
     const width  = (activeObj as { width?: number } | null)?.width;
     const height = (activeObj as { height?: number } | null)?.height;
-    const newObj = await createChartObject(type, data, tokens, { left, top, width, height });
+    const newObj = await createChartObject(type, data, tokens, { left, top, width, height }, slideTheme);
     if (activeObj) canvas.remove(activeObj);
     canvas.add(newObj);
     canvas.setActiveObject(newObj);
@@ -217,6 +218,11 @@ function EditorContent() {
           runId={selectedRunId}
           onImageApply={url => canvasApiRef.current?.applyImage(url)}
           onInsertChart={handleChartApply}
+          onChartEditorOpen={() => {
+            canvasApiRef.current?.getCanvas()?.discardActiveObject();
+            canvasApiRef.current?.getCanvas()?.renderAll();
+            setSelectedObject(null);
+          }}
         />
       </div>
 
@@ -302,6 +308,7 @@ function EditorContent() {
                         setCanvasInstance(api_?.getCanvas() ?? null);
                       }}
                       onUndoRedoStateChange={(u, r) => { setCanUndo(u); setCanRedo(r); }}
+                      onSlideLoaded={setSlideTheme}
                     />
                     {/* ContextToolbar — floats above selected object */}
                     {selectedObject && canvasInstance && toolbarPos && (
