@@ -10,12 +10,10 @@ interface RightPanelProps {
   selectedObject: SelectedObjectInfo | null;
   canvas: FabricCanvas;
   onChanged: () => void;
-  changeKey?: number;
   onChartApply?: (type: ChartType, data: ChartData) => Promise<void>;
 }
 
-export function RightPanel({ selectedObject, canvas, onChanged, changeKey, onChartApply }: RightPanelProps) {
-  void changeKey;
+export function RightPanel({ selectedObject, canvas, onChanged, onChartApply }: RightPanelProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const obj: any = canvas?.getActiveObject() ?? null;
 

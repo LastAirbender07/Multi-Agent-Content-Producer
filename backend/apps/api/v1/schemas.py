@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Literal, Optional, Dict
 from pydantic import BaseModel, Field
 
 
@@ -10,8 +10,8 @@ class NewsSearchRequest(BaseModel):
     query: str = Field(..., min_length=1)
     source: Literal["google", "newsapi", "ddgs"] = Field(default="google")
     max_results: int = Field(default=10, ge=1, le=30)
-    when: Optional[str] = Field(default="1d", description="Google News time filter e.g. 1d, 7d, 1m")
-    days_back: int = Field(default=7, description="NewsAPI days back")
+    when: Literal["1d", "3d", "7d", "1w", "1m"] = Field(default="1d", description="Google News time filter")
+    days_back: int = Field(default=7, ge=1, le=30, description="NewsAPI days back")
 
 
 class NewsArticleOut(BaseModel):
@@ -124,7 +124,7 @@ class SlideEditRequest(BaseModel):
     stat_label: Optional[str] = None
     chart_data: Optional[dict] = None
     chart_type: Optional[str] = None
-    slide_overrides: Optional[dict] = None   # {"title_font_size": "52px", "accent_color": "#7c3aed"}
+    slide_overrides: Optional[Dict[str, str]] = None  # {"title_font_size": "52px", "accent_color": "#7c3aed"}
     template_type: Optional[str] = None      # change slide type: hook|content|stat|quote|cta|engage
     theme: Optional[str] = None              # "aurora" | "lumina"
     canvas_template: Optional[str] = None    # e.g. "aurora-content-2", "aurora-hook"

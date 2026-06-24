@@ -11,6 +11,8 @@ import type { SlideData } from "@/lib/api";
 // Disable WebGL — avoids cross-origin texture errors for canvas2d filters
 fabric.config.configure({ enableGLFiltering: false });
 
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+
 export interface SelectedObjectInfo {
   type: "textbox" | "image" | "other";
   role: string;
@@ -28,6 +30,8 @@ export interface FabricCanvasAPI {
   getTextFields: () => { title: string; body: string; bullets: string[]; stat_value: string; stat_label: string };
   undo: () => void;
   redo: () => void;
+  commit: (label?: string) => void;
+  ungroup: () => void;
   triggerResize: () => void;
   getContainerRect: () => DOMRect | null;
 }
@@ -41,7 +45,7 @@ interface FabricCanvasProps {
   onCanvasChanged: () => void;
   registerCanvasRef: (api: FabricCanvasAPI | null) => void;
   onUndoRedoStateChange: (canUndo: boolean, canRedo: boolean) => void;
-  onSlideLoaded?: (theme: "aurora" | "lumina") => void;
+  onSlideLoaded?: (theme: "aurora" | "lumina", isViewOnly: boolean) => void;
 }
 
 const CANVAS_SIZE = 1080;
@@ -91,10 +95,10 @@ export function FabricCanvas({
     onUndoRedoStateChange(undoStack.current.length > 0, redoStack.current.length > 0);
   }, [onUndoRedoStateChange]);
 
-  const commit = useCallback((label = "change") => {
+  const commit = useCallback((_label = "change") => {
     const c = canvasRef.current; if (!c) return;
     undoStack.current.push(JSON.stringify(c.toJSON()));
-    redoStack.current = []; refreshUndoRedo(); void label;
+    redoStack.current = []; refreshUndoRedo();
   }, [refreshUndoRedo]);
 
   const undo = useCallback(() => {
@@ -118,6 +122,39 @@ export function FabricCanvas({
   const resetHistory = useCallback(() => {
     undoStack.current = []; redoStack.current = []; refreshUndoRedo();
   }, [refreshUndoRedo]);
+
+  const handleUngroup = useCallback(() => {
+    const c = canvasRef.current;
+    const activeObj = c?.getActiveObject();
+    if (!c || !activeObj || activeObj.type !== "group") return;
+
+    const group = activeObj as fabric.Group;
+    const groupMatrix = group.calcTransformMatrix();
+    const children = group.getObjects();
+
+    commit("Ungroup");
+    c.remove(group);
+
+    children.forEach(child => {
+      const localPoint = new fabric.Point(child.left ?? 0, child.top ?? 0);
+      const canvasPoint = fabric.util.transformPoint(localPoint, groupMatrix);
+      child.set({
+        left:    canvasPoint.x,
+        top:     canvasPoint.y,
+        angle:   (child.angle  ?? 0) + (group.angle  ?? 0),
+        scaleX:  (child.scaleX ?? 1) * (group.scaleX ?? 1),
+        scaleY:  (child.scaleY ?? 1) * (group.scaleY ?? 1),
+        originX: "left" as const,
+        originY: "top"  as const,
+      });
+      c.add(child);
+    });
+
+    c.renderAll();
+    onCanvasChanged();
+  }, [commit, onCanvasChanged]);
+
+  const isViewOnlyRef = useRef(false);
 
   // ── Fabric canvas init ───────────────────────────────────────────────────────
 
@@ -147,8 +184,8 @@ export function FabricCanvas({
     c.on("selection:created", onSelected);
     c.on("selection:updated", onSelected);
     c.on("selection:cleared", () => onObjectSelected(null));
-    c.on("object:modified", () => { commit("modify"); onCanvasChanged(); });
-    c.on("text:editing:exited", () => { commit("text edit"); onCanvasChanged(); });
+    c.on("object:modified", () => { if (isViewOnlyRef.current) return; commit("modify"); onCanvasChanged(); });
+    c.on("text:editing:exited", () => { if (isViewOnlyRef.current) return; commit("text edit"); onCanvasChanged(); });
 
     return () => { c.off(); c.dispose(); canvasRef.current = null; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -190,12 +227,14 @@ export function FabricCanvas({
       const { canvas_json, slide } = await api.getCanvas(runId, angleIndex, slideNumber);
       if (token !== loadTokenRef.current || !canvasRef.current) return;
 
-      // Emit slide theme so parent can use correct tokens for chart insertion (Fix 3-D)
+      // Emit slide theme and isViewOnly so parent can use correct tokens / show banner
       if (slide) {
         const tmpl = (slide as { canvas_template?: string }).canvas_template ?? "";
         const thm  = tmpl.startsWith("lumina") || (slide as { _theme?: string })._theme === "lumina"
           ? "lumina" : "aurora";
-        onSlideLoaded?.(thm);
+        const viewOnly = !tmpl;
+        isViewOnlyRef.current = viewOnly;
+        onSlideLoaded?.(thm, viewOnly);
       }
 
       if (canvas_json) {
@@ -212,6 +251,16 @@ export function FabricCanvas({
           if (token !== loadTokenRef.current) return;
           resetHistory();
         }
+      }
+
+      // Apply view-only lock AFTER objects are loaded — loadInitial creates fresh
+      // objects with selectable:true, so we must lock after, not before.
+      // Also clear any stale checkpoint so the Restore banner never appears for legacy slides.
+      if (isViewOnlyRef.current) {
+        localStorage.removeItem(cpKey);
+        c.selection = false;
+        c.getObjects().forEach(obj => obj.set({ selectable: false, evented: false }));
+        c.renderAll();
       }
     } catch (e) {
       if (token === loadTokenRef.current) console.error("FabricCanvas loadSlide error:", e);
@@ -230,7 +279,7 @@ export function FabricCanvas({
       if (token !== loadTokenRef.current) return;
       const imgs = lib.run_images[`angle_${angleIndex}`] ?? [];
       const match = imgs.find(i => i.slide_number === slideNumber);
-      if (match) imageUrl = `http://localhost:8000${match.url}`;
+      if (match) imageUrl = `${API_BASE}${match.url}`;
     } catch {}
 
     if (token !== loadTokenRef.current || !canvasRef.current) return;
@@ -247,7 +296,7 @@ export function FabricCanvas({
     const meta: SlideMeta = {
       slideNum:    slideNumber,
       totalSlides,
-      logoUrl:     "http://localhost:8000/assets/brand/logo.png",
+      logoUrl:     `${API_BASE}/assets/brand/logo.png`,
       brandName:   "THEOPINIONBOARD",
     };
 
@@ -280,6 +329,11 @@ export function FabricCanvas({
     setRestoreBanner(null);
     await c.loadFromJSON(JSON.parse(checkpoint));
     c.renderAll(); resetHistory();
+    if (isViewOnlyRef.current) {
+      c.selection = false;
+      c.getObjects().forEach(obj => obj.set({ selectable: false, evented: false }));
+      c.renderAll();
+    }
   }
 
   function handleRestoreNo() {
@@ -340,7 +394,7 @@ export function FabricCanvas({
           switch (componentId) {
             case "brand-bar": {
               const objs = await createBrandBar(
-                t, "http://localhost:8000/assets/brand/logo.png", "THEOPINIONBOARD", 1, 11
+                t, `${API_BASE}/assets/brand/logo.png`, "THEOPINIONBOARD", 1, 11
               );
               for (const obj of objs) c.add(obj);
               break;
@@ -392,6 +446,7 @@ export function FabricCanvas({
       if (e.shiftKey && meta && e.key.toLowerCase() === "z") { e.preventDefault(); redo(); return; }
       if (meta && e.key.toLowerCase() === "z") { e.preventDefault(); undo(); return; }
       if ((e.key === "Delete" || e.key === "Backspace") && !meta) {
+        if (isViewOnlyRef.current) return;
         const tag = (document.activeElement as HTMLElement)?.tagName;
         if (tag !== "INPUT" && tag !== "TEXTAREA") {
           const active = canvasRef.current?.getActiveObject();
@@ -409,6 +464,9 @@ export function FabricCanvas({
     const api_: FabricCanvasAPI = {
       getCanvas: () => canvasRef.current,
       getContainerRect: () => containerRef.current?.getBoundingClientRect() ?? null,
+      commit,
+      ungroup: handleUngroup,
+      undo, redo,
       applyImage: async (url: string) => {
         const c = canvasRef.current; if (!c) return;
         commit("apply image");
@@ -440,17 +498,17 @@ export function FabricCanvas({
           stat_value: get("stat_value"), stat_label: get("stat_label"),
         };
       },
-      undo, redo,
       triggerResize: () => applyScale(fitScaleRef.current, zoomLevelRef.current),
     };
     registerCanvasRef(api_);
     return () => registerCanvasRef(null);
-  }, [registerCanvasRef, undo, redo, commit, onCanvasChanged]);
+  }, [registerCanvasRef, undo, redo, commit, handleUngroup, onCanvasChanged]);
 
   // ── Auto-checkpoint ──────────────────────────────────────────────────────────
 
   useEffect(() => {
     const id = setInterval(() => {
+      if (isViewOnlyRef.current) return;   // never checkpoint view-only slides
       const c = canvasRef.current; if (!c) return;
       try { localStorage.setItem(`canvas_cp_${runId}_${angleIndex}_${slideNumber}`, JSON.stringify(c.toJSON())); } catch {}
     }, 30_000);

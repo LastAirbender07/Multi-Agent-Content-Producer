@@ -238,7 +238,7 @@ export async function buildAuroraContent(
       curY += BULLET_ROW_H2;
     });
 
-  } else {
+  } else if (layout === 3) {
     // ── Layout 3: Image LEFT (43%) / Text RIGHT (57%) — mirror of layout-0 ──────
     const PAD_X = 40, PAD_Y = 32, GAP = 36;
     const IMAGE_W = Math.floor((CS - PAD_X * 2) * 0.43);   // 431px

@@ -241,8 +241,9 @@ export async function createChartObject(
   theme: "aurora" | "lumina" = "aurora",
 ): Promise<fabric.FabricObject> {
   switch (chartType) {
-    case "funnel":       return createFunnelGroup(chartData, tokens, opts);
-    case "progress":     return createProgressGroup(chartData, tokens, opts);    case "number-stat":  return createBigNumberGroup(chartData, tokens, opts);
+    case "funnel":        return createFunnelGroup(chartData, tokens, opts);
+    case "progress":      return createProgressGroup(chartData, tokens, opts);
+    case "number-stat":   return createBigNumberGroup(chartData, tokens, opts);
     default:             return createChartFabricImage(chartType, chartData, theme, opts);
   }
 }

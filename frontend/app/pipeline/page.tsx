@@ -104,7 +104,7 @@ export default function PipelinePage() {
     setResearchProgress(null);
     const interval = setInterval(async () => {
       try {
-        const prog = await fetch(`http://localhost:8000/api/v1/research/status/${runId}`).then(r => r.json());
+        const prog = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000"}/api/v1/research/status/${runId}`).then(r => r.json());
         if (prog.pct !== undefined) {
           setResearchProgress({ pct: prog.pct, label: prog.label ?? "Running…" });
         }

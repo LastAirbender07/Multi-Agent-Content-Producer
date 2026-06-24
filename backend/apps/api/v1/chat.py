@@ -23,4 +23,4 @@ async def chat(request: ChatRequest) -> ChatResponse:
         return ChatResponse(reply=result.content)
     except Exception as e:
         logger.error("chat_error", error=str(e))
-        return ChatResponse(reply="", error=str(e))
+        return ChatResponse(reply=f"Sorry, something went wrong: {e}", error=str(e))

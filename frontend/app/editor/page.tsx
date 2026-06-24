@@ -11,6 +11,7 @@ import { MarkdownEditor } from "@/components/editor/MarkdownEditor";
 import { SlidePngPreview } from "@/components/editor/SlidePngPreview";
 import { api } from "@/lib/api";
 import type { FabricCanvasAPI, SelectedObjectInfo } from "@/components/editor/FabricCanvas";
+import type { Canvas as FabricCanvasType } from "fabric";
 import { createChartObject } from "@/utils/canvasTemplates/chartRenderer";
 import { getTokens } from "@/utils/canvasTokens";
 import type { ChartType, ChartData } from "@/types/chart";
@@ -42,10 +43,10 @@ function EditorContent() {
   const [zoom, setZoom] = useState(1);
   // Track current slide's theme so chart insertion uses the correct color palette
   const [slideTheme, setSlideTheme] = useState<"aurora" | "lumina">("aurora");
-  const [changeKey, setChangeKey] = useState(0);
+  const [isViewOnly, setIsViewOnly] = useState(false);
+  const [changeKey, setChangeKey] = useState(0); // used to force RightPanel re-evaluation
   // Track canvas instance for ContextToolbar + RightPanel
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [canvasInstance, setCanvasInstance] = useState<any>(null);
+  const [canvasInstance, setCanvasInstance] = useState<FabricCanvasType | null>(null);
 
   // Sync URL → state
   useEffect(() => {
@@ -183,21 +184,24 @@ function EditorContent() {
   const showBlogEditor = selectedView === "blog" && selectedRunId;
 
   const handleChartApply = useCallback(async (type: ChartType, data: ChartData) => {
-    const canvas = canvasApiRef.current?.getCanvas();
-    if (!canvas) return;
+    const api_ = canvasApiRef.current;
+    const canvas = api_?.getCanvas();
+    if (!canvas || !api_) return;
     const activeObj = canvas.getActiveObject();
+    if (!activeObj) return;                       // nothing selected — bail before committing
+    api_.commit("edit chart");                    // snapshot old state AFTER confirming target
     const tokens = getTokens(`${slideTheme}-hook`);
-    const left   = (activeObj as { left?: number } | null)?.left ?? 64;
-    const top    = (activeObj as { top?: number }  | null)?.top  ?? 300;
-    const width  = (activeObj as { width?: number } | null)?.width;
-    const height = (activeObj as { height?: number } | null)?.height;
+    const left   = (activeObj as { left?: number })?.left   ?? 64;
+    const top    = (activeObj as { top?: number })?.top     ?? 300;
+    const width  = (activeObj as { width?: number })?.width;
+    const height = (activeObj as { height?: number })?.height;
     const newObj = await createChartObject(type, data, tokens, { left, top, width, height }, slideTheme);
-    if (activeObj) canvas.remove(activeObj);
+    canvas.remove(activeObj);
     canvas.add(newObj);
     canvas.setActiveObject(newObj);
     canvas.renderAll();
     handleCanvasChanged();
-  }, [handleCanvasChanged]);
+  }, [handleCanvasChanged, slideTheme]);
 
   return (
     <div className="flex h-screen bg-black overflow-hidden">
@@ -234,19 +238,18 @@ function EditorContent() {
             topic={topic}
             angleIndex={selectedAngle!}
             slideNumber={selectedSlide!}
-            canUndo={canUndo}
-            canRedo={canRedo}
+            canUndo={canUndo && !isViewOnly}
+            canRedo={canRedo && !isViewOnly}
             onUndo={() => canvasApiRef.current?.undo()}
             onRedo={() => canvasApiRef.current?.redo()}
             onSave={handleSave}
-            saveStatus={saveStatus}
+            saveStatus={isViewOnly ? "idle" : saveStatus}
             onExportPng={handleExportPng}
-            exportStatus={exportStatus}
+            exportStatus={isViewOnly ? "idle" : exportStatus}
             zoom={zoom}
             onZoom={z => {
               const next = z === -1 ? 1 : Math.max(0.25, Math.min(2, z));
               setZoom(next);
-              // triggerResize is called via the zoomLevel prop change in FabricCanvas
             }}
           />
         )}
@@ -308,7 +311,7 @@ function EditorContent() {
                         setCanvasInstance(api_?.getCanvas() ?? null);
                       }}
                       onUndoRedoStateChange={(u, r) => { setCanUndo(u); setCanRedo(r); }}
-                      onSlideLoaded={setSlideTheme}
+                      onSlideLoaded={(theme, viewOnly) => { setSlideTheme(theme); setIsViewOnly(viewOnly); }}
                     />
                     {/* ContextToolbar — floats above selected object */}
                     {selectedObject && canvasInstance && toolbarPos && (
@@ -316,8 +319,16 @@ function EditorContent() {
                         selectedObject={selectedObject}
                         canvas={canvasInstance}
                         onChanged={handleCanvasChanged}
+                        onCommit={label => canvasApiRef.current?.commit(label)}
+                        onUngroup={() => canvasApiRef.current?.ungroup()}
                         style={{ position: "absolute", top: toolbarPos.top, left: toolbarPos.left }}
                       />
+                    )}
+                    {/* View-only banner for legacy runs */}
+                    {isViewOnly && (
+                      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 bg-zinc-800/95 border border-zinc-600 rounded-xl px-4 py-2 text-xs text-zinc-400 shadow-xl backdrop-blur-sm pointer-events-none">
+                        This carousel was generated before canvas editing was supported — view only.
+                      </div>
                     )}
                   </>
                 )}
@@ -326,10 +337,10 @@ function EditorContent() {
               {/* Right panel — only visible in edit mode */}
               {isEditMode && (
                 <RightPanel
+                  key={changeKey}
                   selectedObject={selectedObject}
                   canvas={canvasInstance}
                   onChanged={handleCanvasChanged}
-                  changeKey={changeKey}
                   onChartApply={handleChartApply}
                 />
               )}

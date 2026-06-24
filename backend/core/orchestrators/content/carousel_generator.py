@@ -53,7 +53,7 @@ def _layout_variant_for_image(image_path: str, landscape_counter: list) -> int:
         return 0
 
     if ratio > 1.4:
-        variant = 1 if (landscape_counter[0] % 2 == 0) else 2
+        variant = (landscape_counter[0] % 3) + 1  # cycles 1 → 2 → 3 → 1 ...
         landscape_counter[0] += 1
         return variant
     return 0

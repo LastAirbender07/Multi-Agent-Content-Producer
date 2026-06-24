@@ -394,9 +394,7 @@ export function createPillButton(t: CanvasTokens, opts: PillButtonOptions): fabr
   }
 
   // ── Dark + gradient text ─────────────────────────────────────────────────────
-  // Elegant on gradient backgrounds. Dark pill, lighter aurora-tinted gradient text.
-  // The text gradient echoes the brand tokens and pops against the dark fill.
-  else {
+  else if (style === "dark-gradient") {
     items.push(new fabric.Rect({
       left: 0, top: 0, width: W, height: H, rx: R,
       fill: "rgba(9,9,9,0.70)",
@@ -411,6 +409,22 @@ export function createPillButton(t: CanvasTokens, opts: PillButtonOptions): fabr
           { offset: 1, color: "#5EEAD4" },   // lighter teal
         ],
       }) as unknown as string,
+      fontFamily: `${t.fontTitle}, sans-serif`, charSpacing: 40,
+      originX: "center" as const, originY: "center" as const,
+    }));
+  } else {
+    // Unknown style — fallback to gradient to avoid invisible button
+    console.warn(`createPillButton: unknown style "${opts.style}", falling back to gradient`);
+    items.push(new fabric.Rect({
+      left: 0, top: 0, width: W, height: H, rx: R,
+      fill: new fabric.Gradient({
+        type: "linear", coords: { x1: 0, y1: 0, x2: W, y2: 0 },
+        colorStops: [{ offset: 0, color: t.primary }, { offset: 1, color: t.secondary }],
+      }),
+      originX: "left" as const, originY: "top" as const,
+    }));
+    items.push(new fabric.Text(opts.label, {
+      left: W / 2, top: H / 2, fontSize: FS, fontWeight: "700", fill: "#fff",
       fontFamily: `${t.fontTitle}, sans-serif`, charSpacing: 40,
       originX: "center" as const, originY: "center" as const,
     }));

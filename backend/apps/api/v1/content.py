@@ -99,6 +99,8 @@ async def get_run_manifest_endpoint(run_id: str) -> dict:
 @router.get("/{run_id}/slides/{angle_index}")
 async def get_slides(run_id: str, angle_index: int) -> dict:
     path = slides_json_path(run_id, angle_index)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"Slides not found for angle {angle_index}")
     return {"slides": read_slides(path)}
 
 

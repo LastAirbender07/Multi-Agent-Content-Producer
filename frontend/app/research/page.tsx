@@ -165,13 +165,13 @@ export default function ResearchPage() {
                       <h3 className="text-xl font-black text-white tracking-tight">Executive Synthesis</h3>
                     </div>
                     <p className="text-lg text-zinc-200 leading-relaxed font-medium italic">
-                      "{result.synthesis.summary}"
+                      "{result.synthesis.summary ?? ""}"
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                       <div className="space-y-4">
                         <h4 className="text-[10px] font-black text-violet-500 uppercase tracking-widest">Key Findings</h4>
                         <ul className="space-y-4">
-                          {result.synthesis.key_points.map((kp: string, i: number) => (
+                          {(result.synthesis.key_points ?? []).map((kp: string, i: number) => (
                             <li key={i} className="flex gap-4">
                               <span className="w-6 h-6 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-500 shrink-0">{i + 1}</span>
                               <p className="text-sm text-zinc-300 leading-relaxed">{kp}</p>
@@ -182,7 +182,7 @@ export default function ResearchPage() {
                       <div className="space-y-4">
                         <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Market Implications</h4>
                         <ul className="space-y-4">
-                          {result.synthesis.implications.map((imp: string, i: number) => (
+                          {(result.synthesis.implications ?? []).map((imp: string, i: number) => (
                             <li key={i} className="flex gap-4">
                               <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 shrink-0" />
                               <p className="text-sm text-zinc-400 leading-relaxed font-medium">{imp}</p>

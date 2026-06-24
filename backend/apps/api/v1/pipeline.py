@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
+from typing import Literal
 from apps.cli.run_workflow import ContentPipelineOrchestrator
 
 router = APIRouter(prefix="/pipeline", tags=["pipeline"])
@@ -7,9 +8,9 @@ router = APIRouter(prefix="/pipeline", tags=["pipeline"])
 
 class PipelineRequest(BaseModel):
     topic: str = Field(..., min_length=2, description="The topic to produce content for")
-    mode: str = Field(default="standard", description="Research depth: quick / standard / deep")
-    freshness: str = Field(default="recent", description="Information freshness: breaking / recent / evergreen")
-    angle_mode: str = Field(default="auto", description="Angle selection: auto = LLM picks, manual = you pick via /angle/{run_id}/select")
+    mode: Literal["quick", "standard", "deep"] = Field(default="standard", description="Research depth")
+    freshness: Literal["breaking", "recent", "evergreen"] = Field(default="recent", description="Information freshness")
+    angle_mode: Literal["auto", "manual"] = Field(default="auto", description="Angle selection: auto = LLM picks, manual = you pick via /angle/{run_id}/select")
 
 
 class PipelineResponse(BaseModel):

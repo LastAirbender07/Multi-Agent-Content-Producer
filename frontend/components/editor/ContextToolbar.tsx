@@ -1,5 +1,5 @@
 "use client";
-import { Bold, Italic, AlignLeft, AlignCenter, AlignRight, ChevronUp, ChevronDown, Copy, Trash2 } from "lucide-react";
+import { Bold, Italic, AlignLeft, AlignCenter, AlignRight, ChevronUp, ChevronDown, Copy, Trash2, Ungroup } from "lucide-react";
 import type { SelectedObjectInfo } from "@/components/editor/FabricCanvas";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type FabricCanvas = any;
@@ -8,12 +8,14 @@ interface ContextToolbarProps {
   selectedObject: SelectedObjectInfo;
   canvas: FabricCanvas;
   onChanged: () => void;
+  onUngroup?: () => void;
+  onCommit?: (label: string) => void;
   style: React.CSSProperties;
 }
 
 const FONT_SIZES = [14, 18, 24, 32, 48, 64, 80];
 
-export function ContextToolbar({ selectedObject, canvas, onChanged, style }: ContextToolbarProps) {
+export function ContextToolbar({ selectedObject, canvas, onChanged, onUngroup, onCommit, style }: ContextToolbarProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const obj: any = canvas?.getActiveObject();
   if (!obj) return null;
@@ -90,14 +92,21 @@ export function ContextToolbar({ selectedObject, canvas, onChanged, style }: Con
         className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50 transition-all">
         <ChevronDown size={12} />
       </button>
+      {selectedObject.fabricType === "group" && onUngroup && (
+        <button onClick={onUngroup} title="Ungroup — edit individual elements"
+          className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50 transition-all">
+          <Ungroup size={12} />
+        </button>
+      )}
       <button onClick={() => {
+        onCommit?.("duplicate");
         obj.clone().then((cloned: Record<string, unknown> & { set: (o: Record<string, unknown>) => void; left?: number; top?: number }) => {
           cloned.set({ left: (obj.left ?? 0) + 20, top: (obj.top ?? 0) + 20 });
           canvas.add(cloned);
           canvas.setActiveObject(cloned);
           canvas.renderAll();
           onChanged();
-        });
+        }).catch((err: unknown) => console.error("Duplicate failed:", err));
       }} title="Duplicate" className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50 transition-all">
         <Copy size={12} />
       </button>

@@ -1,7 +1,14 @@
-const BASE = "http://localhost:8000/api/v1";
+const BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000") + "/api/v1";
+const TIMEOUT_MS = 30_000;
+
+function fetchWithTimeout(input: RequestInfo, init?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(id));
+}
 
 async function post<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetchWithTimeout(`${BASE}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -22,7 +29,7 @@ export const api = {
   parseDoc: (file: File): Promise<ParseDocResponse> => {
     const form = new FormData();
     form.append("file", file);
-    return fetch(`${BASE}/tools/parse-doc`, { method: "POST", body: form })
+    return fetchWithTimeout(`${BASE}/tools/parse-doc`, { method: "POST", body: form })
       .then(async r => {
         if (!r.ok) { const t = await r.text(); throw new Error(`${r.status}: ${t}`); }
         return r.json() as Promise<ParseDocResponse>;
@@ -80,7 +87,7 @@ export const api = {
   uploadSlideImage: async (runId: string, angleIndex: number, slideNumber: number, file: File): Promise<{ png_url: string }> => {
     const form = new FormData();
     form.append("file", file);
-    const r = await fetch(`${BASE}/content/${runId}/slides/${angleIndex}/${slideNumber}/upload-image`, { method: "POST", body: form });
+    const r = await fetchWithTimeout(`${BASE}/content/${runId}/slides/${angleIndex}/${slideNumber}/upload-image`, { method: "POST", body: form });
     if (!r.ok) throw new Error(await r.text());
     return r.json();
   },
@@ -89,16 +96,16 @@ export const api = {
 
   // Asset library
   getImageLibrary: (runId: string): Promise<ImageLibraryResponse> =>
-    fetch(`${BASE}/content/assets/library?run_id=${encodeURIComponent(runId)}`).then(r => r.json()),
+    fetchWithTimeout(`${BASE}/content/assets/library?run_id=${encodeURIComponent(runId)}`).then(r => r.json()),
   uploadToLibrary: async (file: File): Promise<ImageLibraryItem> => {
     const form = new FormData();
     form.append("file", file);
-    const r = await fetch(`${BASE}/content/assets/upload`, { method: "POST", body: form });
+    const r = await fetchWithTimeout(`${BASE}/content/assets/upload`, { method: "POST", body: form });
     if (!r.ok) throw new Error(await r.text());
     return r.json();
   },
   deleteImage: async (path: string): Promise<{ deleted: boolean }> => {
-    const r = await fetch(`${BASE}/content/assets/image`, {
+    const r = await fetchWithTimeout(`${BASE}/content/assets/image`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path }),
