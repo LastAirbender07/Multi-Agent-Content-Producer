@@ -46,10 +46,16 @@ export async function addComponentToCanvas(
 
   switch (componentId) {
     case "brand-bar": {
+      // Brand bar objects are individually non-selectable — group them so the bar moves as one unit
       const objs = await createBrandBar(
         t, `${apiBase}/assets/brand/logo.png`, "THEOPINIONBOARD", 1, 11,
       );
-      for (const obj of objs) canvas.add(obj);
+      objs.forEach(obj => obj.set({ selectable: true, evented: true }));
+      const group = new fabric.Group(objs, {
+        originX: "left" as const, originY: "top" as const,
+      });
+      (group as fabric.Group & { data?: unknown }).data = { role: "dropped_brand_bar" };
+      canvas.add(group); canvas.setActiveObject(group);
       break;
     }
     case "accent-line": {
@@ -66,21 +72,33 @@ export async function addComponentToCanvas(
       break;
     }
     case "bullet-list": {
+      // Add each bullet independently so they can be individually positioned
       const texts = ["Key insight number one", "Key insight number two", "Key insight number three"];
       for (let i = 0; i < texts.length; i++) {
         const bullet = createBulletItem(texts[i], i, t, 22);
-        bullet.set({ left: Math.max(0, dropX - 400), top: Math.max(0, dropY - 80 + i * 54) });
+        bullet.set({
+          left: Math.max(0, dropX - 400),
+          top:  Math.max(0, dropY - 80 + i * 54),
+          selectable: true, evented: true,
+        });
         canvas.add(bullet);
       }
       break;
     }
     case "dark-card": {
-      // Frosted glass card — 400×280 centered on drop point
+      // Frosted glass card — grouped so it moves/deletes as one object
       const W = 400, H = 280;
       const cardLeft = Math.max(0, Math.min(dropX - W / 2, CANVAS_SIZE - W));
       const cardTop  = Math.max(0, Math.min(dropY - H / 2, CANVAS_SIZE - H));
       const objs = await createGlassCard({ left: cardLeft, top: cardTop, width: W, height: H }, null, 16, t, 24);
-      for (const obj of objs) canvas.add(obj);
+      // Re-enable selection on each child before grouping, then group them
+      objs.forEach(obj => obj.set({ selectable: true, evented: true }));
+      const group = new fabric.Group(objs, {
+        left: cardLeft, top: cardTop,
+        originX: "left" as const, originY: "top" as const,
+      });
+      (group as fabric.Group & { data?: unknown }).data = { role: "dropped_glass_card" };
+      canvas.add(group); canvas.setActiveObject(group);
       break;
     }
     case "quote-block": {
