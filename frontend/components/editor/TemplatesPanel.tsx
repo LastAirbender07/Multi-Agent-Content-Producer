@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, LayoutTemplate, BarChart2, Puzzle, Bookmark } from "lucide-react";
 import { api } from "@/lib/api";
+import { useBlankRunCreation } from "@/hooks/useBlankRunCreation";
 import { ChartEditorPanel } from "@/components/editor/ChartEditorPanel";
 import type { ChartType, ChartData } from "@/types/chart";
 
@@ -57,8 +58,11 @@ export function TemplatesPanel({ runId, angleIndex, onSlideCreated, onInsertChar
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabId>("slides");
   const [creating, setCreating] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [chartEditorOpen, setChartEditorOpen] = useState(false);
   const [selectedChartType, setSelectedChartType] = useState<ChartType>("column");
+
+  const { createRun } = useBlankRunCreation();
 
   async function createSlideWithType(slideType: string, canvasTemplate?: string) {
     setCreating(slideType);
@@ -66,8 +70,9 @@ export function TemplatesPanel({ runId, angleIndex, onSlideCreated, onInsertChar
       let targetRunId = runId;
       let targetAngle = angleIndex ?? 0;
       if (!targetRunId) {
-        const { run_id } = await api.createBlankRun(`New ${slideType} post`);
-        targetRunId = run_id;
+        const newRunId = await createRun(`New ${slideType} post`);
+        if (!newRunId) throw new Error("Failed to create run");
+        targetRunId = newRunId;
         targetAngle = 0;
       }
       const { slide } = await api.newSlide(targetRunId, targetAngle, slideType, "aurora");
@@ -90,6 +95,7 @@ export function TemplatesPanel({ runId, angleIndex, onSlideCreated, onInsertChar
       }
     } catch (e) {
       console.error("createSlideWithType failed:", e);
+      setCreateError("Slide creation failed. Please try again.");
     }
     setCreating(null);
   }
@@ -128,6 +134,13 @@ export function TemplatesPanel({ runId, angleIndex, onSlideCreated, onInsertChar
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
+      {/* Error banner */}
+      {createError && (
+        <div className="mx-2 mt-2 px-3 py-2 bg-red-900/30 border border-red-500/30 rounded-lg text-xs text-red-400 flex items-center justify-between shrink-0">
+          <span>{createError}</span>
+          <button onClick={() => setCreateError(null)} className="ml-2 text-red-500 hover:text-red-300 font-bold">✕</button>
+        </div>
+      )}
       {/* Sub-tabs */}
       <div className="flex items-center border-b border-zinc-800/50 shrink-0 px-2 pt-1.5 pb-0 gap-0.5 overflow-x-auto">
         {TABS.map(tab => (

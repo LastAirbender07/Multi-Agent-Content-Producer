@@ -3,8 +3,8 @@ import { useState } from "react";
 import { Zap, Loader2, Search, SlidersHorizontal, X, Paperclip } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { setTopic, setMode, setFreshness, setAngleMode, setLlmResearchMode, setDiscoveryArticle, setDiscoverUrl } from "@/store/slices/pipelineSlice";
-import { api, DiscoverArticle } from "@/lib/api";
+import { setTopic, setMode, setFreshness, setAngleMode, setLlmResearchMode } from "@/store/slices/pipelineSlice";
+import { api } from "@/lib/api";
 
 import { OptionChip } from "./OptionChip";
 import { LlmChip } from "./LlmChip";
@@ -12,6 +12,7 @@ import { AdvancedSettings } from "./AdvancedSettings";
 import { RefinedQueriesStrip } from "./RefinedQueriesStrip";
 import { DiscoverDrawer } from "./DiscoverDrawer";
 import { usePipelineOrchestration } from "@/hooks/usePipelineOrchestration";
+import { useDiscoverDrawer } from "@/hooks/useDiscoverDrawer";
 
 // ─── Static option lists ──────────────────────────────────────────────────────
 
@@ -38,43 +39,24 @@ export function PipelineConfig() {
   const attachedCount = useAppSelector((s) => s.pipeline.attachedEvidence.length);
 
   const { isRunning, handleRun, handleGenerateAngles, stages } = usePipelineOrchestration();
+  const drawer = useDiscoverDrawer();
 
   const [showSettings, setShowSettings] = useState(false);
   const [topicLoading, setTopicLoading] = useState(false);
   const [refineHint, setRefineHint] = useState<"clean" | "crawl_failed" | null>(null);
 
-  // Discover drawer state
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [discoverArticles, setDiscoverArticles] = useState<DiscoverArticle[]>([]);
-  const [discoverLoading, setDiscoverLoading] = useState(false);
-  const [discoverFilter, setDiscoverFilter] = useState("all");
-
-  async function loadDiscover(bust = false) {
-    setDiscoverLoading(true);
-    try {
-      const res = await api.discoverTopics(bust);
-      setDiscoverArticles(res.articles);
-    } catch {}
-    finally { setDiscoverLoading(false); }
-  }
-
   function openDrawer() {
-    setDrawerOpen(true);
-    if (discoverArticles.length === 0) loadDiscover();
+    drawer.setOpen(true);
+    if (drawer.articles.length === 0) drawer.load();
   }
 
-  async function useArticleAsTopic(article: DiscoverArticle) {
-    setDrawerOpen(false);
+  async function useArticleAsTopic(article: Parameters<typeof drawer.selectArticle>[0]) {
     setRefineHint(null);
-    dispatch(setTopic(article.title));
-    dispatch(setDiscoveryArticle({ title: article.title, snippet: article.snippet, url: article.url, category: article.category }));
-    dispatch(setDiscoverUrl(article.url));
-
     setTopicLoading(true);
     try {
+      await drawer.selectArticle(article);
+      // After selectArticle dispatches topic/freshness, determine refine hint
       const result = await api.topicFromUrl({ url: article.url, title: article.title, snippet: article.snippet });
-      dispatch(setTopic(result.topic));
-      dispatch(setFreshness(result.freshness as any));
       setRefineHint(result.crawl_failed ? "crawl_failed" : "clean");
     } catch {
       setRefineHint("crawl_failed");
@@ -231,13 +213,13 @@ export function PipelineConfig() {
       </div>
 
       <DiscoverDrawer
-        open={drawerOpen}
-        articles={discoverArticles}
-        loading={discoverLoading}
-        filter={discoverFilter}
-        onClose={() => setDrawerOpen(false)}
-        onRefresh={() => loadDiscover(true)}
-        onFilterChange={setDiscoverFilter}
+        open={drawer.open}
+        articles={drawer.articles}
+        loading={drawer.loading}
+        filter={drawer.filter}
+        onClose={() => drawer.setOpen(false)}
+        onRefresh={() => drawer.load(true)}
+        onFilterChange={drawer.setFilter}
         onUseArticle={useArticleAsTopic}
       />
     </>

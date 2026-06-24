@@ -5,6 +5,7 @@ import {
   setAngleResult, setContentResult, setErrors,
 } from "@/store/slices/pipelineSlice";
 import { api } from "@/lib/api";
+import { buildSeededEvidence } from "@/utils/pipelinePayloads";
 
 export function usePipelineOrchestration() {
   const dispatch = useAppDispatch();
@@ -80,25 +81,7 @@ export function usePipelineOrchestration() {
 
     try {
       // Build seeded evidence: discover article snippet + any uploaded documents
-      const seededEvidence = [];
-      if (discoveryArticle?.snippet && discoverUrl) {
-        seededEvidence.push({
-          title: discoveryArticle.title,
-          evidence: discoveryArticle.snippet,
-          source_type: "discover" as const,
-          url: discoverUrl,
-          source_name: discoveryArticle.category,
-          credibility_score: 0.85,
-        });
-      }
-      attachedEvidence.forEach(doc => seededEvidence.push({
-        title: doc.title,
-        evidence: doc.evidence,
-        source_type: "document" as const,
-        url: doc.url ?? "",
-        source_name: doc.fileName,
-        credibility_score: 0.9,
-      }));
+      const seededEvidence = buildSeededEvidence(discoveryArticle, discoverUrl, attachedEvidence);
 
       const res = await api.runResearch({
         topic, mode, freshness, run_id: pendingRunId,

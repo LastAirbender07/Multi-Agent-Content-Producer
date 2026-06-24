@@ -6,7 +6,242 @@
 
 ---
 
-## 2026-06-19 - Session 40: GAN-Style Template Validation + Visual Fixes
+## 2026-06-24 — Sessions 41–50: Major Frontend Refactor (Rounds 1–3) + E2E Validation
+
+### What Changed
+
+Three consecutive refactor rounds restructured the entire frontend codebase. Focus shifted from feature delivery to code maintenance, testability, and correctness.
+
+---
+
+### Round 1 — File Splitting (lib/api + shared.ts + RightPanel)
+
+**Problem:** `lib/api.ts` (499 lines, 23 endpoints, 52 types in one flat namespace), `shared.ts` (673 lines, 12 component factories), `RightPanel.tsx` (271 lines, filter helpers duplicated).
+
+**Decision:** Split by semantic domain, not file size. Re-export from `index.ts` so zero call-sites change.
+
+```
+lib/api.ts → lib/api/ (client, research, angles, content, editor, assets, tools, types)
+shared.ts  → shared/  (buttons, brand, backgrounds, overlays, components, text, types)
+RightPanel → panels/  (TextPropertyPanel, ImagePropertyPanel, CanvasPropertyPanel, Row)
+utils/fabricFilters.ts — extracted from RightPanel, shared with ContextToolbar
+```
+
+**Why barrel re-exports:** 42 files import `@/lib/api`. Splitting without re-exports would break all 42. With `lib/api/index.ts` re-exporting everything, zero callers change.
+
+---
+
+### Round 2 — Component Extractions + Inline Simplifications
+
+**Files extracted:** `RunRow.tsx` (140 lines from FileBrowser), `ImageThumb.tsx`, `SectionHeader.tsx`, `AiPanel.tsx`, `PipelineRecentRuns.tsx`
+
+**Hooks created:** `useExpandedSet<T>` (replaces identical Set toggle pattern in both FileBrowser and pipeline page), `useToolbarPosition`, `timeUtils.ts`
+
+**Inline fixes:**
+- `pipeline/page.tsx` — 3× duplicate `useEffect` for stage auto-expand → 1 effect with `STAGE_KEYS.forEach`
+- `editor/page.tsx` — `editMode: Record<string, boolean>` (accumulating per-slide history) → `useState(false)` that resets on slide change
+- `research/page.tsx` — `useState(6)` × 3 for budget constants that never update → plain `const`
+- `pipeline/page.tsx` — raw `fetch()` with hardcoded URL → `api.getResearchStatus()` via api module
+
+---
+
+### Round 3 — Logic Decoupling + Correctness Bugs
+
+**Context:** Previous rounds fixed file size. Round 3 found bugs and wrong coupling regardless of size.
+
+**4 correctness bugs fixed in FabricCanvas.tsx:**
+
+| Bug | Line | Fix |
+|---|---|---|
+| View-only race condition | 241–265 | `c.selection = false` set immediately when `viewOnly` determined, before loadInitial async gap |
+| Commit before async mutation (drop handler) | 370 | `commit()` moved to AFTER `FabricImage.fromURL()` succeeds |
+| Commit before async mutation (applyImage) | 478 | Same fix — was missing from original plan |
+| `handleRestoreYes` missing `onCanvasChanged()` | 337 | Added — RightPanel wasn't re-rendering after checkpoint restore |
+
+**FabricCanvas.tsx decoupled: 575 → 371 lines**
+
+Key insight: previous reviews said "don't extract hooks — canvasRef has 13 couplings." This was wrong. `React.MutableRefObject<T>` is stable across renders by design. Passing refs to hooks is standard React. `useCanvasHistory(canvasRef, onUndoRedoStateChange)` unlocked all other extractions.
+
+```
+FabricCanvas.tsx (371 lines) — orchestration only
+useCanvasHistory.ts  (49 lines) — undo/redo state machine
+useCanvasCheckpoint.ts (19 lines) — 30s localStorage auto-save
+canvasDropHandlers.ts (78 lines) — pure addImageToCanvas, addComponentToCanvas
+canvasSlideLoader.ts (139 lines) — loadSlide + loadInitial via SlideLoaderContext
+```
+
+**Other logic decoupling:**
+- `useDiscoverDrawer` extracted from PipelineConfig (4 useState + 3 async functions → 1 hook call)
+- `buildSeededEvidence()` extracted from `usePipelineOrchestration` as pure function
+- `useBlankRunCreation` hook replaces `api.createBlankRun` duplicated in 3 places
+- `onUndoRedoStateChange` stabilised in `editor/page.tsx` with empty deps `useCallback`
+- `pipelineSlice.loadRun` now restores `config` (mode/freshness/angleMode); `PipelineRun` type gains `config?` field
+- `resetPipeline` reducer documented: preserves config, clears run results
+
+**3 proposals rejected after architect review:**
+- useMemo on FabricCanvas API ref — `useMemo` not imported; real fix is stable parent props
+- REGISTRY generation (`Object.fromEntries`) — loses TypeScript key verification at compile time
+- `loadSlide`/`loadInitial` extraction via hooks — fixed instead via `SlideLoaderContext` interface
+
+---
+
+### GAN Multi-Run Validation System
+
+**Built:** `scripts/gan_multi.js` — catalog-driven, tests up to 10 samples per template type across all 13 Aurora template variants.
+
+**GAN Catalog:** `scripts/GAN_CATALOG.json` — 106 entries, aurora-* and lumina-* keys. 3 Lumina runs (16d6ff62, 9d73b8f6, f3c6d794) correctly reclassified after being misidentified as Aurora.
+
+**Scoring:** Content-zone diff (bottom 55% of canvas) + full diff. Bands: <5% EXCELLENT, <15% GREAT, <25% GOOD, <35% FAIR, >35% BROKEN.
+
+**Final Aurora scores (content-zone):**
+- stat::line 1.6%, stat::column 1.9%, stat 2.8%, stat::bar 4.3% — EXCELLENT
+- engage 4.7%, cta 4.8%, stat::donut 5.3%, stat::funnel 5.8% — EXCELLENT/GREAT
+- content-text 6.4%, content-0 7.3%, quote 6.1% — GREAT
+- hook 22% — image blur engine noise only (HTML CSS blur ≠ Canvas 2D blur, layout correct)
+
+---
+
+### Canvas Template Additions
+
+**Content layout-3 added:** Image LEFT / Text RIGHT — mirror of layout-0. Registered in REGISTRY. Backend `_layout_variant_for_image()` updated to cycle 1→2→3 for landscape images.
+
+**Button component library expanded:** 6 named styles in `createPillButton()`:
+- `gradient` — filled aurora gradient (CTA)
+- `ghost` — transparent + white border + white text (Engage bottom)
+- `frosted-glow` — translucent white + bright border + glow shadow (Engage top pill)
+- `solid-white` — white pill + gradient text
+- `dark-pill` — dark cutout + white border (on gradient bg)
+- `dark-gradient` — dark fill + lighter gradient text (on gradient bg)
+
+**Eyebrow pill redesigned:** B3 frosted-glow style — white fill + shimmer + white glow border.
+
+**Engage slide:** Top pill = `createEyebrowPill` (frosted-glow). Bottom button = `createPillButton(ghost)`.
+
+---
+
+### Known Issues Documented
+
+`Docs/editor/CANVAS_ISSUES.md` — 5 issues tracked:
+- A: Layout-3 never assigned by backend pipeline (1-line fix applied)
+- B+E: Legacy runs (`canvas_template: null`) → view-only mode implemented
+- C: Groups not individually editable → Ungroup button added to ContextToolbar
+- D: Chart `onApply` not wired → `commit` exposed in `FabricCanvasAPI`, `handleChartApply` fixed
+- E: Legacy null canvas_template count — addressed by view-only guard
+
+---
+
+### Backend Fixes (Sessions 41–50)
+
+- `research.py` — orchestrator calls wrapped in try/except with proper HTTP 500
+- `content.py` — `GET /{run_id}/slides/{angle_index}` returns 404 if angle doesn't exist
+- `chat.py` — error response now sets `reply=f"Sorry..."` instead of empty string
+- `pipeline.py` — `mode`/`freshness`/`angle_mode` use `Literal` types (was plain `str`)
+- `schemas.py` — `when` param uses `Literal["1d","3d","7d","1w","1m"]`, `slide_overrides: Dict[str, str]`
+- `pipeline/page.tsx` — research status polling uses `api.getResearchStatus()` (was raw fetch)
+- `lib/api.ts` — all `fetch()` calls use 30s `AbortController` timeout via `fetchWithTimeout`
+
+---
+
+### E2E Test Suite Created
+
+**File:** `e2e/full-validation.spec.ts` — 47 tests, 12 sections, 3.7 minutes runtime.
+
+**Coverage:**
+- All 6 routes load correctly (pipeline, research, images, news, chat, editor)
+- Dark theme verified (`rgb(0,0,0)` background, not white)
+- No `NaN`, `undefined`, raw HTML visible to users
+- Canvas renders real slide (930KB PNG confirmed)
+- View-only banner confirmed on legacy run `b9ad0ca9`
+- FabricCanvas decoupling confirmed (useCanvasHistory, canvasSlideLoader working)
+- RightPanel dispatch verified (CanvasPropertyPanel shows correctly)
+- Templates panel shows all 9 slide types
+- No horizontal scroll on any page
+- 20 screenshots captured in `test-results/screenshots/`
+
+**Result: 47/47 passed.**
+
+---
+
+## 2026-06-19 — Session 40: GAN-Style Template Validation + Visual Fixes
+
+**Decision:** Introduced adversarial iteration methodology (GAN-style) to validate Fabric.js canvas templates against Jinja2/Playwright reference PNGs, then fixed all identified bugs over 7 iterations.
+
+---
+
+**Method: GAN-Style Adversarial Testing**
+
+Standard software testing checks "does it run." This method checks "does it look right" — the hardest thing to test in a visual editor.
+
+```
+Loop:
+  Generator  → Playwright renders all 12 slides via browser editor
+  Discriminator → pixelmatch computes per-pixel diff vs reference PNGs
+  Signal     → diff % per slide + composite images (ref | generated | diff)
+  Fix        → worst-scoring templates patched
+  Repeat     → until 0 POOR slides
+```
+
+Tooling: `scripts/gan_iterate.js` — renders, compares, saves `report.json` + composite images per iteration.
+
+**Why this works:** The "discriminator" (pixel comparison) is objective and fast. Each iteration takes ~3 minutes for all 12 slides. The composite images let you visually inspect exactly which pixels differ, making root cause identification instant.
+
+---
+
+**7 Iterations — 52.6% Improvement**
+
+| Iter | Avg Diff | POOR | Key Fix |
+|---|---|---|---|
+| 1 | 22.1% | 3 | Baseline |
+| 2 | 20.6% | 3 | Image panel sizing rewrite |
+| 3 | 17.1% | 3 | `absolutePositioned:true` on Fabric clipPath |
+| 4 | 13.7% | 2 | Correct layout variants (content-1, content-2) from HTML flex-direction check |
+| 5 | 12.7% | 1 | CSS 135deg gradient direction (top-right→bottom-left, not top-left→bottom-right) |
+| 6 | 11.3% | 1 | Visual polish pass |
+| **7** | **10.5%** | **0** | Stat label dynamic width, layout-2 top-align |
+
+**Final: 10/12 GOOD, 2/12 FAIR, 0/12 POOR.** The two FAIR slides are image crop mismatches — same photo, same layout, but CSS `object-fit:cover` and Fabric's clipPath crop to different pixel boundaries.
+
+---
+
+**Root Causes Found**
+
+| Bug | Discovery | Fix |
+|---|---|---|
+| Image panel tiny thumbnail | Iter 1 visual | `loadPanelImage()` with cover-scale. Old code set `width/height` on `FabricImage` which resizes bounding box but not visual output |
+| Image not clipped to panel | Iter 2 | `absolutePositioned:true` on clipPath rect — Fabric v7 interprets clipPath in canvas space not local space |
+| Wrong layout variants | Iter 3 | Checked rendered HTML `flex-direction` values to identify which variant each slide used; patched `canvas_template` into slides.json |
+| Engage gradient flipped | Iter 4 | CSS `linear-gradient(135deg)` = top-right→bottom-left. Fabric gradient used `cos(135°)*h` which computed the wrong vector |
+| Stat label overlaps number | Iter 6 | Dynamic stat_value width: `min(660, charCount * 67px)` instead of fixed 520px |
+| Layout-2 missing bullets | Iter 6 | Accidentally omitted bullet loop in layout-2 block (content with top-image) |
+| Line chart no area fill | Iter 6 | `fill:true` + `backgroundColor: primary+'44'` in Chart.js config to match reference |
+
+---
+
+**Visual Improvements Applied**
+
+All from user visual review of iteration 5 generated slides:
+
+- **Hook**: Swipe hint → subtle frosted-glass pill (`rgba(255,255,255,0.07)` rect + border)
+- **Stat**: Removed wrongly-placed top accent line; accent divider only AFTER stat block
+- **Quote**: Attribution set to `INNER_W=936px` to prevent single-word line wrapping
+- **CTA**: Radial glows enlarged (rx:520/480 vs 270/215) to cover ~40% of slide for modern drama
+- **CTA/Engage**: Modern gradient pill buttons with `BTN_H/2` border-radius
+- **Engage**: Larger rings (720/480/240px) positioned at corners for dramatic depth
+- **Line chart**: Purple area fill under curve
+- **All**: Accent lines: height 5px (was 4px), 3-stop gradient with fade, rounder (rx:3)
+- **Layout-2**: Top-align image crop (people photos show faces, not torsos)
+- **Content**: Tighter line-height (1.45-1.5 vs 1.6-1.65)
+
+---
+
+**Documentation consolidated**
+
+Three editor docs (`EDITOR_REQUIREMENTS.md`, `EDITOR_MASTER_PLAN.md`, `EDITOR_FIXES_IMPLEMENTATION.md`) merged into one: **`Docs/editor/EDITOR_COMPLETE_RECORD.md`** — includes full requirements history, architecture decisions, implementation plan, bug fix sprints, and GAN testing methodology.
+
+**Tests: 61/61 E2E passing.**
+
+---
+
 
 **Decision:** Introduced adversarial iteration methodology (GAN-style) to validate Fabric.js canvas templates against Jinja2/Playwright reference PNGs, then fixed all identified bugs over 7 iterations.
 

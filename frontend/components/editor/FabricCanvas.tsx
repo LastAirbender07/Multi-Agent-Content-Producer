@@ -4,9 +4,11 @@ import { Loader2 } from "lucide-react";
 import * as fabric from "fabric";
 import { api } from "@/lib/api";
 import { buildSlideCanvas } from "@/utils/canvasTemplates/index";
-import type { SlideMeta } from "@/utils/canvasTemplates/index";
 import { getTokens } from "@/utils/canvasTokens";
-import type { SlideData } from "@/lib/api";
+import { useCanvasHistory } from "./useCanvasHistory";
+import { useCanvasCheckpoint } from "./useCanvasCheckpoint";
+import { addImageToCanvas, addComponentToCanvas } from "./canvasDropHandlers";
+import { loadSlide } from "./canvasSlideLoader";
 
 // Disable WebGL — avoids cross-origin texture errors for canvas2d filters
 fabric.config.configure({ enableGLFiltering: false });
@@ -66,9 +68,6 @@ export function FabricCanvas({
   const fitScaleRef = useRef(1);
   const zoomLevelRef = useRef(zoomLevel);
 
-  const undoStack = useRef<string[]>([]);
-  const redoStack = useRef<string[]>([]);
-
   const [loading, setLoading] = useState(true);
   const [restoreBanner, setRestoreBanner] = useState<string | null>(null);
 
@@ -91,37 +90,7 @@ export function FabricCanvas({
 
   // ── Undo / Redo ─────────────────────────────────────────────────────────────
 
-  const refreshUndoRedo = useCallback(() => {
-    onUndoRedoStateChange(undoStack.current.length > 0, redoStack.current.length > 0);
-  }, [onUndoRedoStateChange]);
-
-  const commit = useCallback((_label = "change") => {
-    const c = canvasRef.current; if (!c) return;
-    undoStack.current.push(JSON.stringify(c.toJSON()));
-    redoStack.current = []; refreshUndoRedo();
-  }, [refreshUndoRedo]);
-
-  const undo = useCallback(() => {
-    const c = canvasRef.current; if (!c || !undoStack.current.length) return;
-    const current = JSON.stringify(c.toJSON());
-    const snapshot = undoStack.current.pop()!;
-    redoStack.current.push(current);
-    c.loadFromJSON(JSON.parse(snapshot)).then(() => c.renderAll());
-    refreshUndoRedo();
-  }, [refreshUndoRedo]);
-
-  const redo = useCallback(() => {
-    const c = canvasRef.current; if (!c || !redoStack.current.length) return;
-    const current = JSON.stringify(c.toJSON());
-    const snapshot = redoStack.current.pop()!;
-    undoStack.current.push(current);
-    c.loadFromJSON(JSON.parse(snapshot)).then(() => c.renderAll());
-    refreshUndoRedo();
-  }, [refreshUndoRedo]);
-
-  const resetHistory = useCallback(() => {
-    undoStack.current = []; redoStack.current = []; refreshUndoRedo();
-  }, [refreshUndoRedo]);
+  const { commit, undo, redo, resetHistory } = useCanvasHistory(canvasRef, onUndoRedoStateChange);
 
   // ── Ungroup ──────────────────────────────────────────────────────────────────
 
@@ -215,126 +184,25 @@ export function FabricCanvas({
 
   // ── Load slide ───────────────────────────────────────────────────────────────
 
-  // Guard function for async load race conditions — true if this load has been superseded
-  const isStale = (token: number) => token !== loadTokenRef.current || !canvasRef.current;
-
   useEffect(() => {
     const c = canvasRef.current; if (!c || !runId) return;
     loadTokenRef.current += 1;
-    const token = loadTokenRef.current;
-    loadSlide(c, token);
+    loadSlide({
+      runId, angleIndex, slideNumber,
+      canvasRef, isViewOnlyRef, loadTokenRef,
+      setLoading, setRestoreBanner, onSlideLoaded, resetHistory,
+      API_BASE, getTokens, buildSlideCanvas,
+      apiClient: api,
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId, angleIndex, slideNumber]);
-
-  async function loadSlide(c: fabric.Canvas, token: number) {
-    setLoading(true); setRestoreBanner(null);
-    try {
-      const cpKey = `canvas_cp_${runId}_${angleIndex}_${slideNumber}`;
-      const { canvas_json, slide } = await api.getCanvas(runId, angleIndex, slideNumber);
-      if (isStale(token)) return;
-
-      // Emit slide theme and isViewOnly so parent can use correct tokens / show banner
-      if (slide) {
-        const tmpl = (slide as { canvas_template?: string }).canvas_template ?? "";
-        const thm  = tmpl.startsWith("lumina") || (slide as { _theme?: string })._theme === "lumina"
-          ? "lumina" : "aurora";
-        const viewOnly = !tmpl;
-        isViewOnlyRef.current = viewOnly;
-        onSlideLoaded?.(thm, viewOnly);
-      }
-
-      if (canvas_json) {
-        await c.loadFromJSON(canvas_json);
-        if (isStale(token)) return;
-        c.renderAll(); resetHistory();
-      } else {
-        const checkpoint = localStorage.getItem(cpKey);
-        if (checkpoint) {
-          setRestoreBanner(checkpoint);
-          await loadInitial(c, slide, token);
-        } else {
-          await loadInitial(c, slide, token);
-          if (isStale(token)) return;
-          resetHistory();
-        }
-      }
-
-      // Apply view-only lock AFTER objects are loaded — loadInitial creates fresh
-      // objects with selectable:true, so we must lock after, not before.
-      // Also clear any stale checkpoint so the Restore banner never appears for legacy slides.
-      if (isViewOnlyRef.current) {
-        localStorage.removeItem(cpKey);
-        c.selection = false;
-        c.getObjects().forEach(obj => obj.set({ selectable: false, evented: false }));
-        c.renderAll();
-      }
-    } catch (e) {
-      if (token === loadTokenRef.current) console.error("FabricCanvas loadSlide error:", e);
-    } finally {
-      if (token === loadTokenRef.current) setLoading(false);
-    }
-  }
-
-  async function loadInitial(c: fabric.Canvas, slide: SlideData | null, token: number) {
-    if (!slide) return;
-
-    // ── Resolve image URL from asset library ───────────────────────────────
-    let imageUrl: string | null = null;
-    try {
-      const lib = await api.getImageLibrary(runId);
-      if (isStale(token)) return;
-      const imgs = lib.run_images[`angle_${angleIndex}`] ?? [];
-      const match = imgs.find(i => i.slide_number === slideNumber);
-      if (match) imageUrl = `${API_BASE}${match.url}`;
-    } catch {}
-
-    if (isStale(token)) return;
-
-    // ── Resolve slide metadata for brand bar ───────────────────────────────
-    let totalSlides = 11;
-    try {
-      const manifest = await api.getRunManifest(runId);
-      totalSlides = manifest.angles[angleIndex]?.slide_count ?? 11;
-    } catch {}
-
-    if (isStale(token)) return;
-
-    const meta: SlideMeta = {
-      slideNum:    slideNumber,
-      totalSlides,
-      logoUrl:     `${API_BASE}/assets/brand/logo.png`,
-      brandName:   "THEOPINIONBOARD",
-    };
-
-    // ── Build template objects ─────────────────────────────────────────────
-    // buildSlideCanvas() uses the canvas_template field (or infers it) to
-    // select the correct Aurora/Lumina template builder and create all Fabric
-    // objects pixel-faithfully matching the Jinja2 design.
-    const objects = await buildSlideCanvas(
-      slide as SlideData & { canvas_template?: string },
-      imageUrl,
-      meta,
-    );
-
-    if (isStale(token)) return;
-
-    // ── Apply to canvas ────────────────────────────────────────────────────
-    c.clear();
-    c.set("backgroundColor", getTokens(
-      (slide as SlideData & { canvas_template?: string }).canvas_template ?? "aurora-hook"
-    ).bg);
-    for (const obj of objects) {
-      c.add(obj);
-      obj.setCoords();
-    }
-    c.renderAll();
-  }
 
   async function handleRestoreYes(checkpoint: string) {
     const c = canvasRef.current; if (!c) return;
     setRestoreBanner(null);
     await c.loadFromJSON(JSON.parse(checkpoint));
     c.renderAll(); resetHistory();
+    onCanvasChanged();
     if (isViewOnlyRef.current) {
       c.selection = false;
       c.getObjects().forEach(obj => obj.set({ selectable: false, evented: false }));
@@ -366,72 +234,17 @@ export function FabricCanvas({
       const dropY       = (e.clientY - rect.top) / s;
 
       if (imageUrl) {
-        // ── Image from Images panel ──────────────────────────────────────
-        commit("drop image");
         try {
-          const naturalSize = await new Promise<{ w: number; h: number }>((resolve) => {
-            const el = new Image(); el.crossOrigin = "anonymous";
-            el.onload = () => resolve({ w: el.naturalWidth, h: el.naturalHeight });
-            el.onerror = () => resolve({ w: 400, h: 400 });
-            el.src = imageUrl;
-          });
-          const img = await fabric.FabricImage.fromURL(imageUrl, { crossOrigin: "anonymous" });
-          const targetSize = 300;
-          const imgScale = Math.min(targetSize / naturalSize.w, targetSize / naturalSize.h);
-          img.set({
-            left: Math.max(0, Math.min(dropX - targetSize / 2, CANVAS_SIZE - targetSize)),
-            top:  Math.max(0, Math.min(dropY - targetSize / 2, CANVAS_SIZE - targetSize)),
-            scaleX: imgScale, scaleY: imgScale,
-            originX: "left" as const, originY: "top" as const,
-          });
-          (img as fabric.FabricImage & { data?: { role: string } }).data = { role: "dropped_image" };
-          c.add(img); c.setActiveObject(img); c.renderAll(); onCanvasChanged();
+          commit("drop image");
+          await addImageToCanvas(c, imageUrl, dropX, dropY, CANVAS_SIZE);
+          onCanvasChanged();
         } catch (err) { console.error("Drop image error:", err); }
 
       } else if (componentId) {
-        // ── Component from Templates panel ───────────────────────────────
-        commit("drop component");
         try {
-          const { createBrandBar, createAccentLine, createBulletItem } = await import("@/utils/canvasTemplates/shared");
-          const { createBigNumberGroup } = await import("@/utils/canvasTemplates/chartRenderer");
-          const { getTokens } = await import("@/utils/canvasTokens");
-          const t = getTokens("aurora-hook");
-
-          switch (componentId) {
-            case "brand-bar": {
-              const objs = await createBrandBar(
-                t, `${API_BASE}/assets/brand/logo.png`, "THEOPINIONBOARD", 1, 11
-              );
-              for (const obj of objs) c.add(obj);
-              break;
-            }
-            case "accent-line": {
-              const line = createAccentLine(t, 44, Math.max(0, dropX - 22), Math.max(0, dropY - 2));
-              c.add(line); c.setActiveObject(line);
-              break;
-            }
-            case "stat-block": {
-              const group = createBigNumberGroup(
-                { statValue: "42%", statLabel: "Key Metric", statContext: "Source: 2024", labels: [], values: [] },
-                t, { left: Math.max(0, dropX - 476), top: Math.max(0, dropY - 150) },
-              );
-              c.add(group); c.setActiveObject(group);
-              break;
-            }
-            case "bullet-list": {
-              const texts = ["Key insight number one", "Key insight number two", "Key insight number three"];
-              for (let i = 0; i < texts.length; i++) {
-                const bullet = createBulletItem(texts[i], i, t, 22);
-                bullet.set({ left: Math.max(0, dropX - 400), top: Math.max(0, dropY - 80 + i * 54) });
-                c.add(bullet);
-              }
-              break;
-            }
-            default:
-              console.warn(`Unknown component: ${componentId}`);
-          }
-
-          c.renderAll(); onCanvasChanged();
+          commit("drop component");
+          await addComponentToCanvas(c, componentId, dropX, dropY, API_BASE);
+          onCanvasChanged();
         } catch (err) { console.error("Component drop error:", err); }
       }
     }
@@ -475,20 +288,10 @@ export function FabricCanvas({
       undo, redo,
       applyImage: async (url: string) => {
         const c = canvasRef.current; if (!c) return;
-        commit("apply image");
         try {
-          const naturalSize = await new Promise<{ w: number; h: number }>((resolve) => {
-            const el = new Image(); el.crossOrigin = "anonymous";
-            el.onload = () => resolve({ w: el.naturalWidth, h: el.naturalHeight });
-            el.onerror = () => resolve({ w: 400, h: 400 });
-            el.src = url;
-          });
-          const img = await fabric.FabricImage.fromURL(url, { crossOrigin: "anonymous" });
-          const targetSize = 400;
-          const imgScale = Math.min(targetSize / naturalSize.w, targetSize / naturalSize.h);
-          img.set({ left: 200, top: 200, scaleX: imgScale, scaleY: imgScale, originX: "left" as const, originY: "top" as const });
-          (img as fabric.FabricImage & { data?: { role: string } }).data = { role: "applied_image" };
-          c.add(img); c.setActiveObject(img); c.renderAll(); onCanvasChanged();
+          commit("apply image");
+          await addImageToCanvas(c, url, 200, 200, CANVAS_SIZE);
+          onCanvasChanged();
         } catch (err) { console.error("applyImage error:", err); }
       },
       getCanvasJson: () => canvasRef.current ? canvasRef.current.toJSON() : {},
@@ -512,14 +315,7 @@ export function FabricCanvas({
 
   // ── Auto-checkpoint ──────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (isViewOnlyRef.current) return;   // never checkpoint view-only slides
-      const c = canvasRef.current; if (!c) return;
-      try { localStorage.setItem(`canvas_cp_${runId}_${angleIndex}_${slideNumber}`, JSON.stringify(c.toJSON())); } catch {}
-    }, 30_000);
-    return () => clearInterval(id);
-  }, [runId, angleIndex, slideNumber]);
+  useCanvasCheckpoint(canvasRef, isViewOnlyRef, runId, angleIndex, slideNumber);
 
   // ── Render ────────────────────────────────────────────────────────────────────
 

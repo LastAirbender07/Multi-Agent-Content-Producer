@@ -31,7 +31,7 @@ import { PipelineRecentRuns } from "@/components/pipeline/PipelineRecentRuns";
 export default function PipelinePage() {
   const dispatch = useAppDispatch();
   const router = useRouter();
-  const { stages, researchResult, angleResult, contentResult, errors, angleMode, runId, topic, llmResearchMode, maxAnglesSelect } =
+  const { stages, researchResult, angleResult, contentResult, errors, angleMode, runId, topic, llmResearchMode, maxAnglesSelect, mode, freshness } =
     useAppSelector((state) => state.pipeline);
   const { runs } = useAppSelector((state) => state.history);
 
@@ -105,7 +105,7 @@ export default function PipelinePage() {
   // Save to history when pipeline fully completes
   useEffect(() => {
     if (stages.content.status === "done" && runId && researchResult) {
-      dispatch(addRun({ runId, topic, timestamp: new Date().toISOString(), researchResult, angleResult, contentResult }));
+      dispatch(addRun({ runId, topic, timestamp: new Date().toISOString(), researchResult, angleResult, contentResult, config: { mode, freshness, angleMode } }));
     }
   }, [stages.content.status]);
 

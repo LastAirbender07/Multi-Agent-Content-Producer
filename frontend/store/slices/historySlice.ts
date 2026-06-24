@@ -8,6 +8,11 @@ export interface PipelineRun {
   researchResult: ResearchResponse | null;
   angleResult: AngleResponse | null;
   contentResult: ContentResponse | null;
+  config?: {
+    mode: string;
+    freshness: string;
+    angleMode: string;
+  };
 }
 
 interface HistoryState {

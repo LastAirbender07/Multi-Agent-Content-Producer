@@ -7,6 +7,7 @@ import { FileBrowser } from "@/components/editor/FileBrowser";
 import { ImagesPanel } from "@/components/editor/ImagesPanel";
 import { TemplatesPanel } from "@/components/editor/TemplatesPanel";
 import { api } from "@/lib/api";
+import { useBlankRunCreation } from "@/hooks/useBlankRunCreation";
 import type { FileBrowserProps } from "@/components/editor/FileBrowser";
 import type { ChartType, ChartData } from "@/types/chart";
 
@@ -29,19 +30,17 @@ export function EditorLeftPanel({
   // New post state (Issue 7 — restored from FileBrowser header)
   const [newPostOpen, setNewPostOpen] = useState(false);
   const [newPostInput, setNewPostInput] = useState("");
-  const [newPostLoading, setNewPostLoading] = useState(false);
+
+  const { createRun, loading: newPostLoading } = useBlankRunCreation();
 
   async function handleCreateBlankRun() {
-    setNewPostLoading(true);
-    try {
-      // Title is optional — generate a default if empty
-      const title = newPostInput.trim() || `New post ${new Date().toLocaleDateString()}`;
-      const { run_id } = await api.createBlankRun(title);
+    const title = newPostInput.trim() || `New post ${new Date().toLocaleDateString()}`;
+    const run_id = await createRun(title);
+    if (run_id) {
       setNewPostOpen(false);
       setNewPostInput("");
       router.push(`/editor?run=${run_id}&view=slide&angle=0`);
-    } catch {}
-    finally { setNewPostLoading(false); }
+    }
   }
 
   if (collapsed) {
@@ -165,13 +164,11 @@ export function EditorLeftPanel({
               />
             </div>
             <TemplateStrip onSelectTemplate={async (type) => {
-              setNewPostLoading(true);
-              try {
-                const title = `New ${type} post`;
-                const { run_id } = await api.createBlankRun(title);
+              const run_id = await createRun(`New ${type} post`);
+              if (run_id) {
                 const { slide } = await api.newSlide(run_id, 0, type, "aurora");
                 router.push(`/editor?run=${run_id}&view=slide&angle=0&slide=${slide.slide_number}`);
-              } catch {} finally { setNewPostLoading(false); }
+              }
             }} />
           </div>
         )}

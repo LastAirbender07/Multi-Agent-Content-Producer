@@ -92,6 +92,12 @@ function EditorContent() {
     setCanvasInstance(canvasApiRef.current?.getCanvas() ?? null);
   }, []);
 
+  // Stable callback — empty deps so identity never changes, preventing FabricCanvas
+  // from recreating its undo/redo chain on every parent render.
+  const handleUndoRedoChange = useCallback((u: boolean, r: boolean) => {
+    setCanUndo(u); setCanRedo(r);
+  }, []);
+
   const handleSave = useCallback(async () => {
     const api_ = canvasApiRef.current;
     if (!api_ || !selectedRunId || selectedAngle === null || selectedSlide === null) return;
@@ -284,7 +290,7 @@ function EditorContent() {
                         canvasApiRef.current = api_;
                         setCanvasInstance(api_?.getCanvas() ?? null);
                       }}
-                      onUndoRedoStateChange={(u, r) => { setCanUndo(u); setCanRedo(r); }}
+                      onUndoRedoStateChange={handleUndoRedoChange}
                       onSlideLoaded={(theme, viewOnly) => { setSlideTheme(theme); setIsViewOnly(viewOnly); }}
                     />
                     {/* ContextToolbar — floats above selected object */}
