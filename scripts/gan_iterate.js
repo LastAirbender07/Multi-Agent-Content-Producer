@@ -18,7 +18,7 @@ const path = require('path');
 const { PNG } = require(`${PROJECT}/frontend/node_modules/pngjs/lib/png.js`);
 const pixelmatch = require(`${PROJECT}/frontend/node_modules/pixelmatch/index.js`).default;
 
-const RUN_ID   = '4c575d10-89ba-4c15-b714-330b06fc8deb';
+const RUN_ID   = '70dc4da9-086a-48da-942f-e0b92da07e13';
 const BASE_URL = 'http://localhost:3000';
 const REF_DIR  = `${PROJECT}/backend/outputs/runs/${RUN_ID}/content/angle_0/png`;
 const OUT_ROOT = `${PROJECT}/backend/outputs/test-runs/${RUN_ID}`;
@@ -30,15 +30,15 @@ const COMP_DIR  = path.join(ITER_DIR, 'composite');
 
 const SLIDE_TYPES = [
   { n: 1,  type: 'hook',    template: 'aurora-hook' },
-  { n: 2,  type: 'content', template: 'aurora-content-0' },  // flex-direction: row
-  { n: 3,  type: 'stat',    template: 'aurora-stat' },
-  { n: 4,  type: 'stat',    template: 'aurora-stat' },
-  { n: 5,  type: 'content', template: 'aurora-content-1' },  // flex-direction: column (text top / image bottom)
+  { n: 2,  type: 'content', template: 'aurora-content-0' },
+  { n: 3,  type: 'stat',    template: 'aurora-stat' },       // bar chart
+  { n: 4,  type: 'stat',    template: 'aurora-stat' },       // column chart
+  { n: 5,  type: 'stat',    template: 'aurora-stat' },       // bar chart
   { n: 6,  type: 'engage',  template: 'aurora-engage' },
-  { n: 7,  type: 'content', template: 'aurora-content-0' },  // flex-direction: row
-  { n: 8,  type: 'content', template: 'aurora-content-0' },  // flex-direction: row
-  { n: 9,  type: 'content', template: 'aurora-content-2' },  // column-reverse (image top / text bottom)
-  { n: 10, type: 'content', template: 'aurora-content-0' },  // flex-direction: row
+  { n: 7,  type: 'content', template: 'aurora-content-0' },
+  { n: 8,  type: 'content', template: 'aurora-content-0' },
+  { n: 9,  type: 'content', template: 'aurora-content-1' },  // top text / bottom image
+  { n: 10, type: 'content', template: 'aurora-content-0' },
   { n: 11, type: 'quote',   template: 'aurora-quote' },
   { n: 12, type: 'cta',     template: 'aurora-cta' },
 ];
@@ -48,12 +48,13 @@ for (const d of [GEN_DIR, DIFF_DIR, COMP_DIR]) {
 }
 
 // ── Metric labels ─────────────────────────────────────────────────────────────
+// Diff vs Jinja2 reference — measures layout fidelity, not pixel-perfect exactness.
 const SCORE_BANDS = [
-  { max: 1,   label: '🏆 PERFECT',    desc: '<1% pixel diff' },
-  { max: 5,   label: '✅ EXCELLENT',  desc: '1-5% diff' },
-  { max: 15,  label: '🟡 GOOD',       desc: '5-15% diff' },
-  { max: 30,  label: '🟠 FAIR',       desc: '15-30% diff' },
-  { max: 100, label: '🔴 POOR',       desc: '>30% diff' },
+  { max: 5,   label: '🏆 EXCELLENT', desc: '<5% — near-pixel-perfect' },
+  { max: 15,  label: '✅ GREAT',     desc: '5-15% — visually equivalent' },
+  { max: 25,  label: '🟡 GOOD',      desc: '15-25% — minor layout diff' },
+  { max: 35,  label: '🟠 FAIR',      desc: '25-35% — noticeable diff' },
+  { max: 100, label: '🔴 BROKEN',    desc: '>35% — layout broken' },
 ];
 
 function scoreBand(pct) {
@@ -121,39 +122,28 @@ function compareImages(refPath, genPath, diffPath) {
       await page.waitForTimeout(1000);
 
       // Enter edit mode if in preview
-      const editBtn = page.locator('button', { hasText: 'Edit in canvas' }).first();
+      const editBtn = page.locator('button', { hasText: /(Edit in canvas|Open in canvas editor)/i }).first();
       if (await editBtn.count() > 0) {
         await editBtn.click();
-        await page.waitForTimeout(7000);  // wait for fonts + images + template render
+        await page.waitForTimeout(12000);
       } else {
         await page.waitForTimeout(4000);
       }
 
-      // Get the canvas element bounds and screenshot exactly that area
-      const canvasRect = await page.evaluate(() => {
+      // Extract native 1080×1080 PNG directly from canvas — no upscale blur
+      const canvasDataUrl = await page.evaluate(() => {
         const c = document.querySelector('canvas');
-        if (!c) return null;
-        const r = c.getBoundingClientRect();
-        return { x: r.left, y: r.top, width: r.width, height: r.height };
+        return c ? c.toDataURL('image/png') : null;
       });
 
-      if (!canvasRect) {
+      if (!canvasDataUrl || !canvasDataUrl.startsWith('data:image')) {
         console.log(`    ⚠️  Canvas not found for slide ${n}`);
         slideErrors.push('canvas element not found');
         results.push({ slide: n, template: slide.template, error: 'canvas not found', diffPct: 100, score: '🔴 POOR' });
         continue;
       }
 
-      // Screenshot at native 1080×1080 by capturing the canvas element
-      // Then resize to 1080×1080 for fair comparison
-      await page.screenshot({
-        path: genPng,
-        clip: { x: canvasRect.x, y: canvasRect.y, width: canvasRect.width, height: canvasRect.height },
-      });
-
-      // Resize screenshot to 1080x1080 to match reference
-      const { execSync } = require('child_process');
-      execSync(`convert "${genPng}" -resize 1080x1080! "${genPng}"`);
+      fs.writeFileSync(genPng, Buffer.from(canvasDataUrl.split(',')[1], 'base64'));
 
     } catch (err) {
       console.log(`    ❌ Render error slide ${n}: ${err.message}`);

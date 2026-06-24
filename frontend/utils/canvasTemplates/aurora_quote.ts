@@ -1,5 +1,5 @@
 import * as fabric from "fabric";
-import { createBrandBar, createBgImage, createOverlay, makeText } from "./shared";
+import { createBrandBar, createBgImage, createOverlay, createInsightItem, makeText } from "./shared";
 import type { CanvasTokens } from "@/utils/canvasTokens";
 import type { SlideData } from "@/lib/api";
 import type { SlideMeta } from "./index";
@@ -101,36 +101,21 @@ export async function buildAuroraQuote(
     }));
     curY += 20;
 
-    // "KEY INSIGHTS" label
+    // "KEY INSIGHTS" label — explicit width prevents wrapping, proper gap above first bullet
     objects.push(makeText("KEY INSIGHTS", {
       role: "insights_label",
       fontSize: 12, fontWeight: "700", fill: t.secondary, charSpacing: 120,
+      width: INNER_W,    // explicit width = stays on one line
       left: INNER_X, top: curY,
       originX: "left" as const, originY: "top" as const,
     }));
-    curY += 22;
+    curY += 30;   // clear gap before first bullet
 
-    // Insight items — compact, dot + text
+    // Insight items — use shared createInsightItem component for consistency
     slide.bullets!.forEach((b) => {
-      // Dot
-      const dot = new fabric.Circle({
-        radius: 4, left: INNER_X, top: curY + 7,
-        fill: t.primary, selectable: false, evented: false,
-        originX: "left" as const, originY: "top" as const,
-      });
-      (dot as fabric.Circle & { data?: unknown }).data = { role: "insight_dot" };
-      objects.push(dot);
-
-      // Text
+      objects.push(createInsightItem(b, t, INNER_X, curY, INNER_W));
       const bLines = Math.max(1, Math.ceil(b.length / (INNER_W / (21 * 0.58))));
-      objects.push(makeText(b, {
-        role: "insight_text",
-        fontSize: 21, fill: "rgba(250,250,250,0.80)", lineHeight: 1.5,
-        width: INNER_W - 22,
-        left: INNER_X + 22, top: curY,
-        originX: "left" as const, originY: "top" as const,
-      }));
-      curY += bLines * 21 * 1.5 + 10;   // tighter gap between bullets
+      curY += bLines * 21 * 1.5 + 10;
     });
   }
 

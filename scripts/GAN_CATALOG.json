@@ -1,0 +1,1018 @@
+{
+  "lumina-hook": [
+    {
+      "run_id": "16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e",
+      "slide_n": 1,
+      "template": "lumina-hook",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/png/slide_01.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/image_assets.json"
+    }
+  ],
+  "aurora-hook": [
+    {
+      "run_id": "283fcc93-fc7c-4fe3-bd43-ed012be93d03",
+      "slide_n": 1,
+      "template": "aurora-hook",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/png/slide_01.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "3ba8325b-6df9-4eb7-9fea-b1cf18a199ce",
+      "slide_n": 1,
+      "template": "aurora-hook",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3ba8325b-6df9-4eb7-9fea-b1cf18a199ce/content/angle_0/png/slide_01.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3ba8325b-6df9-4eb7-9fea-b1cf18a199ce/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3ba8325b-6df9-4eb7-9fea-b1cf18a199ce/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "3dcce7bb-f794-4874-b0d8-d2cc37aa90f0",
+      "slide_n": 1,
+      "template": "aurora-hook",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3dcce7bb-f794-4874-b0d8-d2cc37aa90f0/content/angle_0/png/slide_01.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3dcce7bb-f794-4874-b0d8-d2cc37aa90f0/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3dcce7bb-f794-4874-b0d8-d2cc37aa90f0/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "412c4809-0b25-4d87-adcf-dfd9ff6ef97f",
+      "slide_n": 1,
+      "template": "aurora-hook",
+      "chart_type": "bar",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/412c4809-0b25-4d87-adcf-dfd9ff6ef97f/content/angle_0/png/slide_01.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/412c4809-0b25-4d87-adcf-dfd9ff6ef97f/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/412c4809-0b25-4d87-adcf-dfd9ff6ef97f/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "4c575d10-89ba-4c15-b714-330b06fc8deb",
+      "slide_n": 1,
+      "template": "aurora-hook",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/png/slide_01.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "5338c582-1a32-4385-8a00-4ae11776bb26",
+      "slide_n": 1,
+      "template": "aurora-hook",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5338c582-1a32-4385-8a00-4ae11776bb26/content/angle_0/png/slide_01.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5338c582-1a32-4385-8a00-4ae11776bb26/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5338c582-1a32-4385-8a00-4ae11776bb26/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5",
+      "slide_n": 1,
+      "template": "aurora-hook",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5/content/angle_0/png/slide_01.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "70dc4da9-086a-48da-942f-e0b92da07e13",
+      "slide_n": 1,
+      "template": "aurora-hook",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/70dc4da9-086a-48da-942f-e0b92da07e13/content/angle_0/png/slide_01.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/70dc4da9-086a-48da-942f-e0b92da07e13/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/70dc4da9-086a-48da-942f-e0b92da07e13/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "73778575-8866-4f87-9698-b5299b960d16",
+      "slide_n": 1,
+      "template": "aurora-hook",
+      "chart_type": "bar",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/png/slide_01.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/image_assets.json"
+    }
+  ],
+  "lumina-content-text": [
+    {
+      "run_id": "16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e",
+      "slide_n": 2,
+      "template": "lumina-content-text",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/png/slide_02.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e",
+      "slide_n": 6,
+      "template": "lumina-content-text",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/png/slide_06.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e",
+      "slide_n": 7,
+      "template": "lumina-content-text",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/png/slide_07.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e",
+      "slide_n": 8,
+      "template": "lumina-content-text",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/png/slide_08.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e",
+      "slide_n": 9,
+      "template": "lumina-content-text",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/png/slide_09.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/image_assets.json"
+    }
+  ],
+  "aurora-content-text": [
+    {
+      "run_id": "283fcc93-fc7c-4fe3-bd43-ed012be93d03",
+      "slide_n": 2,
+      "template": "aurora-content-text",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/png/slide_02.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "283fcc93-fc7c-4fe3-bd43-ed012be93d03",
+      "slide_n": 6,
+      "template": "aurora-content-text",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/png/slide_06.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "283fcc93-fc7c-4fe3-bd43-ed012be93d03",
+      "slide_n": 7,
+      "template": "aurora-content-text",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/png/slide_07.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "283fcc93-fc7c-4fe3-bd43-ed012be93d03",
+      "slide_n": 8,
+      "template": "aurora-content-text",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/png/slide_08.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "283fcc93-fc7c-4fe3-bd43-ed012be93d03",
+      "slide_n": 9,
+      "template": "aurora-content-text",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/png/slide_09.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/image_assets.json"
+    }
+  ],
+  "lumina-stat::donut": [
+    {
+      "run_id": "16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e",
+      "slide_n": 3,
+      "template": "lumina-stat-donut",
+      "chart_type": "donut",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/png/slide_03.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "f3c6d794-96c8-4ed6-8b9a-9fd07becf441",
+      "slide_n": 4,
+      "template": "lumina-stat-donut",
+      "chart_type": "donut",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/f3c6d794-96c8-4ed6-8b9a-9fd07becf441/content/angle_0/png/slide_04.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/f3c6d794-96c8-4ed6-8b9a-9fd07becf441/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/f3c6d794-96c8-4ed6-8b9a-9fd07becf441/content/angle_0/image_assets.json"
+    }
+  ],
+  "aurora-stat::donut": [
+    {
+      "run_id": "3dcce7bb-f794-4874-b0d8-d2cc37aa90f0",
+      "slide_n": 5,
+      "template": "aurora-stat",
+      "chart_type": "donut",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3dcce7bb-f794-4874-b0d8-d2cc37aa90f0/content/angle_0/png/slide_05.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3dcce7bb-f794-4874-b0d8-d2cc37aa90f0/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3dcce7bb-f794-4874-b0d8-d2cc37aa90f0/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5",
+      "slide_n": 4,
+      "template": "aurora-stat",
+      "chart_type": "donut",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5/content/angle_0/png/slide_04.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "7d605912-d4cd-45e2-a29b-cda69feade67",
+      "slide_n": 5,
+      "template": "aurora-stat",
+      "chart_type": "donut",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/7d605912-d4cd-45e2-a29b-cda69feade67/content/angle_0/png/slide_05.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/7d605912-d4cd-45e2-a29b-cda69feade67/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/7d605912-d4cd-45e2-a29b-cda69feade67/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "8527156d-cb7c-43c4-be18-f3252d1ae1dc",
+      "slide_n": 5,
+      "template": "aurora-stat",
+      "chart_type": "donut",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/8527156d-cb7c-43c4-be18-f3252d1ae1dc/content/angle_0/png/slide_05.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/8527156d-cb7c-43c4-be18-f3252d1ae1dc/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/8527156d-cb7c-43c4-be18-f3252d1ae1dc/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "9e20dcf9-796d-4817-947f-43a1c8b659b9",
+      "slide_n": 3,
+      "template": "aurora-stat",
+      "chart_type": "donut",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/9e20dcf9-796d-4817-947f-43a1c8b659b9/content/angle_0/png/slide_03.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/9e20dcf9-796d-4817-947f-43a1c8b659b9/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/9e20dcf9-796d-4817-947f-43a1c8b659b9/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "e16df221-fc8d-4abb-9f30-dda0b500f27e",
+      "slide_n": 3,
+      "template": "aurora-stat",
+      "chart_type": "donut",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/e16df221-fc8d-4abb-9f30-dda0b500f27e/content/angle_0/png/slide_03.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/e16df221-fc8d-4abb-9f30-dda0b500f27e/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/e16df221-fc8d-4abb-9f30-dda0b500f27e/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "f3578627-cc03-4ac8-acad-e950013ea477",
+      "slide_n": 3,
+      "template": "aurora-stat",
+      "chart_type": "donut",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/f3578627-cc03-4ac8-acad-e950013ea477/content/angle_0/png/slide_03.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/f3578627-cc03-4ac8-acad-e950013ea477/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/f3578627-cc03-4ac8-acad-e950013ea477/content/angle_0/image_assets.json"
+    }
+  ],
+  "lumina-stat::bar": [
+    {
+      "run_id": "16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e",
+      "slide_n": 4,
+      "template": "lumina-stat-bar",
+      "chart_type": "bar",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/png/slide_04.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/image_assets.json"
+    }
+  ],
+  "aurora-stat::bar": [
+    {
+      "run_id": "3ba8325b-6df9-4eb7-9fea-b1cf18a199ce",
+      "slide_n": 4,
+      "template": "aurora-stat",
+      "chart_type": "bar",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3ba8325b-6df9-4eb7-9fea-b1cf18a199ce/content/angle_0/png/slide_04.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3ba8325b-6df9-4eb7-9fea-b1cf18a199ce/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3ba8325b-6df9-4eb7-9fea-b1cf18a199ce/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "412c4809-0b25-4d87-adcf-dfd9ff6ef97f",
+      "slide_n": 4,
+      "template": "aurora-stat",
+      "chart_type": "bar",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/412c4809-0b25-4d87-adcf-dfd9ff6ef97f/content/angle_0/png/slide_04.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/412c4809-0b25-4d87-adcf-dfd9ff6ef97f/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/412c4809-0b25-4d87-adcf-dfd9ff6ef97f/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "412c4809-0b25-4d87-adcf-dfd9ff6ef97f",
+      "slide_n": 5,
+      "template": "aurora-stat",
+      "chart_type": "bar",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/412c4809-0b25-4d87-adcf-dfd9ff6ef97f/content/angle_0/png/slide_05.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/412c4809-0b25-4d87-adcf-dfd9ff6ef97f/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/412c4809-0b25-4d87-adcf-dfd9ff6ef97f/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "5338c582-1a32-4385-8a00-4ae11776bb26",
+      "slide_n": 3,
+      "template": "aurora-stat",
+      "chart_type": "bar",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5338c582-1a32-4385-8a00-4ae11776bb26/content/angle_0/png/slide_03.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5338c582-1a32-4385-8a00-4ae11776bb26/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5338c582-1a32-4385-8a00-4ae11776bb26/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5",
+      "slide_n": 3,
+      "template": "aurora-stat",
+      "chart_type": "bar",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5/content/angle_0/png/slide_03.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "70dc4da9-086a-48da-942f-e0b92da07e13",
+      "slide_n": 3,
+      "template": "aurora-stat",
+      "chart_type": "bar",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/70dc4da9-086a-48da-942f-e0b92da07e13/content/angle_0/png/slide_03.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/70dc4da9-086a-48da-942f-e0b92da07e13/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/70dc4da9-086a-48da-942f-e0b92da07e13/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "70dc4da9-086a-48da-942f-e0b92da07e13",
+      "slide_n": 5,
+      "template": "aurora-stat",
+      "chart_type": "bar",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/70dc4da9-086a-48da-942f-e0b92da07e13/content/angle_0/png/slide_05.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/70dc4da9-086a-48da-942f-e0b92da07e13/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/70dc4da9-086a-48da-942f-e0b92da07e13/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "73a2800d-8773-41b3-bd2c-25e7e4ad5e0d",
+      "slide_n": 3,
+      "template": "aurora-stat",
+      "chart_type": "bar",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73a2800d-8773-41b3-bd2c-25e7e4ad5e0d/content/angle_0/png/slide_03.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73a2800d-8773-41b3-bd2c-25e7e4ad5e0d/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73a2800d-8773-41b3-bd2c-25e7e4ad5e0d/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "7d605912-d4cd-45e2-a29b-cda69feade67",
+      "slide_n": 3,
+      "template": "aurora-stat",
+      "chart_type": "bar",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/7d605912-d4cd-45e2-a29b-cda69feade67/content/angle_0/png/slide_03.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/7d605912-d4cd-45e2-a29b-cda69feade67/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/7d605912-d4cd-45e2-a29b-cda69feade67/content/angle_0/image_assets.json"
+    }
+  ],
+  "lumina-engage": [
+    {
+      "run_id": "16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e",
+      "slide_n": 5,
+      "template": "lumina-engage",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/png/slide_05.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/image_assets.json"
+    }
+  ],
+  "aurora-engage": [
+    {
+      "run_id": "283fcc93-fc7c-4fe3-bd43-ed012be93d03",
+      "slide_n": 4,
+      "template": "aurora-engage",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/png/slide_04.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "3ba8325b-6df9-4eb7-9fea-b1cf18a199ce",
+      "slide_n": 6,
+      "template": "aurora-engage",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3ba8325b-6df9-4eb7-9fea-b1cf18a199ce/content/angle_0/png/slide_06.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3ba8325b-6df9-4eb7-9fea-b1cf18a199ce/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3ba8325b-6df9-4eb7-9fea-b1cf18a199ce/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "3dcce7bb-f794-4874-b0d8-d2cc37aa90f0",
+      "slide_n": 6,
+      "template": "aurora-engage",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3dcce7bb-f794-4874-b0d8-d2cc37aa90f0/content/angle_0/png/slide_06.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3dcce7bb-f794-4874-b0d8-d2cc37aa90f0/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3dcce7bb-f794-4874-b0d8-d2cc37aa90f0/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "412c4809-0b25-4d87-adcf-dfd9ff6ef97f",
+      "slide_n": 6,
+      "template": "aurora-engage",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/412c4809-0b25-4d87-adcf-dfd9ff6ef97f/content/angle_0/png/slide_06.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/412c4809-0b25-4d87-adcf-dfd9ff6ef97f/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/412c4809-0b25-4d87-adcf-dfd9ff6ef97f/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "4c575d10-89ba-4c15-b714-330b06fc8deb",
+      "slide_n": 6,
+      "template": "aurora-engage",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/png/slide_06.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "5338c582-1a32-4385-8a00-4ae11776bb26",
+      "slide_n": 6,
+      "template": "aurora-engage",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5338c582-1a32-4385-8a00-4ae11776bb26/content/angle_0/png/slide_06.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5338c582-1a32-4385-8a00-4ae11776bb26/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5338c582-1a32-4385-8a00-4ae11776bb26/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5",
+      "slide_n": 6,
+      "template": "aurora-engage",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5/content/angle_0/png/slide_06.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "70dc4da9-086a-48da-942f-e0b92da07e13",
+      "slide_n": 6,
+      "template": "aurora-engage",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/70dc4da9-086a-48da-942f-e0b92da07e13/content/angle_0/png/slide_06.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/70dc4da9-086a-48da-942f-e0b92da07e13/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/70dc4da9-086a-48da-942f-e0b92da07e13/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "73778575-8866-4f87-9698-b5299b960d16",
+      "slide_n": 5,
+      "template": "aurora-engage",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/png/slide_05.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/image_assets.json"
+    }
+  ],
+  "lumina-quote": [
+    {
+      "run_id": "16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e",
+      "slide_n": 10,
+      "template": "lumina-quote",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/png/slide_10.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/image_assets.json"
+    }
+  ],
+  "aurora-quote": [
+    {
+      "run_id": "283fcc93-fc7c-4fe3-bd43-ed012be93d03",
+      "slide_n": 11,
+      "template": "aurora-quote",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/png/slide_11.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "3ba8325b-6df9-4eb7-9fea-b1cf18a199ce",
+      "slide_n": 11,
+      "template": "aurora-quote",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3ba8325b-6df9-4eb7-9fea-b1cf18a199ce/content/angle_0/png/slide_11.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3ba8325b-6df9-4eb7-9fea-b1cf18a199ce/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3ba8325b-6df9-4eb7-9fea-b1cf18a199ce/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "3dcce7bb-f794-4874-b0d8-d2cc37aa90f0",
+      "slide_n": 11,
+      "template": "aurora-quote",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3dcce7bb-f794-4874-b0d8-d2cc37aa90f0/content/angle_0/png/slide_11.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3dcce7bb-f794-4874-b0d8-d2cc37aa90f0/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3dcce7bb-f794-4874-b0d8-d2cc37aa90f0/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "412c4809-0b25-4d87-adcf-dfd9ff6ef97f",
+      "slide_n": 11,
+      "template": "aurora-quote",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/412c4809-0b25-4d87-adcf-dfd9ff6ef97f/content/angle_0/png/slide_11.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/412c4809-0b25-4d87-adcf-dfd9ff6ef97f/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/412c4809-0b25-4d87-adcf-dfd9ff6ef97f/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "4c575d10-89ba-4c15-b714-330b06fc8deb",
+      "slide_n": 11,
+      "template": "aurora-quote",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/png/slide_11.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "5338c582-1a32-4385-8a00-4ae11776bb26",
+      "slide_n": 11,
+      "template": "aurora-quote",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5338c582-1a32-4385-8a00-4ae11776bb26/content/angle_0/png/slide_11.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5338c582-1a32-4385-8a00-4ae11776bb26/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5338c582-1a32-4385-8a00-4ae11776bb26/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5",
+      "slide_n": 11,
+      "template": "aurora-quote",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5/content/angle_0/png/slide_11.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "70dc4da9-086a-48da-942f-e0b92da07e13",
+      "slide_n": 11,
+      "template": "aurora-quote",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/70dc4da9-086a-48da-942f-e0b92da07e13/content/angle_0/png/slide_11.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/70dc4da9-086a-48da-942f-e0b92da07e13/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/70dc4da9-086a-48da-942f-e0b92da07e13/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "73778575-8866-4f87-9698-b5299b960d16",
+      "slide_n": 10,
+      "template": "aurora-quote",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/png/slide_10.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/image_assets.json"
+    }
+  ],
+  "lumina-cta": [
+    {
+      "run_id": "16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e",
+      "slide_n": 11,
+      "template": "lumina-cta",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/png/slide_11.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/16d6ff62-cbd9-4fb1-8f5f-1c7e7df60c2e/content/angle_0/image_assets.json"
+    }
+  ],
+  "aurora-cta": [
+    {
+      "run_id": "283fcc93-fc7c-4fe3-bd43-ed012be93d03",
+      "slide_n": 5,
+      "template": "aurora-cta",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/png/slide_05.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "283fcc93-fc7c-4fe3-bd43-ed012be93d03",
+      "slide_n": 12,
+      "template": "aurora-cta",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/png/slide_12.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "3ba8325b-6df9-4eb7-9fea-b1cf18a199ce",
+      "slide_n": 12,
+      "template": "aurora-cta",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3ba8325b-6df9-4eb7-9fea-b1cf18a199ce/content/angle_0/png/slide_12.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3ba8325b-6df9-4eb7-9fea-b1cf18a199ce/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3ba8325b-6df9-4eb7-9fea-b1cf18a199ce/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "3dcce7bb-f794-4874-b0d8-d2cc37aa90f0",
+      "slide_n": 12,
+      "template": "aurora-cta",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3dcce7bb-f794-4874-b0d8-d2cc37aa90f0/content/angle_0/png/slide_12.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3dcce7bb-f794-4874-b0d8-d2cc37aa90f0/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3dcce7bb-f794-4874-b0d8-d2cc37aa90f0/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "412c4809-0b25-4d87-adcf-dfd9ff6ef97f",
+      "slide_n": 12,
+      "template": "aurora-cta",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/412c4809-0b25-4d87-adcf-dfd9ff6ef97f/content/angle_0/png/slide_12.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/412c4809-0b25-4d87-adcf-dfd9ff6ef97f/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/412c4809-0b25-4d87-adcf-dfd9ff6ef97f/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "4c575d10-89ba-4c15-b714-330b06fc8deb",
+      "slide_n": 12,
+      "template": "aurora-cta",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/png/slide_12.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "5338c582-1a32-4385-8a00-4ae11776bb26",
+      "slide_n": 12,
+      "template": "aurora-cta",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5338c582-1a32-4385-8a00-4ae11776bb26/content/angle_0/png/slide_12.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5338c582-1a32-4385-8a00-4ae11776bb26/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5338c582-1a32-4385-8a00-4ae11776bb26/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5",
+      "slide_n": 12,
+      "template": "aurora-cta",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5/content/angle_0/png/slide_12.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "70dc4da9-086a-48da-942f-e0b92da07e13",
+      "slide_n": 12,
+      "template": "aurora-cta",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/70dc4da9-086a-48da-942f-e0b92da07e13/content/angle_0/png/slide_12.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/70dc4da9-086a-48da-942f-e0b92da07e13/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/70dc4da9-086a-48da-942f-e0b92da07e13/content/angle_0/image_assets.json"
+    }
+  ],
+  "aurora-stat::line": [
+    {
+      "run_id": "283fcc93-fc7c-4fe3-bd43-ed012be93d03",
+      "slide_n": 3,
+      "template": "aurora-stat",
+      "chart_type": "line",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/png/slide_03.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/283fcc93-fc7c-4fe3-bd43-ed012be93d03/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "3ba8325b-6df9-4eb7-9fea-b1cf18a199ce",
+      "slide_n": 5,
+      "template": "aurora-stat",
+      "chart_type": "line",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3ba8325b-6df9-4eb7-9fea-b1cf18a199ce/content/angle_0/png/slide_05.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3ba8325b-6df9-4eb7-9fea-b1cf18a199ce/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3ba8325b-6df9-4eb7-9fea-b1cf18a199ce/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "3dcce7bb-f794-4874-b0d8-d2cc37aa90f0",
+      "slide_n": 3,
+      "template": "aurora-stat",
+      "chart_type": "line",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3dcce7bb-f794-4874-b0d8-d2cc37aa90f0/content/angle_0/png/slide_03.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3dcce7bb-f794-4874-b0d8-d2cc37aa90f0/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3dcce7bb-f794-4874-b0d8-d2cc37aa90f0/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "4c575d10-89ba-4c15-b714-330b06fc8deb",
+      "slide_n": 4,
+      "template": "aurora-stat",
+      "chart_type": "line",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/png/slide_04.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "7d605912-d4cd-45e2-a29b-cda69feade67",
+      "slide_n": 4,
+      "template": "aurora-stat",
+      "chart_type": "line",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/7d605912-d4cd-45e2-a29b-cda69feade67/content/angle_0/png/slide_04.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/7d605912-d4cd-45e2-a29b-cda69feade67/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/7d605912-d4cd-45e2-a29b-cda69feade67/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "8327638e-367d-4223-9f56-6fe496d98733",
+      "slide_n": 3,
+      "template": "aurora-stat",
+      "chart_type": "line",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/8327638e-367d-4223-9f56-6fe496d98733/content/angle_0/png/slide_03.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/8327638e-367d-4223-9f56-6fe496d98733/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/8327638e-367d-4223-9f56-6fe496d98733/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "9e20dcf9-796d-4817-947f-43a1c8b659b9",
+      "slide_n": 5,
+      "template": "aurora-stat",
+      "chart_type": "line",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/9e20dcf9-796d-4817-947f-43a1c8b659b9/content/angle_0/png/slide_05.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/9e20dcf9-796d-4817-947f-43a1c8b659b9/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/9e20dcf9-796d-4817-947f-43a1c8b659b9/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "b3b18cc7-852b-4dcd-bb83-6d531e7da62e",
+      "slide_n": 3,
+      "template": "aurora-stat",
+      "chart_type": "line",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b3b18cc7-852b-4dcd-bb83-6d531e7da62e/content/angle_0/png/slide_03.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b3b18cc7-852b-4dcd-bb83-6d531e7da62e/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b3b18cc7-852b-4dcd-bb83-6d531e7da62e/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "ba303da7-1fea-4d8a-bcda-922fe747a5e0",
+      "slide_n": 4,
+      "template": "aurora-stat",
+      "chart_type": "line",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/ba303da7-1fea-4d8a-bcda-922fe747a5e0/content/angle_0/png/slide_04.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/ba303da7-1fea-4d8a-bcda-922fe747a5e0/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/ba303da7-1fea-4d8a-bcda-922fe747a5e0/content/angle_0/image_assets.json"
+    }
+  ],
+  "lumina-stat::column": [
+    {
+      "run_id": "9d73b8f6-75fa-4b4d-b414-8db8c39c065e",
+      "slide_n": 3,
+      "template": "lumina-stat-column",
+      "chart_type": "column",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/9d73b8f6-75fa-4b4d-b414-8db8c39c065e/content/angle_0/png/slide_03.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/9d73b8f6-75fa-4b4d-b414-8db8c39c065e/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/9d73b8f6-75fa-4b4d-b414-8db8c39c065e/content/angle_0/image_assets.json"
+    }
+  ],
+  "aurora-stat::column": [
+    {
+      "run_id": "3ba8325b-6df9-4eb7-9fea-b1cf18a199ce",
+      "slide_n": 3,
+      "template": "aurora-stat",
+      "chart_type": "column",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3ba8325b-6df9-4eb7-9fea-b1cf18a199ce/content/angle_0/png/slide_03.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3ba8325b-6df9-4eb7-9fea-b1cf18a199ce/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3ba8325b-6df9-4eb7-9fea-b1cf18a199ce/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "3dcce7bb-f794-4874-b0d8-d2cc37aa90f0",
+      "slide_n": 4,
+      "template": "aurora-stat",
+      "chart_type": "column",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3dcce7bb-f794-4874-b0d8-d2cc37aa90f0/content/angle_0/png/slide_04.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3dcce7bb-f794-4874-b0d8-d2cc37aa90f0/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/3dcce7bb-f794-4874-b0d8-d2cc37aa90f0/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "412c4809-0b25-4d87-adcf-dfd9ff6ef97f",
+      "slide_n": 3,
+      "template": "aurora-stat",
+      "chart_type": "column",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/412c4809-0b25-4d87-adcf-dfd9ff6ef97f/content/angle_0/png/slide_03.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/412c4809-0b25-4d87-adcf-dfd9ff6ef97f/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/412c4809-0b25-4d87-adcf-dfd9ff6ef97f/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "5338c582-1a32-4385-8a00-4ae11776bb26",
+      "slide_n": 4,
+      "template": "aurora-stat",
+      "chart_type": "column",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5338c582-1a32-4385-8a00-4ae11776bb26/content/angle_0/png/slide_04.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5338c582-1a32-4385-8a00-4ae11776bb26/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5338c582-1a32-4385-8a00-4ae11776bb26/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5",
+      "slide_n": 5,
+      "template": "aurora-stat",
+      "chart_type": "column",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5/content/angle_0/png/slide_05.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5c9a2433-1cf1-4b8d-b34a-d99aeb98dbd5/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "70dc4da9-086a-48da-942f-e0b92da07e13",
+      "slide_n": 4,
+      "template": "aurora-stat",
+      "chart_type": "column",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/70dc4da9-086a-48da-942f-e0b92da07e13/content/angle_0/png/slide_04.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/70dc4da9-086a-48da-942f-e0b92da07e13/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/70dc4da9-086a-48da-942f-e0b92da07e13/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "73a2800d-8773-41b3-bd2c-25e7e4ad5e0d",
+      "slide_n": 4,
+      "template": "aurora-stat",
+      "chart_type": "column",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73a2800d-8773-41b3-bd2c-25e7e4ad5e0d/content/angle_0/png/slide_04.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73a2800d-8773-41b3-bd2c-25e7e4ad5e0d/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73a2800d-8773-41b3-bd2c-25e7e4ad5e0d/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "8527156d-cb7c-43c4-be18-f3252d1ae1dc",
+      "slide_n": 4,
+      "template": "aurora-stat",
+      "chart_type": "column",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/8527156d-cb7c-43c4-be18-f3252d1ae1dc/content/angle_0/png/slide_04.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/8527156d-cb7c-43c4-be18-f3252d1ae1dc/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/8527156d-cb7c-43c4-be18-f3252d1ae1dc/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "92eaac62-fb05-4ba5-b9ab-b1c3f6e20305",
+      "slide_n": 4,
+      "template": "aurora-stat",
+      "chart_type": "column",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/92eaac62-fb05-4ba5-b9ab-b1c3f6e20305/content/angle_0/png/slide_04.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/92eaac62-fb05-4ba5-b9ab-b1c3f6e20305/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/92eaac62-fb05-4ba5-b9ab-b1c3f6e20305/content/angle_0/image_assets.json"
+    }
+  ],
+  "aurora-stat::funnel": [
+    {
+      "run_id": "4c575d10-89ba-4c15-b714-330b06fc8deb",
+      "slide_n": 3,
+      "template": "aurora-stat",
+      "chart_type": "funnel",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/png/slide_03.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "73778575-8866-4f87-9698-b5299b960d16",
+      "slide_n": 4,
+      "template": "aurora-stat",
+      "chart_type": "funnel",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/png/slide_04.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "b9ad0ca9-7e24-42dc-91a9-471d093cfcc4",
+      "slide_n": 5,
+      "template": "aurora-stat",
+      "chart_type": "funnel",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b9ad0ca9-7e24-42dc-91a9-471d093cfcc4/content/angle_0/png/slide_05.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b9ad0ca9-7e24-42dc-91a9-471d093cfcc4/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b9ad0ca9-7e24-42dc-91a9-471d093cfcc4/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "b9c9f6c6-a1a9-46e8-8a19-ddbf8386d15d",
+      "slide_n": 4,
+      "template": "aurora-stat",
+      "chart_type": "funnel",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b9c9f6c6-a1a9-46e8-8a19-ddbf8386d15d/content/angle_0/png/slide_04.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b9c9f6c6-a1a9-46e8-8a19-ddbf8386d15d/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b9c9f6c6-a1a9-46e8-8a19-ddbf8386d15d/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "ef35ffb9-e576-4deb-a9db-d21849e991ec",
+      "slide_n": 4,
+      "template": "aurora-stat",
+      "chart_type": "funnel",
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/ef35ffb9-e576-4deb-a9db-d21849e991ec/content/angle_0/png/slide_04.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/ef35ffb9-e576-4deb-a9db-d21849e991ec/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/ef35ffb9-e576-4deb-a9db-d21849e991ec/content/angle_0/image_assets.json"
+    }
+  ],
+  "aurora-stat": [
+    {
+      "run_id": "5338c582-1a32-4385-8a00-4ae11776bb26",
+      "slide_n": 5,
+      "template": "aurora-stat",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5338c582-1a32-4385-8a00-4ae11776bb26/content/angle_0/png/slide_05.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5338c582-1a32-4385-8a00-4ae11776bb26/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/5338c582-1a32-4385-8a00-4ae11776bb26/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "73778575-8866-4f87-9698-b5299b960d16",
+      "slide_n": 3,
+      "template": "aurora-stat",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/png/slide_03.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/image_assets.json"
+    }
+  ],
+  "aurora-content-0": [
+    {
+      "run_id": "73778575-8866-4f87-9698-b5299b960d16",
+      "slide_n": 2,
+      "template": "aurora-content-0",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/png/slide_02.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "73778575-8866-4f87-9698-b5299b960d16",
+      "slide_n": 6,
+      "template": "aurora-content-0",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/png/slide_06.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "73778575-8866-4f87-9698-b5299b960d16",
+      "slide_n": 7,
+      "template": "aurora-content-0",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/png/slide_07.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "73778575-8866-4f87-9698-b5299b960d16",
+      "slide_n": 8,
+      "template": "aurora-content-0",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/png/slide_08.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "73778575-8866-4f87-9698-b5299b960d16",
+      "slide_n": 9,
+      "template": "aurora-content-0",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/png/slide_09.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/73778575-8866-4f87-9698-b5299b960d16/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "b9ad0ca9-7e24-42dc-91a9-471d093cfcc4",
+      "slide_n": 2,
+      "template": "aurora-content-0",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b9ad0ca9-7e24-42dc-91a9-471d093cfcc4/content/angle_0/png/slide_02.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b9ad0ca9-7e24-42dc-91a9-471d093cfcc4/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b9ad0ca9-7e24-42dc-91a9-471d093cfcc4/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "b9ad0ca9-7e24-42dc-91a9-471d093cfcc4",
+      "slide_n": 7,
+      "template": "aurora-content-0",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b9ad0ca9-7e24-42dc-91a9-471d093cfcc4/content/angle_0/png/slide_07.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b9ad0ca9-7e24-42dc-91a9-471d093cfcc4/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b9ad0ca9-7e24-42dc-91a9-471d093cfcc4/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "b9ad0ca9-7e24-42dc-91a9-471d093cfcc4",
+      "slide_n": 8,
+      "template": "aurora-content-0",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b9ad0ca9-7e24-42dc-91a9-471d093cfcc4/content/angle_0/png/slide_08.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b9ad0ca9-7e24-42dc-91a9-471d093cfcc4/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b9ad0ca9-7e24-42dc-91a9-471d093cfcc4/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "b9ad0ca9-7e24-42dc-91a9-471d093cfcc4",
+      "slide_n": 10,
+      "template": "aurora-content-0",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b9ad0ca9-7e24-42dc-91a9-471d093cfcc4/content/angle_0/png/slide_10.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b9ad0ca9-7e24-42dc-91a9-471d093cfcc4/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b9ad0ca9-7e24-42dc-91a9-471d093cfcc4/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "f0b8ab08-6a28-4fd7-a013-f0da74c709c4",
+      "slide_n": 2,
+      "template": "aurora-content-0",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/f0b8ab08-6a28-4fd7-a013-f0da74c709c4/content/angle_0/png/slide_02.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/f0b8ab08-6a28-4fd7-a013-f0da74c709c4/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/f0b8ab08-6a28-4fd7-a013-f0da74c709c4/content/angle_0/image_assets.json"
+    },
+    {
+      "run_id": "b9ad0ca9-7e24-42dc-91a9-471d093cfcc4",
+      "slide_n": 9,
+      "template": "aurora-content-0",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b9ad0ca9-7e24-42dc-91a9-471d093cfcc4/content/angle_0/png/slide_09.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b9ad0ca9-7e24-42dc-91a9-471d093cfcc4/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/b9ad0ca9-7e24-42dc-91a9-471d093cfcc4/content/angle_0/image_assets.json"
+    }
+  ],
+  "aurora-content-1": [
+    {
+      "run_id": "4c575d10-89ba-4c15-b714-330b06fc8deb",
+      "slide_n": 5,
+      "template": "aurora-content-1",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/png/slide_05.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/image_assets.json"
+    }
+  ],
+  "aurora-content-2": [
+    {
+      "run_id": "4c575d10-89ba-4c15-b714-330b06fc8deb",
+      "slide_n": 9,
+      "template": "aurora-content-2",
+      "chart_type": null,
+      "ref_png": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/png/slide_09.png",
+      "slides_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/slides.json",
+      "image_assets_json": "/Users/i750332/Library/CloudStorage/OneDrive-SAPSE/projects/learnings/Multi-Agent-Content-Producer/backend/outputs/runs/4c575d10-89ba-4c15-b714-330b06fc8deb/content/angle_0/image_assets.json"
+    }
+  ]
+}
