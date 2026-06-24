@@ -6,6 +6,9 @@ import type { SlideData } from "@/lib/api";
 import type { SlideMeta } from "./index";
 import type { ChartType, ChartData } from "@/types/chart";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type FabricFill = string | fabric.Gradient<any, any> | fabric.Pattern;
+
 const CS = 1080;
 
 /**
@@ -72,7 +75,7 @@ export async function buildAuroraStat(
       type: "linear",
       coords: { x1: 0, y1: 0, x2: STAT_ACT_W, y2: 0 },
       colorStops: [{ offset: 0, color: t.primary }, { offset: 1, color: t.secondary }],
-    }) as unknown as string,
+    }) as FabricFill,
     width: STAT_ACT_W,
     left: STAT_LEFT, top: curY,
   }));

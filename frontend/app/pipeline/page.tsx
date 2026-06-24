@@ -56,21 +56,14 @@ export default function PipelinePage() {
     });
   }
 
-  // Auto-expand on stage completion
+  // Auto-expand on stage completion — single effect covers all 3 stages
+  const STAGE_KEYS = ["research", "angle", "content"] as const;
   useEffect(() => {
-    if (stages.research.status === "done")
-      startTransition(() => setOpenSections((p) => new Set(p).add("research")));
-  }, [stages.research.status]);
-
-  useEffect(() => {
-    if (stages.angle.status === "done")
-      startTransition(() => setOpenSections((p) => new Set(p).add("angle")));
-  }, [stages.angle.status]);
-
-  useEffect(() => {
-    if (stages.content.status === "done")
-      startTransition(() => setOpenSections((p) => new Set(p).add("content")));
-  }, [stages.content.status]);
+    STAGE_KEYS.forEach(key => {
+      if (stages[key].status === "done")
+        startTransition(() => setOpenSections(p => new Set(p).add(key)));
+    });
+  }, [stages.research.status, stages.angle.status, stages.content.status]);
 
   // Collapse all when pipeline resets
   useEffect(() => {

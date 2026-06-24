@@ -123,6 +123,8 @@ export function FabricCanvas({
     undoStack.current = []; redoStack.current = []; refreshUndoRedo();
   }, [refreshUndoRedo]);
 
+  // ── Ungroup ──────────────────────────────────────────────────────────────────
+
   const handleUngroup = useCallback(() => {
     const c = canvasRef.current;
     const activeObj = c?.getActiveObject();
@@ -154,6 +156,7 @@ export function FabricCanvas({
     onCanvasChanged();
   }, [commit, onCanvasChanged]);
 
+  // ── View-only flag (set at slide load time for legacy runs) ─────────────────
   const isViewOnlyRef = useRef(false);
 
   // ── Fabric canvas init ───────────────────────────────────────────────────────

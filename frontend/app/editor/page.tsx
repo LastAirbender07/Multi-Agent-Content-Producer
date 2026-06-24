@@ -169,15 +169,14 @@ function EditorContent() {
     });
   }, [selectedObject]);
 
-  const [editMode, setEditMode] = useState<Record<string, boolean>>({});
+  const [isEditMode, setIsEditMode] = useState(false);
 
-  // Key for current slide
-  const slideKey = `${selectedRunId}_${selectedAngle}_${selectedSlide}`;
-  const isEditMode = editMode[slideKey] ?? false;
+  // Reset edit mode whenever the user navigates to a different slide
+  useEffect(() => {
+    setIsEditMode(false);
+  }, [selectedRunId, selectedAngle, selectedSlide]);
 
-  function enterEditMode() {
-    setEditMode(prev => ({ ...prev, [slideKey]: true }));
-  }
+  function enterEditMode() { setIsEditMode(true); }
 
   const showIdle = !selectedRunId || !selectedView;
   const showSlideEditor = selectedView === "slide" && selectedRunId && selectedAngle !== null && selectedSlide !== null;

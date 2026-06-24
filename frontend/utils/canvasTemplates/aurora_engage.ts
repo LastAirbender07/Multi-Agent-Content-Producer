@@ -17,7 +17,7 @@ export async function buildAuroraEngage(
   const CONTENT_H = CS - t.brandBarH;
 
   // 1. Gradient background
-  objects.push(createGradientBg(t, CONTENT_H, 135));
+  objects.push(createGradientBg(t, CONTENT_H));
 
   // 2. Decorative rings — large, dramatic, peek from corners
   const makeRing = (size: number, left: number, top: number, opacity = 1) => {

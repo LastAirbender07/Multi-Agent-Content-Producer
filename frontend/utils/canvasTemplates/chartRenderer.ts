@@ -6,6 +6,11 @@ import type { CanvasTokens, ChartPalette } from "@/utils/canvasTokens";
 
 Chart.register(...registerables);
 
+// Single type alias for Fabric fill — replaces 6× `as unknown as string` casts throughout.
+// Fabric v7 accepts Gradient/Pattern as fill but its TS types are overly narrow.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type FabricFill = string | fabric.Gradient<any, any> | fabric.Pattern;
+
 // ── Default canvas sizes per chart type ────────────────────────────────────
 
 export function defaultSize(type: ChartType): { w: number; h: number } {
