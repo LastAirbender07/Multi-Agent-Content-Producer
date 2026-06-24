@@ -2,6 +2,7 @@
 import { Suspense, useRef, useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Zap, PencilRuler } from "lucide-react";
+import { useToolbarPosition } from "@/hooks/useToolbarPosition";
 import { EditorLeftPanel } from "@/components/editor/EditorLeftPanel";
 import { FabricCanvas } from "@/components/editor/FabricCanvas";
 import { CanvasToolbar } from "@/components/editor/CanvasToolbar";
@@ -47,15 +48,6 @@ function EditorContent() {
   const [changeKey, setChangeKey] = useState(0); // used to force RightPanel re-evaluation
   // Track canvas instance for ContextToolbar + RightPanel
   const [canvasInstance, setCanvasInstance] = useState<FabricCanvasType | null>(null);
-
-  // Sync URL → state
-  useEffect(() => {
-    setSelectedRunId(runId);
-    setSelectedView(view);
-    if (angleParam) setSelectedAngle(Number(angleParam));
-    if (slideParam) setSelectedSlide(Number(slideParam));
-    if (topicParam) setTopic(topicParam);
-  }, [runId, view, angleParam, slideParam, topicParam]);
 
   function navigateTo(rid: string, v: "slide" | "blog", angle?: number, slide?: number) {
     const p = new URLSearchParams();
@@ -149,25 +141,8 @@ function EditorContent() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [handleSave]);
 
-  // ContextToolbar positioning
-  // Convert canvas-space bounding rect → screen coordinates using containerRef's screen position.
-  // ContextToolbar is rendered inside the canvas wrapper div (position: relative),
-  // so we offset relative to containerRef (the scaled layout box).
-  const [toolbarPos, setToolbarPos] = useState<{ top: number; left: number } | null>(null);
-  useEffect(() => {
-    if (!selectedObject || !canvasApiRef.current) { setToolbarPos(null); return; }
-    const s = selectedObject.scale;
-    const br = selectedObject.canvasBoundingRect;
-    const TOOLBAR_HEIGHT = 44;
-    const CLEARANCE = 8; // gap between toolbar bottom and object top
-    // Position toolbar above the selected object in scaled canvas coordinates
-    const topInCanvas = br.top * s;
-    const leftInCanvas = br.left * s;
-    setToolbarPos({
-      top: Math.max(4, topInCanvas - TOOLBAR_HEIGHT - CLEARANCE),
-      left: Math.max(4, leftInCanvas),
-    });
-  }, [selectedObject]);
+  // ContextToolbar positioning — hook converts canvas-space rect to screen coords
+  const toolbarPos = useToolbarPosition(selectedObject, !!canvasApiRef.current);
 
   const [isEditMode, setIsEditMode] = useState(false);
 

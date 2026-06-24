@@ -1,9 +1,11 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Search, Upload, ChevronDown, ChevronRight, X, Trash2, Loader2, ImageIcon, AlertCircle } from "lucide-react";
+import { Search, Upload, ChevronRight, Trash2, Loader2, ImageIcon, AlertCircle } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import { motion, AnimatePresence } from "framer-motion";
 import { api, type ImageLibraryItem, type PexelsPhoto, type DDGSImage } from "@/lib/api";
+import { ImageThumb } from "./panels/ImageThumb";
+import { SectionHeader } from "./panels/SectionHeader";
 
 const SEARCH_CACHE_KEY = "imgSearchCache";
 
@@ -32,9 +34,9 @@ export function ImagesPanel({ runId, onImageApply }: ImagesPanelProps) {
   const [libraryLoading, setLibraryLoading] = useState(false);
   const [expandedAngles, setExpandedAngles] = useState<Set<string>>(new Set());
 
-  // Delete state: path → "confirming" | "deleting"
-  const [deleteState, setDeleteState] = useState<Record<string, "confirming" | "deleting">>({});
-  const [ghostPaths, setGhostPaths] = useState<Set<string>>(new Set());
+  // Delete state: path → "confirming" | "deleting" | "deleted"
+  // "deleted" acts as the ghost (fading-out) phase, replacing the old ghostPaths Set.
+  const [deleteState, setDeleteState] = useState<Record<string, "confirming" | "deleting" | "deleted">>({});
 
   // Upload state
   const [uploading, setUploading] = useState(false);
@@ -115,8 +117,8 @@ export function ImagesPanel({ runId, onImageApply }: ImagesPanelProps) {
     setDeleteState(s => ({ ...s, [item.path]: "deleting" }));
     try {
       await api.deleteImage(item.path);
-      // Ghost then remove
-      setGhostPaths(p => new Set(p).add(item.path));
+      // Mark as "deleted" — ImageThumb renders this as ghost (fading out)
+      setDeleteState(s => ({ ...s, [item.path]: "deleted" }));
       setTimeout(() => {
         setLibrary(prev => {
           if (!prev) return prev;
@@ -128,7 +130,6 @@ export function ImagesPanel({ runId, onImageApply }: ImagesPanelProps) {
             user_uploads: prev.user_uploads.filter(i => i.path !== item.path),
           };
         });
-        setGhostPaths(p => { const n = new Set(p); n.delete(item.path); return n; });
         setDeleteState(s => { const n = { ...s }; delete n[item.path]; return n; });
       }, 1500);
     } catch {
@@ -164,84 +165,25 @@ export function ImagesPanel({ runId, onImageApply }: ImagesPanelProps) {
     multiple: false,
   });
 
-  function ImageThumb({ item }: { item: ImageLibraryItem }) {
-    const isGhost = ghostPaths.has(item.path);
-    const dState = deleteState[item.path];
-    return (
-      <div
-        className={`relative group rounded-lg overflow-hidden bg-zinc-900 aspect-square transition-all duration-300 ${isGhost ? "opacity-30" : ""}`}
-        draggable
-        onDragStart={e => e.dataTransfer.setData("imageUrl", `http://localhost:8000${item.url}`)}
-        onContextMenu={e => handleRightClick(e, item)}
-      >
-        <img
-          src={`http://localhost:8000${item.url}`}
-          alt={item.filename}
-          className="w-full h-full object-cover"
-          loading="lazy"
-        />
-        {/* Hover overlay */}
-        {!dState && (
-          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
-            <button
-              onClick={() => onImageApply(`http://localhost:8000${item.url}`)}
-              className="px-2 py-1 rounded bg-violet-600 text-white text-[10px] font-bold hover:bg-violet-500 transition-all"
-            >
-              Apply
-            </button>
-            <button
-              onClick={() => startDelete(item)}
-              className="p-1 rounded bg-red-600/80 text-white hover:bg-red-500 transition-all"
-            >
-              <Trash2 size={10} />
-            </button>
-          </div>
-        )}
-        {/* Delete confirm chip */}
-        {dState === "confirming" && (
-          <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-1 p-1">
-            <p className="text-[9px] text-white text-center font-semibold">Delete?</p>
-            <div className="flex gap-1">
-              <button onClick={() => confirmDelete(item)} className="px-2 py-0.5 rounded bg-red-600 text-white text-[9px] font-bold">Yes</button>
-              <button onClick={() => cancelDelete(item.path)} className="px-2 py-0.5 rounded bg-zinc-700 text-white text-[9px]">No</button>
-            </div>
-          </div>
-        )}
-        {dState === "deleting" && (
-          <div className="absolute inset-0 bg-black/80 flex items-center justify-center">
-            <Loader2 size={14} className="text-zinc-400 animate-spin" />
-          </div>
-        )}
-        {isGhost && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <X size={16} className="text-red-400" />
-          </div>
-        )}
-      </div>
-    );
-  }
+  const thumbProps = {
+    deleteState,
+    onImageApply,
+    onStartDelete: startDelete,
+    onConfirmDelete: confirmDelete,
+    onCancelDelete: cancelDelete,
+    onRightClick: handleRightClick,
+  };
 
-  const SectionHeader = ({ id, label, count }: { id: typeof openSection; label: string; count?: number }) => (
-    <button
-      onClick={() => setOpenSection(s => s === id ? "search" : id)}
-      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-zinc-800/30 transition-colors"
-    >
-      {openSection === id
-        ? <ChevronDown size={11} className="text-zinc-500 shrink-0" />
-        : <ChevronRight size={11} className="text-zinc-600 shrink-0" />
-      }
-      <span className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">{label}</span>
-      {count !== undefined && (
-        <span className="ml-auto text-[9px] text-zinc-600">{count}</span>
-      )}
-    </button>
-  );
+  const sectionHeaderProps = {
+    openSection,
+    onToggle: (id: typeof openSection) => setOpenSection(s => s === id ? "search" : id),
+  };
 
   return (
     <div className="flex flex-col h-full overflow-hidden text-zinc-300">
       {/* ── Search ─────────────────────────────────────────────── */}
       <div className="border-b border-zinc-800/50">
-        <SectionHeader id="search" label="Search" />
+        <SectionHeader id="search" label="Search" {...sectionHeaderProps} />
         <AnimatePresence initial={false}>
           {openSection === "search" && (
             <motion.div
@@ -309,6 +251,7 @@ export function ImagesPanel({ runId, onImageApply }: ImagesPanelProps) {
           id="run"
           label="Run Images"
           count={library ? Object.values(library.run_images).flat().length : undefined}
+          {...sectionHeaderProps}
         />
         <AnimatePresence initial={false}>
           {openSection === "run" && (
@@ -345,7 +288,7 @@ export function ImagesPanel({ runId, onImageApply }: ImagesPanelProps) {
                       </button>
                       {expanded && (
                         <div className="grid grid-cols-3 gap-1.5 px-3 pb-2">
-                          {items.map(item => <ImageThumb key={item.path} item={item} />)}
+                          {items.map(item => <ImageThumb key={item.path} item={item} {...thumbProps} />)}
                         </div>
                       )}
                     </div>
@@ -366,6 +309,7 @@ export function ImagesPanel({ runId, onImageApply }: ImagesPanelProps) {
           id="uploads"
           label="My Uploads"
           count={library?.user_uploads.length}
+          {...sectionHeaderProps}
         />
         <AnimatePresence initial={false}>
           {openSection === "uploads" && (
@@ -398,7 +342,7 @@ export function ImagesPanel({ runId, onImageApply }: ImagesPanelProps) {
                 )}
                 {library && library.user_uploads.length > 0 && (
                   <div className="grid grid-cols-3 gap-1.5">
-                    {library.user_uploads.map(item => <ImageThumb key={item.path} item={item} />)}
+                    {library.user_uploads.map(item => <ImageThumb key={item.path} item={item} {...thumbProps} />)}
                   </div>
                 )}
                 {library && library.user_uploads.length === 0 && (

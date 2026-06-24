@@ -7,7 +7,6 @@ import {
   Target,
   Image as ImageIcon,
   Zap,
-  History,
   Brain,
   ChevronDown,
   PencilRuler,
@@ -17,16 +16,17 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { addRun } from "@/store/slices/historySlice";
 import { loadRun, setResearchResult, setAngleResult } from "@/store/slices/pipelineSlice";
 import { api } from "@/lib/api";
+import { useExpandedSet } from "@/hooks/useExpandedSet";
 
 import { PipelineConfig } from "@/components/pipeline/PipelineConfig";
 import { AngleSelector } from "@/components/pipeline/AngleSelector";
 import { ResearchSummary } from "@/components/pipeline/ResearchSummary";
 import { StageCard, useStageTimer } from "@/components/pipeline/StageCard";
-import { RunCard } from "@/components/pipeline/RunCard";
 import { LlmRefinePanel } from "@/components/pipeline/LlmRefinePanel";
 import { AngleSection } from "@/components/pipeline/AngleSection";
 import { CarouselViewer } from "@/components/pipeline/CarouselViewer";
 import { BlogExportBar } from "@/components/pipeline/BlogExportBar";
+import { PipelineRecentRuns } from "@/components/pipeline/PipelineRecentRuns";
 
 export default function PipelinePage() {
   const dispatch = useAppDispatch();
@@ -35,7 +35,7 @@ export default function PipelinePage() {
     useAppSelector((state) => state.pipeline);
   const { runs } = useAppSelector((state) => state.history);
 
-  const [openSections, setOpenSections] = useState<Set<"research" | "angle" | "content">>(new Set());
+  const { expanded: openSections, toggle, add: addSection, clear: clearSections, setExpanded: setOpenSections } = useExpandedSet<"research" | "angle" | "content">();
   const [showAngleModal, setShowAngleModal] = useState(false);
   const [showLlmKnowledge, setShowLlmKnowledge] = useState(false);
   const [researchProgress, setResearchProgress] = useState<{ pct: number; label: string } | null>(null);
@@ -48,20 +48,12 @@ export default function PipelinePage() {
 
   useEffect(() => { setMounted(true); }, []);
 
-  function toggle(s: "research" | "angle" | "content") {
-    setOpenSections((prev) => {
-      const next = new Set(prev);
-      next.has(s) ? next.delete(s) : next.add(s);
-      return next;
-    });
-  }
-
   // Auto-expand on stage completion — single effect covers all 3 stages
   const STAGE_KEYS = ["research", "angle", "content"] as const;
   useEffect(() => {
     STAGE_KEYS.forEach(key => {
       if (stages[key].status === "done")
-        startTransition(() => setOpenSections(p => new Set(p).add(key)));
+        startTransition(() => addSection(key));
     });
   }, [stages.research.status, stages.angle.status, stages.content.status]);
 
@@ -73,7 +65,7 @@ export default function PipelinePage() {
       stages.content.status === "idle"
     ) {
       startTransition(() => {
-        setOpenSections(new Set());
+        clearSections();
         setShowAngleModal(false);
       });
     }
@@ -97,7 +89,7 @@ export default function PipelinePage() {
     setResearchProgress(null);
     const interval = setInterval(async () => {
       try {
-        const prog = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000"}/api/v1/research/status/${runId}`).then(r => r.json());
+        const prog = await api.getResearchStatus(runId);
         if (prog.pct !== undefined) {
           setResearchProgress({ pct: prog.pct, label: prog.label ?? "Running…" });
         }
@@ -144,36 +136,20 @@ export default function PipelinePage() {
     stages.angle.status === "done" &&
     stages.content.status === "idle";
 
-  const RecentRuns = () => (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2 px-1">
-        <History size={13} className="text-zinc-600" />
-        <h4 className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em]">Recent Runs</h4>
-      </div>
-      <div className="grid gap-2 max-h-120 overflow-y-auto pr-0.5">
-        {runs.map((run) => (
-          <RunCard
-            key={run.runId}
-            run={run}
-            onLoad={() => {
-              dispatch(loadRun(run));
-              startTransition(() =>
-                setOpenSections(
-                  new Set(
-                    (["research", "angle", "content"] as const).filter((s) =>
-                      s === "research" ? !!run.researchResult :
-                      s === "angle" ? !!run.angleResult :
-                      !!run.contentResult
-                    )
-                  )
-                )
-              );
-            }}
-          />
-        ))}
-      </div>
-    </div>
-  );
+  function handleLoadRun(run: typeof runs[0]) {
+    dispatch(loadRun(run));
+    startTransition(() =>
+      setOpenSections(
+        new Set(
+          (["research", "angle", "content"] as const).filter((s) =>
+            s === "research" ? !!run.researchResult :
+            s === "angle" ? !!run.angleResult :
+            !!run.contentResult
+          )
+        )
+      )
+    );
+  }
 
   return (
     <div className="flex flex-col h-full min-h-screen bg-black">
@@ -379,7 +355,7 @@ export default function PipelinePage() {
                 </StageCard>
 
                 {/* Recent runs inside result view */}
-                {mounted && runs.length > 0 && <RecentRuns />}
+                {mounted && runs.length > 0 && <PipelineRecentRuns runs={runs} onLoad={handleLoadRun} />}
               </motion.div>
             )}
           </AnimatePresence>
@@ -387,7 +363,7 @@ export default function PipelinePage() {
           {/* Recent runs — idle state */}
           {!hasAnyResult && !isAnyRunning && mounted && runs.length > 0 && (
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-              <RecentRuns />
+              <PipelineRecentRuns runs={runs} onLoad={handleLoadRun} />
             </motion.div>
           )}
         </div>

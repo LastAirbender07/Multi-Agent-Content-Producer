@@ -215,6 +215,9 @@ export function FabricCanvas({
 
   // ── Load slide ───────────────────────────────────────────────────────────────
 
+  // Guard function for async load race conditions — true if this load has been superseded
+  const isStale = (token: number) => token !== loadTokenRef.current || !canvasRef.current;
+
   useEffect(() => {
     const c = canvasRef.current; if (!c || !runId) return;
     loadTokenRef.current += 1;
@@ -228,7 +231,7 @@ export function FabricCanvas({
     try {
       const cpKey = `canvas_cp_${runId}_${angleIndex}_${slideNumber}`;
       const { canvas_json, slide } = await api.getCanvas(runId, angleIndex, slideNumber);
-      if (token !== loadTokenRef.current || !canvasRef.current) return;
+      if (isStale(token)) return;
 
       // Emit slide theme and isViewOnly so parent can use correct tokens / show banner
       if (slide) {
@@ -242,7 +245,7 @@ export function FabricCanvas({
 
       if (canvas_json) {
         await c.loadFromJSON(canvas_json);
-        if (token !== loadTokenRef.current || !canvasRef.current) return;
+        if (isStale(token)) return;
         c.renderAll(); resetHistory();
       } else {
         const checkpoint = localStorage.getItem(cpKey);
@@ -251,7 +254,7 @@ export function FabricCanvas({
           await loadInitial(c, slide, token);
         } else {
           await loadInitial(c, slide, token);
-          if (token !== loadTokenRef.current) return;
+          if (isStale(token)) return;
           resetHistory();
         }
       }
@@ -279,13 +282,13 @@ export function FabricCanvas({
     let imageUrl: string | null = null;
     try {
       const lib = await api.getImageLibrary(runId);
-      if (token !== loadTokenRef.current) return;
+      if (isStale(token)) return;
       const imgs = lib.run_images[`angle_${angleIndex}`] ?? [];
       const match = imgs.find(i => i.slide_number === slideNumber);
       if (match) imageUrl = `${API_BASE}${match.url}`;
     } catch {}
 
-    if (token !== loadTokenRef.current || !canvasRef.current) return;
+    if (isStale(token)) return;
 
     // ── Resolve slide metadata for brand bar ───────────────────────────────
     let totalSlides = 11;
@@ -294,7 +297,7 @@ export function FabricCanvas({
       totalSlides = manifest.angles[angleIndex]?.slide_count ?? 11;
     } catch {}
 
-    if (token !== loadTokenRef.current || !canvasRef.current) return;
+    if (isStale(token)) return;
 
     const meta: SlideMeta = {
       slideNum:    slideNumber,
@@ -313,7 +316,7 @@ export function FabricCanvas({
       meta,
     );
 
-    if (token !== loadTokenRef.current || !canvasRef.current) return;
+    if (isStale(token)) return;
 
     // ── Apply to canvas ────────────────────────────────────────────────────
     c.clear();

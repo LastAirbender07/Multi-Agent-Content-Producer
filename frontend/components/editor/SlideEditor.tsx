@@ -3,13 +3,14 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import useUndoable from "use-undoable";
 import {
   Save, Loader2, Type, BarChart2, Image as ImageIcon, Sparkles,
-  Plus, X, Palette, Check, Send, Bot, User, Undo2, Redo2,
+  Plus, X, Palette, Check, Undo2, Redo2,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { SlidePreviewFrame } from "./SlidePreviewFrame";
 import { ChartPreview } from "./ChartPreview";
 import { ImageEditModal } from "./ImageEditModal";
 import { api, SlideData, SlideEditRequest } from "@/lib/api";
+import { AiPanel } from "./panels/AiPanel";
 
 const SLIDE_TYPES = ["hook", "content", "stat", "quote", "cta", "engage"] as const;
 const CHART_TYPES = ["bar", "column", "donut", "line", "radar", "funnel"] as const;
@@ -180,13 +181,11 @@ export function SlideEditor({ runId, angleIndex, slideNumber }: Props) {
     } finally { setAiLoading(false); }
   }
 
-  const setField = useCallback(<K extends keyof SlideSnapshot>(key: K, val: SlideSnapshot[K]) => {
+  const setField = useCallback(<K extends keyof SlideSnapshot>(
+    key: K, val: SlideSnapshot[K], markDirty = false
+  ) => {
     setSnap(prev => ({ ...prev, [key]: val }));
-  }, [setSnap]);
-
-  const setStyleField = useCallback(<K extends keyof SlideSnapshot>(key: K, val: SlideSnapshot[K]) => {
-    setSnap(prev => ({ ...prev, [key]: val }));
-    setStyleDirty(true);
+    if (markDirty) setStyleDirty(true);
   }, [setSnap]);
 
   const TabBtn = ({ id, icon: Icon, label }: { id: EditorTab; icon: any; label: string }) => (
@@ -312,7 +311,7 @@ export function SlideEditor({ runId, angleIndex, slideNumber }: Props) {
               <Field label="Font Size">
                 <div className="flex gap-1 flex-wrap">
                   {Object.keys(FONT_SIZES).map(k => (
-                    <button key={k} onClick={() => setStyleField("titleSize", k)}
+                    <button key={k} onClick={() => setField("titleSize", k, true)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${snap.titleSize === k ? "bg-violet-600 text-white" : "bg-zinc-800/60 text-zinc-400 hover:text-zinc-200"}`}>
                       {k.toUpperCase()}
                     </button>
@@ -322,25 +321,25 @@ export function SlideEditor({ runId, angleIndex, slideNumber }: Props) {
               <Field label="Title Color">
                 <div className="flex gap-2 flex-wrap">
                   {TEXT_COLORS.map(c => (
-                    <button key={c} onClick={() => setStyleField("titleColor", c)} style={{ backgroundColor: c }}
+                    <button key={c} onClick={() => setField("titleColor", c, true)} style={{ backgroundColor: c }}
                       className={`w-7 h-7 rounded-lg border-2 transition-all ${snap.titleColor === c ? "border-violet-500 scale-110" : "border-zinc-700"}`} />
                   ))}
-                  <input type="color" value={snap.titleColor} onChange={e => setStyleField("titleColor", e.target.value)} className="w-7 h-7 rounded-lg cursor-pointer border border-zinc-700 bg-transparent" />
+                  <input type="color" value={snap.titleColor} onChange={e => setField("titleColor", e.target.value, true)} className="w-7 h-7 rounded-lg cursor-pointer border border-zinc-700 bg-transparent" />
                 </div>
               </Field>
               <Field label="Accent Color">
                 <div className="flex gap-2 flex-wrap">
                   {ACCENT_PRESETS.map(c => (
-                    <button key={c} onClick={() => setStyleField("accentColor", c)} style={{ backgroundColor: c }}
+                    <button key={c} onClick={() => setField("accentColor", c, true)} style={{ backgroundColor: c }}
                       className={`w-7 h-7 rounded-lg border-2 transition-all ${snap.accentColor === c ? "border-white scale-110" : "border-transparent"}`} />
                   ))}
-                  <input type="color" value={snap.accentColor} onChange={e => setStyleField("accentColor", e.target.value)} className="w-7 h-7 rounded-lg cursor-pointer border border-zinc-700 bg-transparent" />
+                  <input type="color" value={snap.accentColor} onChange={e => setField("accentColor", e.target.value, true)} className="w-7 h-7 rounded-lg cursor-pointer border border-zinc-700 bg-transparent" />
                 </div>
               </Field>
               <Field label="Slide Type">
                 <div className="flex gap-1 flex-wrap">
                   {SLIDE_TYPES.map(t => (
-                    <button key={t} onClick={() => setStyleField("selectedType", t)}
+                    <button key={t} onClick={() => setField("selectedType", t, true)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${snap.selectedType === t ? "bg-violet-600 text-white" : "bg-zinc-800/60 text-zinc-400 hover:text-zinc-200"}`}>
                       {t}
                     </button>
@@ -350,7 +349,7 @@ export function SlideEditor({ runId, angleIndex, slideNumber }: Props) {
               <Field label="Theme">
                 <div className="flex gap-2">
                   {["aurora", "lumina"].map(t => (
-                    <button key={t} onClick={() => setStyleField("selectedTheme", t)}
+                    <button key={t} onClick={() => setField("selectedTheme", t, true)}
                       className={`flex-1 py-2 rounded-xl text-xs font-bold capitalize transition-all ${snap.selectedTheme === t ? "bg-violet-600 text-white" : "bg-zinc-800/60 text-zinc-400 hover:text-zinc-200"}`}>
                       {t === "aurora" ? "🌑 Aurora" : "☀️ Lumina"}
                     </button>
@@ -373,7 +372,7 @@ export function SlideEditor({ runId, angleIndex, slideNumber }: Props) {
               <Field label="Chart Type">
                 <div className="flex gap-1 flex-wrap">
                   {CHART_TYPES.map(t => (
-                    <button key={t} onClick={() => setStyleField("chartType", t)}
+                    <button key={t} onClick={() => setField("chartType", t, true)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${snap.chartType === t ? "bg-violet-600 text-white" : "bg-zinc-800/60 text-zinc-400 hover:text-zinc-200"}`}>
                       {t}
                     </button>
@@ -431,42 +430,15 @@ export function SlideEditor({ runId, angleIndex, slideNumber }: Props) {
 
       {/* ── AI panel ── */}
       <AnimatePresence>
-        {aiOpen && (
-          <motion.div initial={{ width: 0, opacity: 0 }} animate={{ width: 270, opacity: 1 }} exit={{ width: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="shrink-0 flex flex-col border-l border-zinc-800/50 bg-zinc-950 overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800/50 shrink-0">
-              <div className="flex items-center gap-2"><Sparkles size={13} className="text-violet-400" /><p className="text-xs font-bold text-zinc-300">AI Rewrite</p></div>
-              <button onClick={() => setAiOpen(false)} className="text-zinc-600 hover:text-zinc-400"><X size={13} /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 custom-scrollbar">
-              {aiMessages.length === 0 && <div className="text-center py-6 text-zinc-700"><Bot size={24} className="mx-auto mb-2 opacity-40" /><p className="text-[10px]">Tell me how to rewrite this slide.</p></div>}
-              {aiMessages.map((msg, i) => (
-                <div key={i} className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
-                  <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${msg.role === "user" ? "bg-violet-600" : "bg-zinc-800 border border-zinc-700"}`}>
-                    {msg.role === "user" ? <User size={10} className="text-white" /> : <Bot size={10} className="text-violet-400" />}
-                  </div>
-                  <div className={`rounded-xl px-2.5 py-2 text-[11px] leading-relaxed max-w-[85%] ${msg.role === "user" ? "bg-violet-600 text-white rounded-tr-none" : "bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-tl-none"}`}>
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
-                  </div>
-                </div>
-              ))}
-              {aiLoading && <div className="flex gap-2"><div className="w-5 h-5 rounded-md bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0"><Bot size={10} className="text-violet-400" /></div><div className="bg-zinc-900 border border-zinc-800 rounded-xl rounded-tl-none px-3 py-2 flex items-center gap-1">{[0,1,2].map(i=><span key={i} className="w-1 h-1 bg-violet-500 rounded-full animate-bounce" style={{animationDelay:`${i*0.15}s`}} />)}</div></div>}
-            </div>
-            <div className="px-3 pb-3 pt-2 border-t border-zinc-800/50 shrink-0">
-              <div className="flex gap-2">
-                <textarea rows={2} value={aiInput} onChange={e => setAiInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendAiMessage(); } }}
-                  placeholder="Make this punchier…"
-                  className="flex-1 bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-2.5 py-2 text-[11px] text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none focus:border-violet-500/40" />
-                <button onClick={sendAiMessage} disabled={!aiInput.trim() || aiLoading}
-                  className="w-8 h-8 flex items-center justify-center rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-30 text-white self-end transition-all">
-                  {aiLoading ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
+        <AiPanel
+          aiOpen={aiOpen}
+          onClose={() => setAiOpen(false)}
+          aiMessages={aiMessages}
+          aiInput={aiInput}
+          onInputChange={setAiInput}
+          aiLoading={aiLoading}
+          onSend={sendAiMessage}
+        />
       </AnimatePresence>
 
       {/* Image Edit Modal */}

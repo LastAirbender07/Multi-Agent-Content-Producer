@@ -13,9 +13,9 @@ export default function ResearchPage() {
   const [mode, setMode] = useState<"quick" | "standard" | "deep">("standard");
   const [freshness, setFreshness] = useState<"breaking" | "recent" | "evergreen">("recent");
   const [claimVerify, setClaimVerify] = useState(false);
-  const [maxTools] = useState(6);
-  const [maxSources] = useState(15);
-  const [maxLoops] = useState(2);
+  const maxTools = 6;
+  const maxSources = 15;
+  const maxLoops = 2;
 
   const [refining, setRefining] = useState(false);
   const [running, setRunning] = useState(false);
