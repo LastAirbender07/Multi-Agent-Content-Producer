@@ -1,6 +1,7 @@
 import * as fabric from "fabric";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const CANVAS_SIZE = 1080;
 
 export async function addImageToCanvas(
   canvas: fabric.Canvas,
@@ -35,7 +36,10 @@ export async function addComponentToCanvas(
   dropY: number,
   apiBase: string,
 ): Promise<void> {
-  const { createBrandBar, createAccentLine, createBulletItem } = await import("@/utils/canvasTemplates/shared");
+  const {
+    createBrandBar, createAccentLine, createBulletItem,
+    createGlassCard, createInsightItem, createEyebrowPill, createPillButton,
+  } = await import("@/utils/canvasTemplates/shared");
   const { createBigNumberGroup } = await import("@/utils/canvasTemplates/chartRenderer");
   const { getTokens } = await import("@/utils/canvasTokens");
   const t = getTokens("aurora-hook");
@@ -43,7 +47,7 @@ export async function addComponentToCanvas(
   switch (componentId) {
     case "brand-bar": {
       const objs = await createBrandBar(
-        t, `${apiBase}/assets/brand/logo.png`, "THEOPINIONBOARD", 1, 11
+        t, `${apiBase}/assets/brand/logo.png`, "THEOPINIONBOARD", 1, 11,
       );
       for (const obj of objs) canvas.add(obj);
       break;
@@ -68,6 +72,50 @@ export async function addComponentToCanvas(
         bullet.set({ left: Math.max(0, dropX - 400), top: Math.max(0, dropY - 80 + i * 54) });
         canvas.add(bullet);
       }
+      break;
+    }
+    case "dark-card": {
+      // Frosted glass card — 400×280 centered on drop point
+      const W = 400, H = 280;
+      const cardLeft = Math.max(0, Math.min(dropX - W / 2, CANVAS_SIZE - W));
+      const cardTop  = Math.max(0, Math.min(dropY - H / 2, CANVAS_SIZE - H));
+      const objs = await createGlassCard({ left: cardLeft, top: cardTop, width: W, height: H }, null, 16, t, 24);
+      for (const obj of objs) canvas.add(obj);
+      break;
+    }
+    case "quote-block": {
+      // Insight item used as a standalone quote
+      const insight = createInsightItem(
+        "Add your quote or insight here.",
+        t,
+        Math.max(0, dropX - 400),
+        Math.max(0, dropY - 20),
+        800,
+      );
+      canvas.add(insight); canvas.setActiveObject(insight);
+      break;
+    }
+    case "cta-button": {
+      const W = 320, H = 60;
+      const btn = createPillButton(t, {
+        label: "Follow for more →",
+        style: "gradient",
+        width: W, height: H, fontSize: 18,
+        left: Math.max(0, dropX - W / 2),
+        top:  Math.max(0, dropY - H / 2),
+        role: "dropped_cta_button",
+      });
+      canvas.add(btn); canvas.setActiveObject(btn);
+      break;
+    }
+    case "eyebrow-pill": {
+      const pill = createEyebrowPill(
+        "FOLLOW FOR MORE",
+        t,
+        Math.max(80, dropX),   // left arg = center X
+        Math.max(0, dropY - 17),
+      );
+      canvas.add(pill); canvas.setActiveObject(pill);
       break;
     }
     default:
