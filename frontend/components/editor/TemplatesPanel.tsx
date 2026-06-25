@@ -20,6 +20,7 @@ interface TemplatesPanelProps {
 const SLIDE_TYPES = [
   { type: "hook",    label: "Hook",       desc: "Opening slide",   color: "#7C6EFA", emoji: "🎯", template: "aurora-hook" },
   { type: "content", label: "Img Right",  desc: "Text ← Image",    color: "#2DD4BF", emoji: "📝", template: "aurora-content-0" },
+  { type: "content", label: "Img Left",   desc: "Image ← Text",    color: "#2DD4BF", emoji: "🔄", template: "aurora-content-3" },
   { type: "content", label: "Img Bottom", desc: "Text ↑ Image",    color: "#2DD4BF", emoji: "📐", template: "aurora-content-1" },
   { type: "content", label: "Img Top",    desc: "Image ↑ Text",    color: "#2DD4BF", emoji: "🖼", template: "aurora-content-2" },
   { type: "content", label: "Text Only",  desc: "No image",        color: "#2DD4BF", emoji: "📄", template: "aurora-content-text" },
@@ -42,14 +43,21 @@ const STARTER_CONTENT: Record<string, { title: string; body: string; stat_value?
 // ── Component tiles ──────────────────────────────────────────────────────────
 
 const COMPONENTS = [
-  { id: "brand-bar",    label: "Brand Bar",    desc: "Logo + progress",  color: "#7C6EFA" },
-  { id: "dark-card",    label: "Dark Card",    desc: "Glass card",       color: "#2DD4BF" },
-  { id: "stat-block",   label: "Stat Block",   desc: "Big number",       color: "#F59E0B" },
-  { id: "quote-block",  label: "Quote Block",  desc: "Quote + attr",     color: "#EC4899" },
-  { id: "bullet-list",  label: "Bullets",      desc: "Numbered list",    color: "#10B981" },
-  { id: "accent-line",  label: "Accent Line",  desc: "Gradient bar",     color: "#6366F1" },
-  { id: "cta-button",   label: "CTA Button",   desc: "Pill button",      color: "#7C6EFA" },
-  { id: "eyebrow-pill", label: "Eyebrow",      desc: "Label pill",       color: "#2DD4BF" },
+  // ── Structure ────────────────────────────────────────────────────────────────
+  { id: "brand-bar",    label: "Brand Bar",        desc: "Logo + progress bar",        color: "#7C6EFA" },
+  { id: "dark-card",    label: "Glass Card",        desc: "Frosted dark card",          color: "#2DD4BF" },
+  { id: "stat-block",   label: "Stat Block",        desc: "Big number + label",         color: "#F59E0B" },
+  { id: "quote-block",  label: "Quote Block",       desc: "Insight dot + text",         color: "#EC4899" },
+  { id: "bullet-list",  label: "Bullet List",       desc: "3 numbered bullets",         color: "#10B981" },
+  { id: "accent-line",  label: "Accent Line",       desc: "Gradient divider bar",       color: "#6366F1" },
+  { id: "eyebrow-pill", label: "Eyebrow Pill",      desc: "Frosted label (on gradient)",color: "#2DD4BF" },
+  // ── Buttons — all 6 styles ───────────────────────────────────────────────────
+  { id: "btn-gradient",     label: "Btn: Gradient",    desc: "Filled aurora gradient",     color: "#7C6EFA" },
+  { id: "btn-ghost",        label: "Btn: Ghost",        desc: "White border, white text",   color: "#A0A0A0" },
+  { id: "btn-frosted-glow", label: "Btn: Frosted Glow", desc: "Glass + glow shadow",        color: "#2DD4BF" },
+  { id: "btn-solid-white",  label: "Btn: Solid White",  desc: "White pill, gradient text",  color: "#FFFFFF" },
+  { id: "btn-dark-pill",    label: "Btn: Dark Pill",    desc: "Dark center, white border",  color: "#444444" },
+  { id: "btn-dark-gradient",label: "Btn: Dark+Gradient","desc": "Dark fill, gradient text", color: "#6366F1" },
 ] as const;
 
 type TabId = "slides" | "charts" | "components" | "saved";
