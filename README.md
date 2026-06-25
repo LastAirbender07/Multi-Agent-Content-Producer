@@ -43,8 +43,8 @@ Your Topic
 └──────────────────────────┬──────────────────────────┘
                            │
                            ▼
-         outputs/<run_id>/content/angle_0..2/png/
-         slide_01.png → slide_12.png  ✅ Done
+outputs/runs/<run_id>/content/angle_0..2/
+  png/   → slide_01.png … slide_12.png  ✅ Download via ZIP or Open in Editor
 ```
 
 ### 🔬 Research Engine
@@ -117,26 +117,29 @@ Content slides adapt their layout to the downloaded image's aspect ratio:
 Every pipeline run produces a complete, versioned output folder:
 
 ```
-outputs/<run_id>/
+outputs/runs/<run_id>/
 ├── research/
 │   ├── research_result.json    ← Confidence scores, iteration history, best synthesis
 │   ├── evidence.json           ← All accumulated sources (grows with each retry loop)
 │   └── synthesis.md            ← Best synthesis in readable markdown
 ├── angles/
-│   └── angles.json             ← All 5 angles + selected 3 with reasoning
+│   ├── generated.json          ← All 5 candidate angles
+│   └── selection.json          ← Selected angles + reasoning
 └── content/
     ├── angle_0/
     │   ├── slides.json         ← Full slide data (type, text, chart data, image queries)
-    │   ├── carousel.json       ← Final carousel with caption + hashtags
+    │   ├── carousel.json       ← Caption + hashtags + slide PNG paths
     │   ├── image_assets.json   ← Per-slide image source, URL, local path
     │   ├── images/             ← Downloaded images (slide_01.jpg … slide_12.jpg)
     │   ├── slides/             ← Rendered HTML (slide_01.html … slide_12.html)
-    │   └── png/                ← ✅ Final carousel images (slide_01.png … slide_12.png) ← PUBLISH THESE
-    ├── angle_1/
-    └── angle_2/
+    │   └── png/                ← ✅ Final carousel images (slide_01.png … slide_12.png)
+    ├── angle_1/ angle_2/
+    ├── blog_post.md            ← Auto-generated Medium/Substack article
+    ├── blog_post.html          ← Styled HTML version for Wix/Blogger
+    └── token_usage.json        ← Per-stage token counts + cost in USD + INR
 ```
 
-The `png/` folders are your deliverables. Everything else is the audit trail.
+The `png/` folders are your deliverables. Use "Download ZIP" in the Studio to export them with caption and hashtags. Everything else is the audit trail.
 
 ---
 
@@ -330,8 +333,10 @@ The frontend is a full production control room that exposes every pipeline capab
 
 | Route | Description |
 |---|---|
-| `/pipeline` | **Main Studio** — topic input, all flags, live stage progress, HITL angle selector, Instagram carousel preview |
-| `/research` | **Research Explorer** — run research in isolation, inspect evidence, confidence scores, and synthesis |
+| `/pipeline` | **Production Studio** — topic input, all pipeline flags, live stage progress with real-time render bar, HITL angle selector, Instagram carousel preview, caption editor, ZIP download, A/B comparison |
+| `/research` | **Research Explorer** — run research in isolation, inspect evidence, confidence scores, synthesis quality. Segmented depth/freshness controls with icons |
+| `/editor` | **Canvas Editor** — Fabric.js slide editor with drag-and-drop components, text editing, image swap, undo/redo, checkpoint restore |
+| `/analytics` | **Analytics Dashboard** — run KPIs, token cost breakdown (₹/$), topic category distribution, SVG contribution calendar with year selector, model usage |
 | `/images` | **Visual Intelligence** — search Pexels and DuckDuckGo Images with AI-refined queries |
 | `/news` | **Signal Monitor** — cross-reference news across Google News, NewsAPI, and DuckDuckGo with time filters |
 | `/chat` | **LLM Interface** — direct conversation with the pipeline's LLM for brainstorming and query refinement |
@@ -345,6 +350,8 @@ The frontend is a full production control room that exposes every pipeline capab
 | Styling | Tailwind CSS v4 |
 | Animation | Framer Motion 12 |
 | State | Redux Toolkit 2 |
+| Canvas editor | Fabric.js v7 |
+| Charts | Chart.js + react-chartjs-2 |
 | Icons | Lucide React |
 
 ### Starting the Frontend
@@ -356,17 +363,23 @@ pnpm dev
 # → http://localhost:3000
 ```
 
-The frontend connects to the backend at `http://localhost:8000`. Start the backend first (see below).
+The frontend connects to the backend at `http://localhost:8000`. Start the backend first.
 
 ### What the Studio Looks Like
 
-**Pipeline Page** — Type a topic, choose depth and freshness, hit Produce. Watch Research, Angle, and Content stages light up one by one. In manual angle mode a full-screen modal pauses the run so you can pick which angles to develop. Once content is done, the Instagram carousel preview loads with swipeable slides, caption, and hashtags.
+**Pipeline Page** — Type a topic, choose depth/freshness/slide count, hit Produce. Watch Research (with real-time progress bar + node labels), Angle, and Content stages (with per-slide render progress) light up. In manual mode a full-screen modal pauses for angle selection. Once done: swipeable IG carousel preview, per-angle Download ZIP button, A/B comparison modal, Edit Caption modal with char counter, and one-click Open in Editor.
 
-**Research Page** — Runs the research graph standalone. Shows confidence score, LLM/source score breakdown, synthesis summary, and expandable evidence cards colour-coded by source type (news/web/crawl).
+**Interrupted runs are recoverable** — Runs that complete research or angles but don't finish content appear as amber "Recover →" cards. Clicking reconstructs the full pipeline state from disk (research, angles, carousels) and merges the run into history.
 
-**Images and News** — Standalone search tools backed by the same APIs used internally by the pipeline, with AI query refinement applied before every search.
+**A/B Compare** — Full-viewport overlay. Two columns with independent navigation and synced mode toggle. Mismatched carousel lengths handled gracefully: amber badge marks "Slide N has no counterpart". Keyboard `←/→` navigate, `Esc` closes.
 
-**Chat** — Direct conversation with the pipeline's LLM. System prompt is automatically enriched with current date/time context. Persistent message history that survives page navigation.
+**Caption Editor** — Per-angle modal. 2200-char counter bar, hook preview (first 125 chars Instagram shows before "more"), hashtag chips with × remove + type-to-add, one-click copy for caption and hashtags separately.
+
+**Editor Page** — Fabric.js canvas. Each slide text and image is an independently selectable object. ContextToolbar floats above selection (Bold/Italic/alignment for text; filters for images). RightPanel adapts per object type. Undo/redo via Command Pattern snapshots. 30s auto-checkpoint to localStorage. Drag images from the Images panel onto the canvas.
+
+**Research Page** — Segmented chip controls for Depth (Quick/Standard/Deep) and Freshness (Breaking/Recent/All time). Idle state shows a 3-card explainer (Web Search / Deep Read / Synthesis) + depth timing tip.
+
+**Analytics Page** — 4 KPI cards, token usage bars (runs with data only), cost by stage, topics by category, GitHub-style SVG contribution calendar (53-week grid, pixel-perfect month labels, fixed-position tooltip via DOM ref — no re-renders on hover), model breakdown.
 
 → Full frontend documentation: [`Docs/content-orchestrator/FRONTEND.md`](Docs/content-orchestrator/FRONTEND.md)
 
@@ -384,22 +397,33 @@ Interactive docs available at: `http://localhost:8000/docs`
 
 ### Endpoints
 
-| Method   | Endpoint                           | Description                               |
-| -------- | ---------------------------------- | ----------------------------------------- |
-| `GET`  | `/health`                        | ✅ Health check                            |
-| `POST` | `/api/v1/research/run`           | 🔬 Run web research only                   |
-| `POST` | `/api/v1/research/llm-draft`     | 🤖 LLM-only research draft                 |
-| `POST` | `/api/v1/research/llm-refine`    | ✏️ Refine LLM research with feedback       |
-| `POST` | `/api/v1/angle/run`              | 🎯 Run angle generation (requires synthesis) |
-| `POST` | `/api/v1/angle/{run_id}/select`  | 🙋 Submit manual angle selection           |
-| `POST` | `/api/v1/content/run`            | ✍️ Run content generation (requires angles) |
-| `POST` | `/api/v1/pipeline/run`           | 🚀 Run full pipeline end-to-end            |
-| `POST` | `/api/v1/tools/query-refine`     | 🧠 AI query preprocessing                  |
-| `POST` | `/api/v1/tools/images`           | 🖼️ Image search (Pexels / DDGS)            |
-| `POST` | `/api/v1/tools/images/tags`      | 🏷️ Extract entity tags from a query        |
-| `POST` | `/api/v1/tools/images/download`  | ⬇️ Download images to local disk           |
-| `POST` | `/api/v1/tools/news`             | 📰 News search (Google / NewsAPI / DDGS)   |
-| `POST` | `/api/v1/chat/`                  | 💬 Direct LLM chat with message history    |
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/health` | ✅ Health check |
+| `POST` | `/api/v1/research/run` | 🔬 Run web research |
+| `POST` | `/api/v1/research/llm-draft` | 🤖 LLM-only research draft |
+| `POST` | `/api/v1/research/llm-refine` | ✏️ Refine LLM research with feedback |
+| `GET` | `/api/v1/research/status/{run_id}` | 📊 Poll research progress (node + % done) |
+| `POST` | `/api/v1/angle/run` | 🎯 Run angle generation |
+| `POST` | `/api/v1/angle/{run_id}/select` | 🙋 Submit manual angle selection |
+| `POST` | `/api/v1/content/run` | ✍️ Run content generation |
+| `GET` | `/api/v1/content/runs` | 📁 List all runs on disk |
+| `GET` | `/api/v1/content/{run_id}/manifest` | 🗂️ Run file tree (angles, slides, blog) |
+| `GET` | `/api/v1/content/{run_id}/carousel-download` | ⬇️ Download carousel as ZIP (slides + caption + hashtags) |
+| `GET` | `/api/v1/content/{run_id}/render-status` | 📊 Poll carousel render progress (slide N of M) |
+| `GET` | `/api/v1/content/{run_id}/caption/{angle}` | 📝 Get caption + hashtags |
+| `PUT` | `/api/v1/content/{run_id}/caption/{angle}` | 💾 Save edited caption + hashtags |
+| `PUT` | `/api/v1/content/{run_id}/slides/{angle}/reorder` | 🔀 Reorder slides (rename PNGs atomically) |
+| `DELETE` | `/api/v1/content/{run_id}/slides/{angle}/{n}` | 🗑️ Delete a slide + renumber |
+| `GET` | `/api/v1/content/{run_id}/token-usage` | 🪙 Token cost breakdown by stage |
+| `GET` | `/api/v1/analytics/summary` | 📈 Full analytics payload (KPIs, activity, topics, models) |
+| `POST` | `/api/v1/pipeline/run` | 🚀 Run full pipeline end-to-end |
+| `POST` | `/api/v1/tools/query-refine` | 🧠 AI query preprocessing |
+| `POST` | `/api/v1/tools/images` | 🖼️ Image search (Pexels / DDGS) |
+| `POST` | `/api/v1/tools/images/tags` | 🏷️ Extract entity tags from query |
+| `POST` | `/api/v1/tools/images/download` | ⬇️ Download images to disk |
+| `POST` | `/api/v1/tools/news` | 📰 News search (Google / NewsAPI / DDGS) |
+| `POST` | `/api/v1/chat/` | 💬 Direct LLM chat |
 
 ### Full Pipeline via API
 
@@ -468,40 +492,53 @@ The final `research_result.json` shows the full iteration history:
 
 ```
 Multi-Agent-Content-Producer/
-├── frontend/                   ← Next.js 16 Studio UI
-│   ├── app/                    ← App Router pages (pipeline, research, images, news, chat)
-│   ├── components/             ← Pipeline components + UI primitives
-│   ├── store/                  ← Redux Toolkit (pipeline, chat, history slices)
-│   └── lib/api.ts              ← Typed fetch client
+├── frontend/                        ← Next.js 16 Studio UI
+│   ├── app/
+│   │   ├── pipeline/                ← Production Dashboard
+│   │   ├── research/                ← Research Explorer
+│   │   ├── editor/                  ← Fabric.js Canvas Editor
+│   │   ├── analytics/               ← Analytics Dashboard
+│   │   ├── images/  news/  chat/    ← Utility pages
+│   ├── components/
+│   │   ├── pipeline/                ← Stage cards, carousel viewer, caption editor, A/B compare
+│   │   ├── editor/                  ← FabricCanvas, ContextToolbar, RightPanel, ImagesPanel
+│   │   └── analytics/               ← KpiCard, ContributionCalendar (SVG)
+│   ├── hooks/                       ← useRecoverRun, useContentProgress, useAngleRegeneration, …
+│   ├── store/slices/                ← Redux: pipeline, history, chat (with pipelineReducers/ split)
+│   └── lib/api/                     ← Typed fetch client split by domain (research, content, editor, analytics, …)
 │
 └── backend/
     ├── apps/
-    │   ├── api/v1/              ← FastAPI routers (research, angles, content, pipeline, tools, chat)
-    │   └── cli/run_workflow.py  ← CLI entry point
+    │   ├── api/v1/                  ← FastAPI routers (research, angles, content, pipeline, tools, chat, analytics)
+    │   └── cli/run_workflow.py      ← CLI entry point
     ├── core/
-    │   ├── graphs/              ← LangGraph StateGraph definitions
+    │   ├── graphs/                  ← LangGraph StateGraph definitions
     │   │   ├── research_graph.py
     │   │   ├── angle_graph.py
     │   │   └── content_graph.py
-    │   ├── nodes/               ← Pipeline stage entry points (research, angle, content)
     │   ├── orchestrators/
-    │   │   ├── research/        ← router, executor, normalizer, synthesizer, evaluator
-    │   │   ├── angle/           ← generator, evaluator, auto_selector, finalizer
-    │   │   └── content/         ← slide_generator, reorder, image_fetcher,
-    │   │                           carousel_generator, caption_generator, finalizer
-    │   ├── prompts/
-    │   │   ├── system_prompts.py        ← Agent personas + date-aware context
-    │   │   └── templates/               ← Editable .txt prompt templates
-    │   ├── schemas/workflow_state.py    ← TypedDict state definitions
-    │   ├── orchestration/contracts.py  ← All Pydantic request/response models
-    │   └── templates/carousel/         ← Jinja2 HTML slide templates
-    │       ├── aurora/                  ← 🌑 Dark theme (Anger/Fear/Urgency topics)
-    │       └── lumina/                  ← ☀️ Light theme (Hope/Inspiration topics)
+    │   │   ├── research/            ← router, executor, normalizer, synthesizer, evaluator
+    │   │   ├── angle/               ← generator, evaluator, auto_selector, finalizer
+    │   │   └── content/             ← slide_generator, reorder, image_fetcher,
+    │   │                               carousel_generator (+ _progress_store), caption_generator, finalizer
+    │   ├── services/
+    │   │   ├── caption_service.py        ← read/write carousel.json captions
+    │   │   ├── carousel_export_service.py← build ZIP (PNGs + caption + hashtags + README)
+    │   │   ├── caption_validator.py      ← IG limit checks (2200 chars, 30 hashtags, 125-char hook)
+    │   │   ├── slide_reorder_service.py  ← reorder + delete with atomic PNG rename
+    │   │   ├── token_tracker.py          ← per-run cost tracking; live pricing from LiteLLM + exchangerate-api
+    │   │   └── analytics_service.py      ← scan runs, aggregate KPIs, topic categories, activity
+    │   ├── prompts/templates/       ← Editable .txt prompt templates
+    │   ├── schemas/workflow_state.py
+    │   ├── orchestration/contracts.py
+    │   └── templates/carousel/      ← Jinja2 HTML slide templates
+    │       ├── aurora/              ← 🌑 Dark theme
+    │       └── lumina/              ← ☀️ Light theme
     ├── infra/
-    │   ├── llm/                 ← Provider-agnostic LLM adapters (Claude, OpenAI, Gemini)
-    │   ├── logging.py           ← Structlog structured logging
-    │   └── output_manager.py    ← Versioned output file management
-    └── configs/settings.py      ← All tunable parameters (Pydantic Settings)
+    │   ├── llm/                     ← Provider-agnostic adapters (Claude, OpenAI, Gemini)
+    │   │                               token tracking wired via _token_meta kwarg
+    │   └── output_manager.py
+    └── configs/settings.py          ← All tunable parameters (Pydantic Settings)
 ```
 
 ### ⚙️ Key Settings (`configs/settings.py`)
@@ -512,7 +549,7 @@ Multi-Agent-Content-Producer/
 | `research_quality_min_confidence` | `0.72`              | 🔒 Combined confidence threshold to pass research |
 | `research_quality_min_sources`    | `3`                 | 📰 Minimum evidence items required              |
 | `research_max_tool_calls`         | `6`                 | ⚡ Budget cap on total tool executions           |
-| `content_max_slides`              | `12`                | 🎨 Hard cap on slides per carousel              |
+| `content_max_slides`              | `10`                | 🎨 Default slides per carousel (10 = single IG post; 12 = needs splitting) |
 | `content_min_slides`              | `4`                 | 📋 Minimum slides to generate                   |
 | `llm_model`                       | `claude-4.5-sonnet` | 🤖 LLM model for all agents                     |
 | `llm_temperature`                 | `1.0`               | 🌡️ Generation temperature                       |
