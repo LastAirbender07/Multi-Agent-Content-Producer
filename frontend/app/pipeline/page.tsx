@@ -17,6 +17,7 @@ import { addRun } from "@/store/slices/historySlice";
 import { loadRun, setResearchResult, setAngleResult } from "@/store/slices/pipelineSlice";
 import { api } from "@/lib/api";
 import { useExpandedSet } from "@/hooks/useExpandedSet";
+import { usePipelineOrchestration } from "@/hooks/usePipelineOrchestration";
 
 import { PipelineConfig } from "@/components/pipeline/PipelineConfig";
 import { AngleSelector } from "@/components/pipeline/AngleSelector";
@@ -36,6 +37,7 @@ export default function PipelinePage() {
   const { runs } = useAppSelector((state) => state.history);
 
   const { expanded: openSections, toggle, add: addSection, clear: clearSections, setExpanded: setOpenSections } = useExpandedSet<"research" | "angle" | "content">();
+  const { handleGenerateAngles, isRunning } = usePipelineOrchestration();
   const [showAngleModal, setShowAngleModal] = useState(false);
   const [showLlmKnowledge, setShowLlmKnowledge] = useState(false);
   const [researchProgress, setResearchProgress] = useState<{ pct: number; label: string } | null>(null);
@@ -302,6 +304,18 @@ export default function PipelinePage() {
                         <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
                           Generating angles…
                         </span>
+                      </div>
+                    )}
+                    {stages.angle.status === "idle" && stages.research.status === "done" && researchResult && (
+                      <div className="flex flex-col items-center gap-3 py-8">
+                        <p className="text-[11px] text-zinc-500 text-center">Research recovered — ready to continue</p>
+                        <button
+                          onClick={handleGenerateAngles}
+                          disabled={isRunning}
+                          className="px-5 py-2.5 rounded-xl text-xs font-bold bg-violet-600 hover:bg-violet-500 text-white border border-violet-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Continue → Generate Angles &amp; Carousel
+                        </button>
                       </div>
                     )}
                     {angleResult && (
