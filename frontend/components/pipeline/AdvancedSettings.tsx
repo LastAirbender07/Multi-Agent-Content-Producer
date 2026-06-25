@@ -84,11 +84,30 @@ export function AdvancedSettings({ open, onClose }: Props) {
                   <SettingRow label="Max angles to select" hint="How many content angles to produce">
                     <Stepper value={maxAnglesSelect} min={1} max={8} onChange={(v) => dispatch(setMaxAnglesSelect(v))} />
                   </SettingRow>
-                  <SettingRow label="Slides per carousel" hint={`Min ${minSlides} – Max ${maxSlides}`}>
-                    <div className="flex items-center gap-2">
-                      <Stepper value={minSlides} min={2} max={maxSlides} onChange={(v) => dispatch(setMinSlides(v))} />
-                      <span className="text-zinc-600 text-xs">–</span>
-                      <Stepper value={maxSlides} min={minSlides} max={20} onChange={(v) => dispatch(setMaxSlides(v))} />
+                  <SettingRow label="Slides per carousel" hint="Instagram supports up to 10 per post">
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex gap-1">
+                        {[5, 7, 10, 12].map((n) => (
+                          <button
+                            key={n}
+                            onClick={() => {
+                              dispatch(setMaxSlides(n));
+                              dispatch(setMinSlides(Math.min(minSlides, n - 1)));
+                            }}
+                            className={`relative px-3 py-1 rounded-lg text-[11px] font-bold transition-all border ${
+                              maxSlides === n
+                                ? "bg-violet-600 border-violet-500 text-white"
+                                : "bg-zinc-800/60 border-zinc-700/50 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600"
+                            }`}
+                          >
+                            {n}
+                            {n === 10 && (
+                              <span className="absolute -top-1.5 -right-1.5 text-[8px] font-black bg-emerald-500 text-black px-1 rounded-full leading-tight">IG</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[9px] text-zinc-600">10 = single Instagram post · 12 = needs splitting</p>
                     </div>
                   </SettingRow>
                   <SettingRow label="Image source" hint="Where to fetch carousel images from">

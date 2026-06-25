@@ -5,6 +5,7 @@ import { StageCard, useStageTimer } from "@/components/pipeline/StageCard";
 import { AngleSection } from "@/components/pipeline/AngleSection";
 import { useAngleRegeneration } from "@/hooks/useAngleRegeneration";
 import { usePipelineOrchestration } from "@/hooks/usePipelineOrchestration";
+import { TokenChip } from "@/components/pipeline/TokenChip";
 
 interface AngleStageCardProps {
   open: boolean;
@@ -13,7 +14,7 @@ interface AngleStageCardProps {
 }
 
 export function AngleStageCard({ open, onToggle, onOpenSelector }: AngleStageCardProps) {
-  const { stages, researchResult, angleResult, angleMode } = useAppSelector((s) => s.pipeline);
+  const { stages, researchResult, angleResult, angleMode, runId } = useAppSelector((s) => s.pipeline);
   const elapsed = useStageTimer(stages.angle.status);
   const { handleRegenerateAngles, regenerating } = useAngleRegeneration();
   const { handleGenerateAngles, isRunning } = usePipelineOrchestration();
@@ -61,6 +62,11 @@ export function AngleStageCard({ open, onToggle, onOpenSelector }: AngleStageCar
             onOpenSelector={onOpenSelector}
             onRegenerate={handleRegenerateAngles}
           />
+        )}
+        {stages.angle.status === "done" && (
+          <div className="pt-2">
+            <TokenChip runId={runId} stage="angles" />
+          </div>
         )}
       </div>
     </StageCard>

@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Loader2, Sparkles, BarChart2, Globe } from "lucide-react";
+import { Loader2, Sparkles, BarChart2, Globe, Search, Zap, BookOpen, TrendingUp } from "lucide-react";
 import { api, ProcessedQuery, ResearchRequestBody } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { PremiumCard } from "@/components/ui/PremiumCard";
@@ -69,15 +69,48 @@ export default function ResearchPage() {
         <div className="max-w-5xl mx-auto space-y-12">
           <AnimatePresence mode="wait">
             {!isLoading && !result && !error && (
-              <motion.div key="idle" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col items-center justify-center py-32 text-center">
-                <div className="w-24 h-24 rounded-[2.5rem] bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-8 shadow-2xl">
-                  <Globe size={40} className="text-zinc-700" />
+              <motion.div key="idle" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                className="space-y-8 pt-8">
+                {/* Hero */}
+                <div className="flex items-center gap-5">
+                  <div className="w-16 h-16 rounded-3xl bg-linear-to-br from-violet-600/20 to-violet-900/10 border border-violet-500/20 flex items-center justify-center shadow-xl">
+                    <Globe size={28} className="text-violet-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-white tracking-tighter">Awaiting Topic</h2>
+                    <p className="text-zinc-500 text-sm font-medium mt-0.5">
+                      Multi-agent web scanning + synthesis
+                    </p>
+                  </div>
                 </div>
-                <h2 className="text-3xl font-black text-white tracking-tighter mb-4">Awaiting Topic</h2>
-                <p className="text-zinc-500 text-sm font-medium max-w-sm leading-relaxed">
-                  Our agents are ready to scan the web and synthesize deep insights for you.
-                </p>
+
+                {/* What the agents do */}
+                <div className="grid grid-cols-3 gap-4">
+                  {[
+                    { icon: Search,      label: "Web Search",   desc: "Scans news, blogs, and academic sources", color: "text-blue-400",   bg: "bg-blue-500/8 border-blue-500/15" },
+                    { icon: BookOpen,    label: "Deep Read",    desc: "Crawls and extracts full article content", color: "text-violet-400", bg: "bg-violet-500/8 border-violet-500/15" },
+                    { icon: TrendingUp,  label: "Synthesis",    desc: "Distills into key points and implications", color: "text-emerald-400", bg: "bg-emerald-500/8 border-emerald-500/15" },
+                  ].map(({ icon: Icon, label, desc, color, bg }) => (
+                    <div key={label} className={`rounded-2xl border ${bg} p-5 space-y-3`}>
+                      <Icon size={18} className={color} />
+                      <div>
+                        <p className="text-xs font-black text-zinc-200">{label}</p>
+                        <p className="text-[11px] text-zinc-600 mt-1 leading-snug">{desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Mode reminder */}
+                <div className="rounded-2xl border border-zinc-800/50 bg-zinc-900/30 p-5 flex items-start gap-4">
+                  <Zap size={16} className="text-amber-500 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs font-black text-zinc-300">Tip — pick your depth wisely</p>
+                    <p className="text-[11px] text-zinc-600 mt-1 leading-relaxed">
+                      <span className="text-zinc-400 font-bold">Quick</span> runs in ~30s. <span className="text-zinc-400 font-bold">Standard</span> takes 2–3 min with richer synthesis. <span className="text-zinc-400 font-bold">Deep</span> runs up to 5 min and crawls more sources.
+                    </p>
+                  </div>
+                </div>
               </motion.div>
             )}
 

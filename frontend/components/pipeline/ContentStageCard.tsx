@@ -5,6 +5,7 @@ import { useAppSelector } from "@/store/hooks";
 import { StageCard, useStageTimer } from "@/components/pipeline/StageCard";
 import { CarouselViewer } from "@/components/pipeline/CarouselViewer";
 import { BlogExportBar } from "@/components/pipeline/BlogExportBar";
+import { TokenChip } from "@/components/pipeline/TokenChip";
 
 interface ContentStageCardProps {
   open: boolean;
@@ -37,7 +38,12 @@ export function ContentStageCard({ open, onToggle }: ContentStageCardProps) {
           <CarouselViewer contentResult={contentResult} angleResult={angleResult} />
         )}
         {contentResult && stages.content.status === "done" && runId && (
-          <div className="space-y-2">
+          <div className="space-y-2 mt-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <TokenChip runId={runId} stage="carousel" />
+              <TokenChip runId={runId} stage="caption" />
+              <TokenChip runId={runId} showTotal />
+            </div>
             <BlogExportBar runId={runId} topic={topic} />
             <button
               onClick={() => router.push(`/editor?run=${runId}&view=slide&angle=0&slide=1`)}

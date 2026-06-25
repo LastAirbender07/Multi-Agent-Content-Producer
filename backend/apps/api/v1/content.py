@@ -2,7 +2,7 @@ import json as _json
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
-from fastapi.responses import PlainTextResponse, HTMLResponse
+from fastapi.responses import PlainTextResponse, HTMLResponse, Response
 
 from apps.api.v1.schemas import (
     SlideEditRequest, SlideEditResponse, BlogPostUpdateRequest,
@@ -16,6 +16,8 @@ from core.persistence.run_repository import read_topic, static_image_url
 from core.persistence.slide_repository import read_slides, slides_json_path
 from core.services.run_browser_service import create_blank_run, get_run_manifest, list_runs
 from core.services import asset_library_service
+from core.services.carousel_export_service import build_carousel_zip
+from core.services.token_tracker import token_tracker
 from core.services.slide_editor_service import (
     ai_rewrite_slide as svc_ai_rewrite,
     create_slide as svc_create_slide,
@@ -102,6 +104,24 @@ async def get_slides(run_id: str, angle_index: int) -> dict:
     if not path.exists():
         raise HTTPException(status_code=404, detail=f"Slides not found for angle {angle_index}")
     return {"slides": read_slides(path)}
+
+
+@router.get("/{run_id}/carousel-download")
+async def download_carousel_zip(run_id: str, angle: int = 0) -> Response:
+    try:
+        zip_bytes, filename = build_carousel_zip(run_id, angle)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/{run_id}/token-usage")
+async def get_token_usage(run_id: str) -> dict:
+    return token_tracker.get_run_summary(run_id)
 
 
 @router.get("/{run_id}/slides/{angle_index}/{slide_number}/preview", response_class=HTMLResponse)

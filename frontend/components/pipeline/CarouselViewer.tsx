@@ -1,9 +1,11 @@
 "use client";
 import { useRef, useState, useCallback } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Loader2, GitCompare } from "lucide-react";
 import { motion } from "framer-motion";
 import { InstagramPost } from "@/components/pipeline/InstagramPreview";
+import { CarouselCompare } from "@/components/pipeline/CarouselCompare";
 import type { ContentResponse, AngleResponse } from "@/lib/api";
+import { api } from "@/lib/api";
 
 interface CarouselViewerProps {
   contentResult: ContentResponse;
@@ -12,6 +14,8 @@ interface CarouselViewerProps {
 
 export function CarouselViewer({ contentResult, angleResult }: CarouselViewerProps) {
   const [activeCarousel, setActiveCarousel] = useState(0);
+  const [downloading, setDownloading] = useState<number | null>(null);
+  const [showCompare, setShowCompare] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
 
   const handleScroll = useCallback(() => {
@@ -24,6 +28,23 @@ export function CarouselViewer({ contentResult, angleResult }: CarouselViewerPro
     const el = carouselRef.current;
     if (!el) return;
     el.scrollBy({ left: dir === "next" ? el.offsetWidth : -el.offsetWidth, behavior: "smooth" });
+  }
+
+  async function handleDownload(runId: string, angleIdx: number) {
+    setDownloading(angleIdx);
+    try {
+      const blob = await api.downloadCarouselZip(runId, angleIdx);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `carousel_${runId.slice(0, 8)}_angle_${angleIdx}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Download failed", e);
+    } finally {
+      setDownloading(null);
+    }
   }
 
   const total = contentResult.carousel_paths.length;
@@ -109,6 +130,41 @@ export function CarouselViewer({ contentResult, angleResult }: CarouselViewerPro
           </span>
         </div>
       )}
+
+      {/* Download + Compare row */}
+      <div className={`grid gap-2 ${total > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+        {contentResult.carousel_paths.map((_, angleIdx) => {
+          const runId = contentResult.run_id;
+          const isDownloading = downloading === angleIdx;
+          return (
+            <button
+              key={angleIdx}
+              onClick={() => handleDownload(runId, angleIdx)}
+              disabled={isDownloading || !runId}
+              className="flex items-center justify-center gap-2 py-2 rounded-xl border border-zinc-700/50 bg-zinc-900/60 text-zinc-400 text-xs font-bold hover:border-violet-500/40 hover:text-violet-300 hover:bg-violet-500/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            >
+              {isDownloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+              {total > 1 ? `Download Angle ${angleIdx + 1}` : "Download ZIP"}
+            </button>
+          );
+        })}
+        {total > 1 && (
+          <button
+            onClick={() => setShowCompare(true)}
+            className="col-span-2 flex items-center justify-center gap-2 py-2 rounded-xl border border-zinc-700/50 bg-zinc-900/60 text-zinc-500 text-xs font-bold hover:border-violet-500/40 hover:text-violet-300 hover:bg-violet-500/5 transition-all"
+          >
+            <GitCompare size={13} />
+            Compare A/B
+          </button>
+        )}
+      </div>
+
+      <CarouselCompare
+        open={showCompare}
+        onClose={() => setShowCompare(false)}
+        contentResult={contentResult}
+        angleResult={angleResult}
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@ from core.orchestration.contracts import ContentRequest, CaptionOutput
 from core.prompts.prompt_loader import load_prompt
 from core.prompts.system_prompts import get_system_prompt
 from core.schemas.workflow_state import ContentGraphState
+from core.services.caption_validator import enforce_caption_limits, validate_caption
 from infra.llm.factory import LLMFactory
 from infra.logging import get_logger
 
@@ -38,13 +39,22 @@ async def generate_caption_node(state: ContentGraphState) -> dict:
             prompt=user_prompt,
             output_schema=CaptionOutput,
             system_prompt=system_prompt,
+            _token_meta=(state.get("run_id"), "caption"),
         )
 
         logger.info("generate_caption_node_complete", run_id=state.get("run_id"))
         caption = result.caption.rstrip() + f"\n\nRead the full story → {_settings.medium_url}\n\nFollow us on Instagram: {_settings.instagram_url}"
+
+        # Enforce Instagram limits — silently trim if over
+        caption, hashtags = enforce_caption_limits(caption, result.hashtags)
+        validation = validate_caption(caption, hashtags)
+        if validation.warnings:
+            for w in validation.warnings:
+                logger.warning("caption_validation_warning", warning=w, run_id=state.get("run_id"))
+
         return {
             "caption": caption,
-            "hashtags": result.hashtags,
+            "hashtags": hashtags,
             "messages": state.get("messages", []) + ["Caption generated"],
         }
 

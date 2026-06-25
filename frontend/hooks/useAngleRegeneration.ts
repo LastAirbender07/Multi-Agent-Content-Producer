@@ -23,8 +23,8 @@ export function useAngleRegeneration() {
         exclude_statements: angleResult?.angles.map((a) => a.statement) ?? [],
       });
       dispatch(setAngleResult(result));
-    } catch (e: any) {
-      console.error("Angle regeneration failed:", e.message);
+    } catch (e: unknown) {
+      console.error("Angle regeneration failed:", e instanceof Error ? e.message : String(e));
     } finally {
       setRegenerating(false);
     }

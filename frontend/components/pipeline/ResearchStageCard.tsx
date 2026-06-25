@@ -7,6 +7,7 @@ import { StageCard, useStageTimer } from "@/components/pipeline/StageCard";
 import { ResearchSummary } from "@/components/pipeline/ResearchSummary";
 import { LlmRefinePanel } from "@/components/pipeline/LlmRefinePanel";
 import { useResearchProgress } from "@/hooks/useResearchProgress";
+import { TokenChip } from "@/components/pipeline/TokenChip";
 
 interface ResearchStageCardProps {
   open: boolean;
@@ -14,7 +15,7 @@ interface ResearchStageCardProps {
 }
 
 export function ResearchStageCard({ open, onToggle }: ResearchStageCardProps) {
-  const { stages, researchResult, topic, llmResearchMode } = useAppSelector((s) => s.pipeline);
+  const { stages, researchResult, topic, llmResearchMode, runId } = useAppSelector((s) => s.pipeline);
   const elapsed = useStageTimer(stages.research.status);
   const researchProgress = useResearchProgress();
   const [showLlmKnowledge, setShowLlmKnowledge] = useState(false);
@@ -85,6 +86,11 @@ export function ResearchStageCard({ open, onToggle }: ResearchStageCardProps) {
         {researchResult && <ResearchSummary />}
         {llmResearchMode && stages.research.status === "done" && researchResult && (
           <LlmRefinePanel topic={topic} researchResult={researchResult} />
+        )}
+        {stages.research.status === "done" && (
+          <div className="pt-2">
+            <TokenChip runId={runId} stage="research" />
+          </div>
         )}
       </div>
     </StageCard>

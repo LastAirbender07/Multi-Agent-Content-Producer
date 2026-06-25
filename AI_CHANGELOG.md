@@ -6,6 +6,119 @@
 
 ---
 
+# AI Development Changelog
+
+**Purpose:** Track architectural decisions for quick context restoration in new sessions.
+
+**Format:** Stack-based (newest first), concise summaries only.
+
+---
+
+## 2026-06-25 — Sessions 52+: Pipeline Modularisation, Recovery System, Improvement Roadmap Phase 1
+
+### Summary
+
+Full feature sprint: recovery for interrupted pipeline runs, complete pipeline frontend modularisation, 6 Improvement Roadmap items shipped, full Playwright visual audit with UI fixes.
+
+---
+
+### Pipeline Run Recovery System
+
+**Problem:** Runs interrupted after research (or mid-pipeline) were invisible in Recent Runs — `addRun` only fires when content stage completes. Users lost access to completed research and generated carousels on disk.
+
+**`PipelineRecentRuns` cross-references backend:**
+- Fetches `api.getRunsList()` on mount; diffs against Redux `state.history.runs`
+- Runs on disk but not in Redux → shown as amber orphaned cards with "Recover →" button
+- `useRecoverRun` hook: fetches `research_result.json`, `angles/generated.json`, `angles/selection.json`, and `content/angle_N/carousel.json` from backend static files; reconstructs full `AngleResponse` + `ContentResponse`; dispatches both `loadRun` (active pipeline) and `addRun` (history, moves run out of orphan list permanently)
+
+**"Continue → Generate Angles" button:**
+When research is recovered but angles are idle, Stage 2 shows a violet "Continue → Generate Angles & Carousel" button calling `handleGenerateAngles()` from `usePipelineOrchestration`.
+
+---
+
+### Pipeline Frontend Modularisation (page.tsx 390 → 145 lines)
+
+**New hooks:**
+- `hooks/useAngleRegeneration.ts` — `regenerating` state + `handleRegenerateAngles`
+- `hooks/useTopicRefinement.ts` — `topicLoading`, `refineHint`, `applyArticleAsTopic` (renamed from `useArticleAsTopic` — violated React hook naming convention)
+- `hooks/useResearchProgress.ts` — 2s polling interval for research progress
+- `hooks/useRecoverRun.ts` — full run recovery from disk
+
+**New stage card components (each reads Redux directly):**
+- `components/pipeline/ResearchStageCard.tsx` — owns `showLlmKnowledge`, progress bar, TokenChip
+- `components/pipeline/AngleStageCard.tsx` — recover button, angle section, regenerate
+- `components/pipeline/ContentStageCard.tsx` — carousel viewer, blog export, editor button, TokenChips
+
+**`PipelineRecentRuns.tsx` modularised:**
+- `components/pipeline/OrphanedRunCard.tsx` — amber card UI
+- `PipelineRecentRuns.tsx` → 60 lines, pure orchestration
+
+---
+
+### Improvement Roadmap Phase 1 — 6 Items Shipped
+
+**#7 — Flexible Slide Count:**
+- Default 12 → 10 (Instagram single-post limit)
+- Chip toolbar: `5 · 7 · 10 · 12` quick-select inline; green dot marks 10 as recommended
+- AdvancedSettings: chip presets replacing dual steppers
+
+**#1 — Carousel ZIP Download:**
+- `backend/core/services/carousel_export_service.py` — builds ZIP: slide PNGs + `caption.txt` + `hashtags.txt` + `README.txt`; private helpers `_read_carousel_meta()` + `_build_readme()`
+- `GET /api/v1/content/{run_id}/carousel-download?angle=0`
+- `CarouselViewer` — "Download Angle N" buttons, spinner, browser download
+
+**#9 — Caption Validation Backend:**
+- `backend/core/services/caption_validator.py` — checks `IG_CAPTION_MAX=2200`, `IG_HASHTAG_MAX=30`, `IG_HOOK_CHARS=125`; `enforce_caption_limits()` silently trims
+- Wired into `caption_generator.py`
+
+**#12 — A/B Carousel Comparison (full redesign):**
+- `CarouselCompare.tsx` — full-viewport overlay, violet/cyan color identity per side
+- **Synced mode** — shared `←→` nav moves both; dots show unequal lengths honestly
+- **Independent mode** — each column has own dots nav + arrows
+- **Mismatch handling** — amber badge + strip when one angle has more slides than the other; nothing hidden or truncated
+- Compare button moved from nav bar to action row (keeps slider aesthetic clean)
+
+**#10 — Token Tracking:**
+- `backend/core/services/token_tracker.py` — writes `token_usage.json` per run; per-run `threading.Lock` prevents race conditions; `_aggregate_records()` eliminates duplication
+- **Live pricing:** `_LiveCache` fetches exchange rate (`exchangerate-api.com`) + LLM pricing (LiteLLM's community JSON, 2785 models), both cached 6h. At build time INR=94.65 (was hardcoded 84.0 — 12.5% off)
+- `_token_meta=(run_id, stage)` opt-in kwarg in `ClaudeLLM.generate()` — zero regression; wired in caption, slide, angle generators
+- `GET /api/v1/content/{run_id}/token-usage`
+- `TokenChip.tsx` — 🪙 badge ₹/$ cost per stage; appears at bottom of each completed stage card
+
+---
+
+### Critical Bug Fixes
+
+| Bug | Root cause | Fix |
+|---|---|---|
+| `claude.py` JSON stripping | `str.strip("```json")` strips individual chars (j,s,o,n,backtick), not substring — corrupts valid JSON like `{"json":true}` | Explicit `startswith`/`split`/`rsplit` with comment |
+| Token tracker `total_runs_with_data=0` | Tried reading `run_id` field that doesn't exist in `TokenRecord` | Count run directories containing `token_usage.json` instead |
+| Carousel export crash on corrupt JSON | `json.loads()` propagated `JSONDecodeError` to user | `_read_carousel_meta()` with try/except + safe defaults |
+| Caption validator `IndexError` | `caption[124]` on strings shorter than 125 chars | Guard: only check if `len(caption) >= IG_HOOK_CHARS` |
+| Token tracker race condition | Read-modify-write without lock — concurrent LLM calls lose records | Per-run `threading.Lock` via `_get_lock(run_id)` |
+| Hydration mismatch pipeline page | `useState(() => typeof window !== 'undefined')` runs on server (always `false`), client renders `true` | `useState(false)` + `useEffect(() => setMounted(true), [])` |
+| `handleGenerateAngles is not defined` | `usePipelineOrchestration()` placed after `useEffect` hooks — JSX referenced it before declaration in render | Moved to line 40 with other hook calls |
+| `PipelineRecentRuns` duplicate body | Edit tool matched substring, appended instead of replacing — two function bodies | Full `Write` rewrite |
+| `catch (e: any)` in `useAngleRegeneration` | Untyped catch | `catch (e: unknown)` with `instanceof Error` guard |
+| Silent `.catch(() => {})` | Errors silently swallowed | `console.warn("Could not fetch server runs:", err)` |
+
+---
+
+### UI Audit via Playwright — Changes Made
+
+Playwright screenshot audit across all pages. Visual scores and fixes:
+
+**Research page `ResearchConfigPanel.tsx` (5/10 → 9/10):**
+- Native `<select>` dropdowns → custom segmented chip controls with icons per option
+- Claim verification → toggle row with mini pill switch
+- Idle right panel → 3-card explainer (Web Search / Deep Read / Synthesis) + amber depth tip banner
+
+**`CarouselCompare.tsx` — complete redesign (see #12 above)**
+
+**Final scores:** Pipeline idle 8/10 · Pipeline loaded 7/10 · Advanced Settings 7/10 · Research 9/10 · A/B Compare 9/10 · Editor 8/10
+
+---
+
 ## 2026-06-25 — Sessions 51+: Code Splitting Round 4 + Canvas Component System
 
 ### What Changed

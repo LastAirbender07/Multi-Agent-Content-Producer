@@ -22,8 +22,8 @@ export default function PipelinePage() {
 
   const { expanded: openSections, toggle, add: addSection, clear: clearSections, setExpanded: setOpenSections } = useExpandedSet<"research" | "angle" | "content">();
   const [showAngleModal, setShowAngleModal] = useState(false);
-  // Lazy init: false on SSR (no window), true on client — avoids useEffect+setState for hydration guard
-  const [mounted] = useState(() => typeof window !== "undefined");
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   const researchStatus = stages.research.status;
   const angleStatus = stages.angle.status;

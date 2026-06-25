@@ -4,8 +4,8 @@ import { useAppSelector } from "@/store/hooks";
 import { api } from "@/lib/api";
 
 export function useResearchProgress() {
-  const { stages, runId } = useAppSelector((s) => s.pipeline);
-  const status = stages.research.status;
+  const status = useAppSelector((s) => s.pipeline.stages.research.status);
+  const runId = useAppSelector((s) => s.pipeline.runId);
   const [progress, setProgress] = useState<{ pct: number; label: string } | null>(null);
 
   useEffect(() => {
@@ -13,13 +13,16 @@ export function useResearchProgress() {
       setProgress(null);
       return;
     }
-    setProgress(null);
+
     const interval = setInterval(async () => {
       try {
         const prog = await api.getResearchStatus(runId);
-        if (prog.pct !== undefined) setProgress({ pct: prog.pct, label: prog.label ?? "Running…" });
+        if (prog.pct !== undefined) {
+          setProgress({ pct: prog.pct, label: prog.label ?? "Running…" });
+        }
       } catch {}
     }, 2000);
+
     return () => clearInterval(interval);
   }, [status, runId]);
 

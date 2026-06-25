@@ -1,32 +1,117 @@
 # Product Improvement Roadmap
 
 > Created: 2026-06-25
+> Updated: 2026-06-25
 > Context: Multi-Agent Content Producer — research → angles → carousel → editor pipeline.
-> Status: Core intelligence layer is solid (~80%). What's missing is the output, edit, and delivery layer.
+> Status: Phase 1 complete (items 1, 7, 9, 10, 12). Phase 2 in progress.
 > Scope: Excludes publishing (Instagram API) and authentication — deferred.
 
 ---
 
 ## Priority Overview
 
-| #  | Improvement                                   | Impact      | Effort | Status      |
-| -- | --------------------------------------------- | ----------- | ------ | ----------- |
-| 1  | Carousel ZIP download                         | 🔴 Critical | Low    | Not started |
-| 2  | Progress feedback during generation           | 🔴 Critical | Low    | Not started |
-| 3  | Caption + hashtag editor                      | 🔴 Critical | Medium | Not started |
-| 4  | Slide reorder + delete                        | 🟠 High     | Medium | Not started |
-| 5  | Batch style editing ("apply to all slides")   | 🟠 High     | Medium | Not started |
-| 6  | Run search + tagging                          | 🟡 Medium   | Low    | Not started |
-| 7  | Slide count flexibility (not fixed at 12)     | 🟡 Medium   | Medium | Not started |
-| 8  | `/settings` page — brand config            | 🟡 Medium   | Medium | Not started |
-| 9  | Caption length + hashtag validation           | 🟡 Medium   | Low    | Not started |
-| 10 | Token usage + cost display per stage          | 🟡 Medium   | Medium | Not started |
-| 11 | `/analytics` page — usage, stats, insights | 🟡 Medium   | Medium | Not started |
-| 12 | A/B carousel comparison                       | 🟢 Nice     | Medium | Not started |
-| 13 | Publishing (Instagram + Cloudinary)           | —          | High   | Deferred    |
-| 14 | Authentication + multi-user                   | —          | High   | Deferred    |
+| #  | Improvement                                   | Impact      | Effort | Status          |
+| -- | --------------------------------------------- | ----------- | ------ | --------------- |
+| 1  | Carousel ZIP download                         | 🔴 Critical | Low    | ✅ Done          |
+| 2  | Progress feedback during generation           | 🔴 Critical | Low    | Not started     |
+| 3  | Caption + hashtag editor                      | 🔴 Critical | Medium | Not started     |
+| 4  | Slide reorder + delete                        | 🟠 High     | Medium | Not started     |
+| 5  | Batch style editing ("apply to all slides")   | 🟠 High     | Medium | Not started     |
+| 6  | Run search + tagging                          | 🟡 Medium   | Low    | Not started     |
+| 7  | Slide count flexibility (not fixed at 12)     | 🟡 Medium   | Low    | ✅ Done          |
+| 8  | `/settings` page — brand config               | 🟡 Medium   | Medium | Not started     |
+| 9  | Caption length + hashtag validation           | 🟡 Medium   | Low    | ✅ Done          |
+| 10 | Token usage + cost display per stage          | 🟡 Medium   | Medium | ✅ Done          |
+| 11 | `/analytics` page — usage, stats, insights   | 🟡 Medium   | Medium | Not started     |
+| 12 | A/B carousel comparison                       | 🟢 Nice     | Medium | ✅ Done          |
+| 13 | Publishing (Instagram + Cloudinary)           | —           | High   | Deferred        |
+| 14 | Authentication + multi-user                   | —           | High   | Deferred        |
 
 ---
+
+## ✅ Completed Items
+
+### Improvement 1 — Carousel ZIP Download ✅
+
+**Shipped:** `backend/core/services/carousel_export_service.py`
+
+`GET /api/v1/content/{run_id}/carousel-download?angle=0` — builds in-memory ZIP with all slide PNGs + `caption.txt` + `hashtags.txt` + `README.txt`. Private helpers `_read_carousel_meta()` (safe JSON parse with fallback) and `_build_readme()` keep `build_carousel_zip()` at 20 readable lines.
+
+Frontend: `CarouselViewer` — "Download Angle N" / "Download ZIP" buttons below carousel, spinner during ZIP build, browser download on resolve. API: `api.downloadCarouselZip(runId, angleIdx)` returns `Blob`.
+
+---
+
+### Improvement 7 — Flexible Slide Count ✅
+
+**Shipped:** Default changed from 12 → 10 (Instagram single-post max).
+
+**Frontend only** — backend `ContentRequestBody` already accepted `max_slides`/`min_slides`.
+
+- `PipelineConfig.tsx` chip toolbar: `5 · 7 · 10 · 12` quick-select chips, always visible without opening Config. Green dot marks 10 as recommended.
+- `AdvancedSettings.tsx`: chip presets replaced the dual `min/max` stepper controls. Hint text: "10 = single Instagram post · 12 = needs splitting".
+
+---
+
+### Improvement 9 — Caption Length + Hashtag Validation ✅
+
+**Shipped:** `backend/core/services/caption_validator.py`
+
+Constants: `IG_CAPTION_MAX=2200`, `IG_HASHTAG_MAX=30`, `IG_HOOK_CHARS=125`.
+
+`validate_caption()` returns `CaptionValidation` dataclass with `warnings[]`. `enforce_caption_limits()` silently trims to Instagram limits. Both called in `caption_generator.py` after every LLM generation — over-limit captions are trimmed before saving to `carousel.json`, warnings logged.
+
+**Bug fixed during implementation:** `caption[124]` IndexError on captions shorter than 125 chars — guard added.
+
+---
+
+### Improvement 10 — Token Usage + Cost Display ✅
+
+**Shipped:** `backend/core/services/token_tracker.py`
+
+**Live pricing (not hardcoded):**
+- Exchange rate: `https://api.exchangerate-api.com/v4/latest/USD` — live INR rate (was hardcoded 84.0; actual at build time: 94.65 — 12.5% error)
+- LLM pricing: LiteLLM community JSON (`model_prices_and_context_window.json`, 2785 models), prices per-token converted to per-1M
+- Both cached 6h via `_LiveCache`; silent fallback to last known values if fetch fails
+
+**Recording:** `_token_meta=(run_id, stage)` optional kwarg on `ClaudeLLM.generate()` — zero regression. Wired in `caption_generator.py` (stage="caption"), `slide_generator.py` (stage="carousel"), `angle/generator.py` (stage="angles").
+
+**Concurrency:** per-run `threading.Lock` prevents data loss when two LLM calls complete simultaneously for the same run.
+
+**API:** `GET /api/v1/content/{run_id}/token-usage` returns `{total_input, total_output, total_cost_usd, total_cost_inr, by_stage}`.
+
+**Frontend:** `TokenChip.tsx` — 🪙 badge showing tokens + ₹/$ cost. Appears at bottom of each completed stage card. Stage 3 shows carousel chip + caption chip + run total chip. `loaded` state ensures null is only returned after fetch resolves (not during loading).
+
+---
+
+### Improvement 12 — A/B Carousel Comparison ✅
+
+**Shipped:** `components/pipeline/CarouselCompare.tsx` — full-viewport overlay modal.
+
+**Architecture decision:** Two independent per-column indexes (not synced to `Math.min(totalA, totalB)` which silently truncated slides).
+
+**Synced mode (default):**
+- Shared `←→` nav in header moves both columns simultaneously
+- Dot nav shows `max(totalA, totalB)` dots; dots beyond the shorter carousel render at 50% opacity — unequal lengths are visually obvious
+- Clicking a dot clamps to valid range on each side independently
+
+**Independent mode (toggle):**
+- Each column has its own dot nav + arrow buttons below the slide
+- Can be on slide 4 in A and slide 9 in B simultaneously
+
+**Mismatch handling:**
+- When `safeIdx >= totalOther`: slide counter badge turns amber with `✦` suffix
+- Amber strip below slide says "Slide N has no counterpart — this angle has X extra slide(s)"
+- Nothing hidden, nothing truncated
+
+**Color identity:** A = violet, B = cyan throughout (badge, chip borders, hashtag text).
+
+**UX details:** Angle picker as chips (not OS `<select>`), keyboard `←/→/Esc`, Framer Motion slide transition, "Synced"/"Independent" toggle button in header.
+
+**Compare button placement:** Moved from navigation bar (was disrupting the carousel slider aesthetic) to the action row below the carousel, alongside download buttons. Spans full width when 2+ angles exist.
+
+---
+
+## 🔵 Not Started — Next Up
 
 ## Improvement 1 — Carousel ZIP Download
 
@@ -906,22 +991,28 @@ No auth is planned until the app has a use case beyond a single user on localhos
 ## Implementation Order
 
 ```
-Phase 1 — Unblock the output (can start immediately)
-  Improvement 1:  Carousel ZIP download                  ← 2–3 days
+Phase 1 — Unblock the output ✅ COMPLETE
+  Improvement 1:  Carousel ZIP download                  ✅ Done
+  Improvement 7:  Flexible slide count                   ✅ Done (was free — backend already supported it)
+  Improvement 9:  Caption validation (backend only)      ✅ Done
+  Improvement 10: Token tracking backend + stage chips   ✅ Done (live pricing via exchangerate-api + LiteLLM)
+  Improvement 12: A/B carousel comparison                ✅ Done (with independent nav + mismatch handling)
+
+Phase 2 — Enable editing + insights (next)
+  Improvement 3:  Caption + hashtag editor                ← 3–4 days  [next up]
   Improvement 2:  Progress feedback during generation     ← 1–2 days
-  Improvement 9:  Caption validation (backend only)       ← 1 day
-  Improvement 10: Token tracking backend + stage chips    ← 2–3 days
-    └─ prerequisite for Improvement 11
-
-Phase 2 — Enable editing + insights (2–3 weeks)
-  Improvement 3:  Caption + hashtag editor                ← 3–4 days
   Improvement 4:  Slide reorder + delete                  ← 3–4 days
-  Improvement 7:  Flexible slide count                    ← 1–2 days
-  Improvement 11: /analytics page (requires Phase 1 token data) ← 3–4 days
+  Improvement 11: /analytics page (token data now exists) ← 3–4 days
 
-Phase 3 — Polish (3–4 weeks)
+Phase 3 — Polish
   Improvement 5:  Batch style editing                     ← 3 days
   Improvement 6:  Run search + tagging                    ← 3 days
+  Improvement 8:  /settings page                          ← 4–5 days
+
+Phase 4 — Deferred
+  Publishing (Instagram)
+  Authentication
+```
   Improvement 8:  /settings page                          ← 4–5 days
   Improvement 12: A/B carousel comparison                 ← 2 days
 

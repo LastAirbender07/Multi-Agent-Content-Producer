@@ -1,8 +1,17 @@
 "use client";
-import { Loader2, Search, BookOpen, CheckCircle } from "lucide-react";
+import { Loader2, Search, BookOpen, CheckCircle, Zap, Clock, Archive, Gauge, Layers, Microscope } from "lucide-react";
 
-const MODES = ["quick", "standard", "deep"] as const;
-const FRESHNESS = ["breaking", "recent", "evergreen"] as const;
+const MODES = [
+  { value: "quick"    as const, label: "Quick",    Icon: Zap,        hint: "Fast" },
+  { value: "standard" as const, label: "Standard", Icon: Layers,     hint: "Balanced" },
+  { value: "deep"     as const, label: "Deep",     Icon: Microscope, hint: "Thorough" },
+];
+
+const FRESHNESS = [
+  { value: "breaking"  as const, label: "Breaking", Icon: Gauge,   hint: "24h" },
+  { value: "recent"    as const, label: "Recent",   Icon: Clock,   hint: "1 week" },
+  { value: "evergreen" as const, label: "All time", Icon: Archive, hint: "Any" },
+];
 
 interface Props {
   topic: string;
@@ -35,6 +44,7 @@ export function ResearchConfigPanel({
       </div>
 
       <div className="space-y-6">
+        {/* Topic */}
         <div className="space-y-2">
           <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Topic</label>
           <textarea
@@ -46,52 +56,79 @@ export function ResearchConfigPanel({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Depth</label>
-            <select
-              value={mode}
-              onChange={(e) => onModeChange(e.target.value as any)}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-violet-500"
-            >
-              {MODES.map(m => <option key={m} value={m}>{m.toUpperCase()}</option>)}
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Freshness</label>
-            <select
-              value={freshness}
-              onChange={(e) => onFreshnessChange(e.target.value as any)}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-violet-500"
-            >
-              {FRESHNESS.map(f => <option key={f} value={f}>{f.toUpperCase()}</option>)}
-            </select>
+        {/* Depth segmented control */}
+        <div className="space-y-2">
+          <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Depth</label>
+          <div className="grid grid-cols-3 gap-1.5 p-1 bg-zinc-900/60 rounded-xl border border-zinc-800/50">
+            {MODES.map(({ value, label, Icon, hint }) => (
+              <button
+                key={value}
+                onClick={() => onModeChange(value)}
+                className={`flex flex-col items-center gap-1 py-2.5 rounded-lg text-[10px] font-bold transition-all ${
+                  mode === value
+                    ? "bg-violet-600 text-white shadow-lg shadow-violet-600/30"
+                    : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                <Icon size={13} />
+                {label}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="space-y-3 pt-4 border-t border-zinc-900">
-          <label className="flex items-center gap-3 cursor-pointer group">
-            <div className={`w-5 h-5 rounded-md border transition-all flex items-center justify-center ${
-              claimVerify ? "bg-violet-600 border-violet-600" : "bg-zinc-900 border-zinc-800 group-hover:border-zinc-700"
-            }`}>
-              {claimVerify && <CheckCircle size={12} className="text-white" />}
-              <input type="checkbox" className="hidden" checked={claimVerify} onChange={(e) => onClaimVerifyChange(e.target.checked)} />
+        {/* Freshness segmented control */}
+        <div className="space-y-2">
+          <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Freshness</label>
+          <div className="grid grid-cols-3 gap-1.5 p-1 bg-zinc-900/60 rounded-xl border border-zinc-800/50">
+            {FRESHNESS.map(({ value, label, Icon, hint }) => (
+              <button
+                key={value}
+                onClick={() => onFreshnessChange(value)}
+                className={`flex flex-col items-center gap-1 py-2.5 rounded-lg text-[10px] font-bold transition-all ${
+                  freshness === value
+                    ? "bg-violet-600 text-white shadow-lg shadow-violet-600/30"
+                    : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                <Icon size={13} />
+                <span>{label}</span>
+                <span className={`text-[8px] font-semibold ${freshness === value ? "text-violet-200" : "text-zinc-700"}`}>
+                  {hint}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Claim verification toggle row */}
+        <div className="pt-2 border-t border-zinc-900">
+          <button
+            onClick={() => onClaimVerifyChange(!claimVerify)}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${
+              claimVerify
+                ? "bg-violet-600/10 border-violet-500/30 text-violet-300"
+                : "bg-zinc-900/40 border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-400"
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <CheckCircle size={14} className={claimVerify ? "text-violet-400" : "text-zinc-700"} />
+              <span className="text-xs font-bold">Claim Verification</span>
             </div>
-            <span className="text-xs font-bold text-zinc-400 group-hover:text-zinc-200">Claim Verification</span>
-          </label>
+            <div className={`w-8 h-4 rounded-full transition-all relative ${claimVerify ? "bg-violet-600" : "bg-zinc-800"}`}>
+              <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${claimVerify ? "left-4" : "left-0.5"}`} />
+            </div>
+          </button>
         </div>
 
+        {/* Run */}
         <button
           onClick={onRun}
           disabled={isLoading || !topic.trim()}
           className="w-full group relative overflow-hidden py-4 rounded-2xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-black transition-all shadow-xl shadow-violet-500/20 active:scale-[0.98]"
         >
           <div className="flex items-center justify-center gap-2">
-            {isLoading ? (
-              <Loader2 size={18} className="animate-spin" />
-            ) : (
-              <Search size={18} className="group-hover:scale-110 transition-transform" />
-            )}
+            {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} className="group-hover:scale-110 transition-transform" />}
             {refining ? "REFINING…" : running ? "SEARCHING…" : "START RESEARCH"}
           </div>
         </button>

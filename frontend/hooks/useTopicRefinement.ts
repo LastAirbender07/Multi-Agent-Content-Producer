@@ -10,7 +10,8 @@ export function useTopicRefinement(drawer: DiscoverDrawer) {
   const [topicLoading, setTopicLoading] = useState(false);
   const [refineHint, setRefineHint] = useState<"clean" | "crawl_failed" | null>(null);
 
-  async function useArticleAsTopic(article: DiscoverArticle) {
+  // Named without "use" prefix since it's a regular async function, not a hook
+  async function applyArticleAsTopic(article: DiscoverArticle) {
     setRefineHint(null);
     setTopicLoading(true);
     try {
@@ -24,5 +25,5 @@ export function useTopicRefinement(drawer: DiscoverDrawer) {
     }
   }
 
-  return { topicLoading, refineHint, setRefineHint, useArticleAsTopic };
+  return { topicLoading, refineHint, setRefineHint, applyArticleAsTopic };
 }

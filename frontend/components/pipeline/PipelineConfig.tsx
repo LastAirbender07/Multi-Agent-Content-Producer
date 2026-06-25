@@ -2,7 +2,7 @@
 import { Zap, Loader2, Search, SlidersHorizontal, X, Paperclip } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { setTopic, setMode, setFreshness, setAngleMode, setLlmResearchMode } from "@/store/slices/pipelineSlice";
+import { setTopic, setMode, setFreshness, setAngleMode, setLlmResearchMode, setMaxSlides } from "@/store/slices/pipelineSlice";
 import { useState } from "react";
 
 import { OptionChip } from "./OptionChip";
@@ -31,12 +31,12 @@ const ANGLE_OPTIONS = [
 
 export function PipelineConfig() {
   const dispatch = useAppDispatch();
-  const { topic, mode, freshness, angleMode, llmResearchMode } = useAppSelector((s) => s.pipeline);
+  const { topic, mode, freshness, angleMode, llmResearchMode, maxSlides } = useAppSelector((s) => s.pipeline);
   const attachedCount = useAppSelector((s) => s.pipeline.attachedEvidence.length);
 
   const { isRunning, handleRun, handleGenerateAngles, stages } = usePipelineOrchestration();
   const drawer = useDiscoverDrawer();
-  const { topicLoading, refineHint, setRefineHint, useArticleAsTopic } = useTopicRefinement(drawer);
+  const { topicLoading, refineHint, setRefineHint, applyArticleAsTopic } = useTopicRefinement(drawer);
   const [showSettings, setShowSettings] = useState(false);
 
   function openDrawer() {
@@ -137,6 +137,28 @@ export function PipelineConfig() {
             )}
             <div className="w-px h-4 bg-zinc-800 mx-0.5" />
             <OptionChip label="Angles" options={ANGLE_OPTIONS} value={angleMode} onChange={(v) => dispatch(setAngleMode(v))} />
+            <div className="w-px h-4 bg-zinc-800 mx-0.5" />
+            {/* Slide count quick-select */}
+            <div className="flex items-center gap-0.5">
+              {[5, 7, 10, 12].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => dispatch(setMaxSlides(n))}
+                  title={n === 10 ? "Recommended for Instagram" : n === 12 ? "Needs splitting for IG" : undefined}
+                  className={`relative px-2 py-1 rounded-md text-[10px] font-bold transition-all ${
+                    maxSlides === n
+                      ? "bg-violet-600 text-white"
+                      : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+                >
+                  {n}
+                  {n === 10 && maxSlides !== n && (
+                    <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  )}
+                </button>
+              ))}
+              <span className="text-[9px] text-zinc-600 ml-0.5">slides</span>
+            </div>
             <div className="flex-1" />
             {!llmResearchMode && (
               <button
@@ -185,7 +207,7 @@ export function PipelineConfig() {
         onClose={() => drawer.setOpen(false)}
         onRefresh={() => drawer.load(true)}
         onFilterChange={drawer.setFilter}
-        onUseArticle={useArticleAsTopic}
+        onUseArticle={applyArticleAsTopic}
       />
     </>
   );

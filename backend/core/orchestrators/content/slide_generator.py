@@ -31,6 +31,7 @@ async def generate_slides_node(state: ContentGraphState) -> dict:
                 prompt=user_prompt,
                 output_schema=SlideGenerationOutput,
                 system_prompt=system_prompt,
+                _token_meta=(state.get("run_id"), "carousel"),
             )
         )
 

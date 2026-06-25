@@ -4,29 +4,22 @@ import { History, RefreshCw } from "lucide-react";
 import { RunCard } from "@/components/pipeline/RunCard";
 import { OrphanedRunCard } from "@/components/pipeline/OrphanedRunCard";
 import { api } from "@/lib/api";
-
-interface HistoryRun {
-  runId: string;
-  topic: string;
-  timestamp: string;
-  researchResult: any;
-  angleResult: any;
-  contentResult: any;
-}
+import type { RunSummary } from "@/lib/api";
+import type { PipelineRun } from "@/store/slices/historySlice";
 
 interface PipelineRecentRunsProps {
-  runs: HistoryRun[];
-  onLoad: (run: HistoryRun) => void;
+  runs: PipelineRun[];
+  onLoad: (run: PipelineRun) => void;
 }
 
 export function PipelineRecentRuns({ runs, onLoad }: PipelineRecentRunsProps) {
-  const [serverRuns, setServerRuns] = useState<{ run_id: string; topic: string; created_at: number; has_content: boolean }[]>([]);
+  const [serverRuns, setServerRuns] = useState<RunSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api.getRunsList()
       .then(data => setServerRuns(data.runs ?? []))
-      .catch(() => {})
+      .catch(err => { console.warn("Could not fetch server runs:", err); })
       .finally(() => setLoading(false));
   }, []);
 

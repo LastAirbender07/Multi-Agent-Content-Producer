@@ -12,6 +12,11 @@ from infra.logging import get_logger
 
 logger = get_logger(__name__)
 
+# Lazy import to avoid circular dependency at module load time
+def _get_token_tracker():
+    from core.services.token_tracker import token_tracker
+    return token_tracker
+
 
 class ClaudeLLM(BaseLLM):
 
@@ -77,12 +82,30 @@ class ClaudeLLM(BaseLLM):
 
             data = response.json()
 
-            return LLMResponse(
+            llm_response = LLMResponse(
                 content=data["content"][0]["text"],
                 usage=data.get("usage", {}),
                 model=data.get("model", self.model),
                 raw_response=data
             )
+
+            # Record token usage when caller supplies _token_meta=(run_id, stage)
+            token_meta = kwargs.get("_token_meta")
+            if token_meta:
+                run_id, stage = token_meta
+                usage = llm_response.usage
+                try:
+                    _get_token_tracker().record(
+                        run_id=run_id,
+                        stage=stage,
+                        model=llm_response.model,
+                        input_tokens=int(usage.get("input_tokens", 0)),
+                        output_tokens=int(usage.get("output_tokens", 0)),
+                    )
+                except Exception:
+                    pass  # never let tracking break generation
+
+            return llm_response
 
         except httpx.TimeoutException as e:
             elapsed_time = time.time() - start_time
@@ -118,14 +141,28 @@ class ClaudeLLM(BaseLLM):
 Return ONLY valid JSON matching:
 {json.dumps(schema_json, indent=2)}"""
 
+        # Forward token tracking metadata if provided
+        gen_kwargs = {}
+        if "_token_meta" in kwargs:
+            gen_kwargs["_token_meta"] = kwargs["_token_meta"]
+
         for attempt in range(self.max_validation_retries):
             try:
                 response = await self.generate(
                     enhanced_prompt,
-                    system_prompt=system_prompt
+                    system_prompt=system_prompt,
+                    **gen_kwargs
                 )
 
-                content = response.content.strip().strip("```json").strip("```")
+                # Strip markdown code fences the model sometimes wraps around JSON.
+                # Python's str.strip(chars) removes individual chars, NOT substrings —
+                # so we do explicit prefix/suffix removal instead.
+                content = response.content.strip()
+                if content.startswith("```"):
+                    content = content.split("\n", 1)[-1]  # drop the opening fence line
+                if content.endswith("```"):
+                    content = content.rsplit("```", 1)[0]
+                content = content.strip()
                 data = json.loads(content)
 
                 validated = output_schema.model_validate(data)

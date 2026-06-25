@@ -32,11 +32,13 @@ async def generate_angles_node(state: AngleGraphState) -> dict:
             exclude_block=exclude_block,
         )
 
+        run_id = state.get("run_id")
         result = await LLMFactory.get_client_with_retry(
             lambda llm: llm.generate_structured(
                 prompt=user_prompt,
                 output_schema=AngleGenerationOutput,
                 system_prompt=system_prompt,
+                _token_meta=(run_id, "angles"),
             )
         )
 
