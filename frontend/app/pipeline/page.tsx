@@ -1,157 +1,76 @@
 "use client";
 import { useState, useEffect, startTransition } from "react";
-import { useRouter } from "next/navigation";
-import {
-  AlertCircle,
-  FlaskConical,
-  Target,
-  Image as ImageIcon,
-  Zap,
-  Brain,
-  ChevronDown,
-  PencilRuler,
-} from "lucide-react";
+import { AlertCircle, Zap } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { addRun } from "@/store/slices/historySlice";
-import { loadRun, setResearchResult, setAngleResult } from "@/store/slices/pipelineSlice";
-import { api } from "@/lib/api";
+import { loadRun } from "@/store/slices/pipelineSlice";
 import { useExpandedSet } from "@/hooks/useExpandedSet";
-import { usePipelineOrchestration } from "@/hooks/usePipelineOrchestration";
 
 import { PipelineConfig } from "@/components/pipeline/PipelineConfig";
 import { AngleSelector } from "@/components/pipeline/AngleSelector";
-import { ResearchSummary } from "@/components/pipeline/ResearchSummary";
-import { StageCard, useStageTimer } from "@/components/pipeline/StageCard";
-import { LlmRefinePanel } from "@/components/pipeline/LlmRefinePanel";
-import { AngleSection } from "@/components/pipeline/AngleSection";
-import { CarouselViewer } from "@/components/pipeline/CarouselViewer";
-import { BlogExportBar } from "@/components/pipeline/BlogExportBar";
+import { ResearchStageCard } from "@/components/pipeline/ResearchStageCard";
+import { AngleStageCard } from "@/components/pipeline/AngleStageCard";
+import { ContentStageCard } from "@/components/pipeline/ContentStageCard";
 import { PipelineRecentRuns } from "@/components/pipeline/PipelineRecentRuns";
 
 export default function PipelinePage() {
   const dispatch = useAppDispatch();
-  const router = useRouter();
-  const { stages, researchResult, angleResult, contentResult, errors, angleMode, runId, topic, llmResearchMode, maxAnglesSelect, mode, freshness } =
+  const { stages, researchResult, angleResult, contentResult, errors, angleMode, runId, topic, mode, freshness } =
     useAppSelector((state) => state.pipeline);
   const { runs } = useAppSelector((state) => state.history);
 
   const { expanded: openSections, toggle, add: addSection, clear: clearSections, setExpanded: setOpenSections } = useExpandedSet<"research" | "angle" | "content">();
-  const { handleGenerateAngles, isRunning } = usePipelineOrchestration();
   const [showAngleModal, setShowAngleModal] = useState(false);
-  const [showLlmKnowledge, setShowLlmKnowledge] = useState(false);
-  const [researchProgress, setResearchProgress] = useState<{ pct: number; label: string } | null>(null);
-  const [mounted, setMounted] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
+  // Lazy init: false on SSR (no window), true on client — avoids useEffect+setState for hydration guard
+  const [mounted] = useState(() => typeof window !== "undefined");
 
-  const researchElapsed = useStageTimer(stages.research.status);
-  const angleElapsed = useStageTimer(stages.angle.status);
-  const contentElapsed = useStageTimer(stages.content.status);
+  const researchStatus = stages.research.status;
+  const angleStatus = stages.angle.status;
+  const contentStatus = stages.content.status;
 
-  useEffect(() => { setMounted(true); }, []);
-
-  // Auto-expand on stage completion — single effect covers all 3 stages
-  const STAGE_KEYS = ["research", "angle", "content"] as const;
+  // Auto-expand each stage when it completes
   useEffect(() => {
-    STAGE_KEYS.forEach(key => {
-      if (stages[key].status === "done")
-        startTransition(() => addSection(key));
-    });
-  }, [stages.research.status, stages.angle.status, stages.content.status]);
+    if (researchStatus === "done") startTransition(() => addSection("research"));
+    if (angleStatus === "done") startTransition(() => addSection("angle"));
+    if (contentStatus === "done") startTransition(() => addSection("content"));
+  }, [researchStatus, angleStatus, contentStatus, addSection]);
 
   // Collapse all when pipeline resets
   useEffect(() => {
-    if (
-      stages.research.status === "idle" &&
-      stages.angle.status === "idle" &&
-      stages.content.status === "idle"
-    ) {
-      startTransition(() => {
-        clearSections();
-        setShowAngleModal(false);
-      });
+    if (researchStatus === "idle" && angleStatus === "idle" && contentStatus === "idle") {
+      startTransition(() => { clearSections(); setShowAngleModal(false); });
     }
-  }, [stages.research.status, stages.angle.status, stages.content.status]);
+  }, [researchStatus, angleStatus, contentStatus, clearSections]);
 
-  // Auto-show angle selector in manual mode once angle stage is done
+  // Auto-show angle selector in manual mode once angles are ready
   useEffect(() => {
-    if (
-      angleMode === "manual" &&
-      stages.angle.status === "done" &&
-      stages.content.status === "idle" &&
-      !contentResult
-    ) {
+    if (angleMode === "manual" && angleStatus === "done" && contentStatus === "idle" && !contentResult) {
       startTransition(() => setShowAngleModal(true));
     }
-  }, [stages.angle.status, stages.content.status, angleMode, contentResult]);
+  }, [angleStatus, contentStatus, angleMode, contentResult]);
 
-  // Poll research progress every 2s while research is running
+  // Save to history when pipeline fully completes.
+  // Intentionally keyed only on contentStatus — all other values are stable at this point.
   useEffect(() => {
-    if (stages.research.status !== "running" || !runId) return;
-    setResearchProgress(null);
-    const interval = setInterval(async () => {
-      try {
-        const prog = await api.getResearchStatus(runId);
-        if (prog.pct !== undefined) {
-          setResearchProgress({ pct: prog.pct, label: prog.label ?? "Running…" });
-        }
-      } catch {}
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [stages.research.status, runId]);
-
-  useEffect(() => {
-    if (stages.research.status !== "running") setResearchProgress(null);
-  }, [stages.research.status]);
-
-  // Save to history when pipeline fully completes
-  useEffect(() => {
-    if (stages.content.status === "done" && runId && researchResult) {
+    if (contentStatus === "done" && runId && researchResult) {
       dispatch(addRun({ runId, topic, timestamp: new Date().toISOString(), researchResult, angleResult, contentResult, config: { mode, freshness, angleMode } }));
     }
-  }, [stages.content.status]);
-
-  async function handleRegenerateAngles() {
-    if (!researchResult?.synthesis || regenerating) return;
-    setRegenerating(true);
-    try {
-      const result = await api.regenerateAngles({
-        topic,
-        synthesis: researchResult.synthesis,
-        run_id: runId ?? undefined,
-        mode: angleMode,
-        max_angles_to_select: maxAnglesSelect,
-        exclude_statements: angleResult?.angles.map((a) => a.statement) ?? [],
-      });
-      dispatch(setAngleResult(result));
-    } catch (e: any) {
-      console.error("Angle regeneration failed:", e.message);
-    } finally {
-      setRegenerating(false);
-    }
-  }
-
-  const isAnyRunning = Object.values(stages).some((s) => s.status === "running");
-  const hasAnyResult = researchResult || angleResult || contentResult;
-  const canReopenAngles =
-    angleMode === "manual" &&
-    stages.angle.status === "done" &&
-    stages.content.status === "idle";
+  }, [contentStatus]); // intentionally omitting result deps — fires once on transition to done
 
   function handleLoadRun(run: typeof runs[0]) {
     dispatch(loadRun(run));
     startTransition(() =>
-      setOpenSections(
-        new Set(
-          (["research", "angle", "content"] as const).filter((s) =>
-            s === "research" ? !!run.researchResult :
-            s === "angle" ? !!run.angleResult :
-            !!run.contentResult
-          )
+      setOpenSections(new Set(
+        (["research", "angle", "content"] as const).filter((s) =>
+          s === "research" ? !!run.researchResult : s === "angle" ? !!run.angleResult : !!run.contentResult
         )
-      )
+      ))
     );
   }
+
+  const isAnyRunning = Object.values(stages).some((s) => s.status === "running");
+  const hasAnyResult = researchResult || angleResult || contentResult;
 
   return (
     <div className="flex flex-col h-full min-h-screen bg-black">
@@ -159,6 +78,7 @@ export default function PipelinePage() {
 
       <main className="flex-1 overflow-auto custom-scrollbar">
         <div className="max-w-4xl mx-auto p-8 space-y-6">
+
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
@@ -173,7 +93,7 @@ export default function PipelinePage() {
             </div>
           </div>
 
-          {/* Idle state */}
+          {/* Idle placeholder */}
           {!hasAnyResult && !isAnyRunning && (
             <motion.div
               initial={{ opacity: 0, y: 16 }}
@@ -199,9 +119,7 @@ export default function PipelinePage() {
             >
               <AlertCircle size={16} className="shrink-0 mt-0.5" />
               <div className="space-y-1">
-                {errors.map((e, i) => (
-                  <p key={i} className="text-xs font-medium">{e}</p>
-                ))}
+                {errors.map((e, i) => <p key={i} className="text-xs font-medium">{e}</p>)}
               </div>
             </motion.div>
           )}
@@ -214,161 +132,10 @@ export default function PipelinePage() {
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-4"
               >
-                {/* Stage 1: Research */}
-                <StageCard
-                  number={1}
-                  icon={<FlaskConical size={14} />}
-                  title="Research Results"
-                  status={stages.research.status}
-                  open={openSections.has("research")}
-                  onToggle={() => toggle("research")}
-                  elapsed={researchElapsed}
-                >
-                  <div className="pt-4 space-y-4">
-                    {stages.research.status === "running" && (
-                      <div className="py-6 space-y-3">
-                        <div className="flex items-center gap-3 justify-center">
-                          <div className="w-5 h-5 rounded-full border-2 border-violet-500 border-t-transparent animate-spin shrink-0" />
-                          <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">
-                            {researchProgress?.label ?? "Researching…"}
-                          </span>
-                        </div>
-                        <div className="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
-                          <div
-                            className="bg-violet-500 h-1.5 rounded-full transition-all duration-500"
-                            style={{ width: `${researchProgress?.pct ?? 0}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
+                <ResearchStageCard open={openSections.has("research")} onToggle={() => toggle("research")} />
+                <AngleStageCard open={openSections.has("angle")} onToggle={() => toggle("angle")} onOpenSelector={() => setShowAngleModal(true)} />
+                <ContentStageCard open={openSections.has("content")} onToggle={() => toggle("content")} />
 
-                    {researchResult && (() => {
-                      const llmItem = researchResult.evidence?.find((e) => e.source_type === "llm_knowledge");
-                      return llmItem ? (
-                        <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 overflow-hidden">
-                          <button
-                            onClick={() => setShowLlmKnowledge((v) => !v)}
-                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-800/20 transition-colors"
-                          >
-                            <Brain size={14} className="text-violet-400 shrink-0" />
-                            <span className="flex-1 text-left text-[11px] font-bold text-zinc-400 uppercase tracking-widest">
-                              LLM Background Knowledge
-                            </span>
-                            <motion.div animate={{ rotate: showLlmKnowledge ? 180 : 0 }} transition={{ duration: 0.2 }}>
-                              <ChevronDown size={13} className="text-zinc-600" />
-                            </motion.div>
-                          </button>
-                          <AnimatePresence initial={false}>
-                            {showLlmKnowledge && (
-                              <motion.div
-                                key="llm-body"
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: "auto", opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                transition={{ duration: 0.2 }}
-                                className="overflow-hidden"
-                              >
-                                <div className="px-4 pb-4 pt-1 border-t border-zinc-800/40">
-                                  <p className="text-xs text-zinc-400 leading-relaxed whitespace-pre-wrap">
-                                    {llmItem.evidence}
-                                  </p>
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      ) : null;
-                    })()}
-
-                    {researchResult && <ResearchSummary />}
-                    {llmResearchMode && stages.research.status === "done" && researchResult && (
-                      <LlmRefinePanel topic={topic} researchResult={researchResult} />
-                    )}
-                  </div>
-                </StageCard>
-
-                {/* Stage 2: Angles */}
-                <StageCard
-                  number={2}
-                  icon={<Target size={14} />}
-                  title="Angle Selection"
-                  status={stages.angle.status}
-                  open={openSections.has("angle")}
-                  onToggle={() => toggle("angle")}
-                  elapsed={angleElapsed}
-                >
-                  <div className="pt-4 space-y-4">
-                    {stages.angle.status === "running" && (
-                      <div className="flex items-center gap-3 py-8 justify-center">
-                        <div className="w-5 h-5 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
-                        <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
-                          Generating angles…
-                        </span>
-                      </div>
-                    )}
-                    {stages.angle.status === "idle" && stages.research.status === "done" && researchResult && (
-                      <div className="flex flex-col items-center gap-3 py-8">
-                        <p className="text-[11px] text-zinc-500 text-center">Research recovered — ready to continue</p>
-                        <button
-                          onClick={handleGenerateAngles}
-                          disabled={isRunning}
-                          className="px-5 py-2.5 rounded-xl text-xs font-bold bg-violet-600 hover:bg-violet-500 text-white border border-violet-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Continue → Generate Angles &amp; Carousel
-                        </button>
-                      </div>
-                    )}
-                    {angleResult && (
-                      <AngleSection
-                        angleResult={angleResult}
-                        canReopenAngles={canReopenAngles}
-                        canRegenerate={stages.angle.status === "done" && stages.content.status === "idle"}
-                        regenerating={regenerating}
-                        onOpenSelector={() => setShowAngleModal(true)}
-                        onRegenerate={handleRegenerateAngles}
-                      />
-                    )}
-                  </div>
-                </StageCard>
-
-                {/* Stage 3: Carousels */}
-                <StageCard
-                  number={3}
-                  icon={<ImageIcon size={14} />}
-                  title="Generated Carousels"
-                  status={stages.content.status}
-                  open={openSections.has("content")}
-                  onToggle={() => toggle("content")}
-                  elapsed={contentElapsed}
-                >
-                  <div className="pt-4">
-                    {stages.content.status === "running" && (
-                      <div className="flex items-center gap-3 py-8 justify-center">
-                        <div className="w-5 h-5 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
-                        <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
-                          Generating carousels…
-                        </span>
-                      </div>
-                    )}
-                    {contentResult && (
-                      <CarouselViewer contentResult={contentResult} angleResult={angleResult} />
-                    )}
-                    {contentResult && stages.content.status === "done" && runId && (
-                      <div className="space-y-2">
-                        <BlogExportBar runId={runId} topic={topic} />
-                        <button
-                          onClick={() => router.push(`/editor?run=${runId}&view=slide&angle=0&slide=1`)}
-                          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-violet-500/40 bg-violet-500/5 text-violet-400 text-sm font-bold hover:bg-violet-500/10 transition-all"
-                        >
-                          <PencilRuler size={14} />
-                          Open in Editor
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </StageCard>
-
-                {/* Recent runs inside result view */}
                 {mounted && runs.length > 0 && <PipelineRecentRuns runs={runs} onLoad={handleLoadRun} />}
               </motion.div>
             )}
@@ -382,7 +149,6 @@ export default function PipelinePage() {
           )}
         </div>
 
-        {/* Angle Selector Modal */}
         <AngleSelector open={showAngleModal} onClose={() => setShowAngleModal(false)} />
       </main>
     </div>

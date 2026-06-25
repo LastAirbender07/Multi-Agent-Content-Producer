@@ -1,10 +1,9 @@
 "use client";
-import { useState } from "react";
 import { Zap, Loader2, Search, SlidersHorizontal, X, Paperclip } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { setTopic, setMode, setFreshness, setAngleMode, setLlmResearchMode } from "@/store/slices/pipelineSlice";
-import { api } from "@/lib/api";
+import { useState } from "react";
 
 import { OptionChip } from "./OptionChip";
 import { LlmChip } from "./LlmChip";
@@ -13,8 +12,7 @@ import { RefinedQueriesStrip } from "./RefinedQueriesStrip";
 import { DiscoverDrawer } from "./DiscoverDrawer";
 import { usePipelineOrchestration } from "@/hooks/usePipelineOrchestration";
 import { useDiscoverDrawer } from "@/hooks/useDiscoverDrawer";
-
-// ─── Static option lists ──────────────────────────────────────────────────────
+import { useTopicRefinement } from "@/hooks/useTopicRefinement";
 
 const DEPTH_OPTIONS = [
   { value: "quick" as const, label: "Quick", description: "Fast, light research" },
@@ -31,8 +29,6 @@ const ANGLE_OPTIONS = [
   { value: "manual" as const, label: "Manual angles", description: "You choose from options" },
 ];
 
-// ─── PipelineConfig ───────────────────────────────────────────────────────────
-
 export function PipelineConfig() {
   const dispatch = useAppDispatch();
   const { topic, mode, freshness, angleMode, llmResearchMode } = useAppSelector((s) => s.pipeline);
@@ -40,29 +36,12 @@ export function PipelineConfig() {
 
   const { isRunning, handleRun, handleGenerateAngles, stages } = usePipelineOrchestration();
   const drawer = useDiscoverDrawer();
-
+  const { topicLoading, refineHint, setRefineHint, useArticleAsTopic } = useTopicRefinement(drawer);
   const [showSettings, setShowSettings] = useState(false);
-  const [topicLoading, setTopicLoading] = useState(false);
-  const [refineHint, setRefineHint] = useState<"clean" | "crawl_failed" | null>(null);
 
   function openDrawer() {
     drawer.setOpen(true);
     if (drawer.articles.length === 0) drawer.load();
-  }
-
-  async function useArticleAsTopic(article: Parameters<typeof drawer.selectArticle>[0]) {
-    setRefineHint(null);
-    setTopicLoading(true);
-    try {
-      await drawer.selectArticle(article);
-      // After selectArticle dispatches topic/freshness, determine refine hint
-      const result = await api.topicFromUrl({ url: article.url, title: article.title, snippet: article.snippet });
-      setRefineHint(result.crawl_failed ? "crawl_failed" : "clean");
-    } catch {
-      setRefineHint("crawl_failed");
-    } finally {
-      setTopicLoading(false);
-    }
   }
 
   return (
@@ -149,7 +128,6 @@ export function PipelineConfig() {
           {/* Chip toolbar */}
           <div className="flex items-center gap-1.5 px-4 py-2.5 border-t border-zinc-800/50">
             <LlmChip checked={llmResearchMode} onChange={(v) => dispatch(setLlmResearchMode(v))} />
-
             {!llmResearchMode && (
               <>
                 <div className="w-px h-4 bg-zinc-800 mx-0.5" />
@@ -157,12 +135,9 @@ export function PipelineConfig() {
                 <OptionChip label="Freshness" options={FRESHNESS_OPTIONS} value={freshness} onChange={(v) => dispatch(setFreshness(v))} />
               </>
             )}
-
             <div className="w-px h-4 bg-zinc-800 mx-0.5" />
             <OptionChip label="Angles" options={ANGLE_OPTIONS} value={angleMode} onChange={(v) => dispatch(setAngleMode(v))} />
-
             <div className="flex-1" />
-
             {!llmResearchMode && (
               <button
                 title="Advanced settings"
@@ -177,7 +152,6 @@ export function PipelineConfig() {
                 Config
               </button>
             )}
-
             {llmResearchMode && stages.research.status === "done" && stages.angle.status === "idle" && (
               <button
                 onClick={handleGenerateAngles}
@@ -187,28 +161,19 @@ export function PipelineConfig() {
                 Generate Angles →
               </button>
             )}
-
             <button
               onClick={() => handleRun(topicLoading)}
               disabled={isRunning || !topic.trim() || topicLoading}
               className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-all shadow-lg shadow-violet-500/20 active:scale-[0.97]"
             >
-              {isRunning || topicLoading ? (
-                <Loader2 size={13} className="animate-spin" />
-              ) : (
-                <Zap size={13} className="fill-white" />
-              )}
+              {isRunning || topicLoading ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} className="fill-white" />}
               {isRunning ? "Running…" : topicLoading ? "Drafting…" : llmResearchMode ? "Draft Research" : "Produce Content"}
             </button>
           </div>
 
-          {/* Advanced settings panel */}
           <AdvancedSettings open={showSettings} onClose={() => setShowSettings(false)} />
-
-          {/* Refined queries strip */}
           <RefinedQueriesStrip />
         </div>
-
         <div className="h-4" />
       </div>
 
