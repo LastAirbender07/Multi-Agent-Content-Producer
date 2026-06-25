@@ -24,7 +24,7 @@ import {
   dropBtnDarkGradient,
 } from "./componentDroppers/buttons";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+import { ASSET_BASE as API_BASE } from "@/lib/api/client";
 
 // ── Image drop ────────────────────────────────────────────────────────────────
 

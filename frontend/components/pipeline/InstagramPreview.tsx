@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const BACKEND = "http://localhost:8000";
+import { ASSET_BASE as BACKEND } from "@/lib/api/client";
 
 function slideImageUrl(path: string): string {
   // Handle new format: .../outputs/runs/{run_id}/...

@@ -1,4 +1,4 @@
-const BASE = "http://localhost:8000";
+import { ASSET_BASE as BASE } from "@/lib/api/client";
 
 const FONT_DEFS = [
   { family: "Syne",              weight: "700", path: "/assets/fonts/Syne-Bold.woff2" },

@@ -1,7 +1,7 @@
 "use client";
 import { useRef, useState, useEffect } from "react";
 
-const BASE = "http://localhost:8000/api/v1";
+import { BASE } from "@/lib/api/client";
 const SLIDE_NATIVE_SIZE = 1080;
 
 interface SlidePreviewFrameProps {

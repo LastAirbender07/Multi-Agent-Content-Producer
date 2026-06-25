@@ -3,33 +3,21 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import useUndoable from "use-undoable";
 import {
   Save, Loader2, Type, BarChart2, Image as ImageIcon, Sparkles,
-  Plus, X, Palette, Check, Undo2, Redo2,
+  Palette, Undo2, Redo2,
 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { SlidePreviewFrame } from "./SlidePreviewFrame";
-import { ChartPreview } from "./ChartPreview";
 import { ImageEditModal } from "./ImageEditModal";
 import { api, SlideData, SlideEditRequest } from "@/lib/api";
 import { AiPanel } from "./panels/AiPanel";
+import { ContentTab } from "./panels/ContentTab";
+import { StyleTab, FONT_SIZES } from "./panels/StyleTab";
+import { ChartTab } from "./panels/ChartTab";
+import { ImageTab } from "./panels/ImageTab";
+import type { EditorTab, SlideSnapshot } from "@/types/slideEditor";
+import { useSlideAI } from "@/hooks/useSlideAI";
 
-const SLIDE_TYPES = ["hook", "content", "stat", "quote", "cta", "engage"] as const;
-const CHART_TYPES = ["bar", "column", "donut", "line", "radar", "funnel"] as const;
-const FONT_SIZES = { xs: "28px", sm: "36px", md: "44px", lg: "52px", xl: "64px" };
-const ACCENT_PRESETS = ["#7C6EFA", "#2DD4BF", "#F59E0B", "#EF4444", "#10B981", "#F97316", "#EC4899", "#3B82F6"];
-const TEXT_COLORS = ["#FAFAFA", "#D4D4D8", "#A1A1AA", "#FDE68A", "#BAE6FD", "#FFFFFF"];
-
-type EditorTab = "content" | "style" | "chart" | "image";
 type SaveStatus = "idle" | "saving" | "saved";
-interface ChatMsg { role: "user" | "assistant"; content: string; }
-
-// Snapshot captures all slide state that participates in undo/redo
-interface SlideSnapshot {
-  title: string; body: string; bullets: string[];
-  statValue: string; statLabel: string;
-  chartType: string; chartLabels: string[]; chartValues: number[];
-  titleSize: string; titleColor: string; accentColor: string;
-  selectedType: string; selectedTheme: string;
-}
 
 interface Props { runId: string; angleIndex: number; slideNumber: number; }
 
@@ -41,12 +29,6 @@ export function SlideEditor({ runId, angleIndex, slideNumber }: Props) {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // AI panel state
-  const [aiOpen, setAiOpen] = useState(false);
-  const [aiMessages, setAiMessages] = useState<ChatMsg[]>([]);
-  const [aiInput, setAiInput] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
 
   // Style save flag (needs explicit Save click due to slow Playwright screenshot)
   const [styleDirty, setStyleDirty] = useState(false);
@@ -62,6 +44,12 @@ export function SlideEditor({ runId, angleIndex, slideNumber }: Props) {
 
   const [snap, setSnap, { undo, redo, canUndo, canRedo, resetInitialState }] =
     useUndoable<SlideSnapshot>(buildEmpty());
+
+  // AI hook
+  const { aiOpen, setAiOpen, aiMessages, aiInput, setAiInput, aiLoading, sendAiMessage } = useSlideAI({
+    runId, angleIndex, slideNumber, snap,
+    setSnap: (updater) => setSnap(updater),
+  });
 
   // After slide loads, reset the undo baseline
   useEffect(() => { loadSlide(); }, [runId, angleIndex, slideNumber]);
@@ -164,23 +152,6 @@ export function SlideEditor({ runId, angleIndex, slideNumber }: Props) {
     finally { setStyleSaving(false); }
   }
 
-  // ── AI rewrite ────────────────────────────────────────────────────────────
-  async function sendAiMessage() {
-    const text = aiInput.trim();
-    if (!text || aiLoading) return;
-    setAiMessages(prev => [...prev, { role: "user", content: text }]);
-    setAiInput("");
-    setAiLoading(true);
-    try {
-      const result = await api.aiRewriteSlide(runId, angleIndex, slideNumber, text);
-      const s = result.slide;
-      setSnap({ ...snap, title: s.title, body: s.body, bullets: s.bullets ?? [] });
-      setAiMessages(prev => [...prev, { role: "assistant", content: `Rewrote: **${s.title}**` }]);
-    } catch (e: any) {
-      setAiMessages(prev => [...prev, { role: "assistant", content: `Error: ${e.message}` }]);
-    } finally { setAiLoading(false); }
-  }
-
   const setField = useCallback(<K extends keyof SlideSnapshot>(
     key: K, val: SlideSnapshot[K], markDirty = false
   ) => {
@@ -270,160 +241,25 @@ export function SlideEditor({ runId, angleIndex, slideNumber }: Props) {
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar space-y-4">
-          {/* ── CONTENT ── */}
           {activeTab === "content" && (
-            <>
-              <Field label="Title">
-                <textarea id="slide-field-title" rows={2} value={snap.title}
-                  onChange={e => setField("title", e.target.value)}
-                  className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-3 py-2 text-sm text-zinc-100 resize-none focus:outline-none focus:border-violet-500/50 transition-all" />
-              </Field>
-              <Field label="Body">
-                <textarea id="slide-field-body" rows={3} value={snap.body}
-                  onChange={e => setField("body", e.target.value)}
-                  className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-3 py-2 text-sm text-zinc-100 resize-none focus:outline-none focus:border-violet-500/50 transition-all" />
-              </Field>
-              <Field label="Bullets">
-                <div id="slide-field-bullet" className="space-y-1.5">
-                  {snap.bullets.map((b, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <span className="text-zinc-600 text-[10px] shrink-0">·</span>
-                      <input value={b} onChange={e => { const n = [...snap.bullets]; n[i] = e.target.value; setField("bullets", n); }}
-                        className="flex-1 bg-zinc-800/50 border border-zinc-700/50 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-violet-500/40" />
-                      <button onClick={() => setField("bullets", snap.bullets.filter((_, j) => j !== i))} className="text-zinc-700 hover:text-red-400 shrink-0"><X size={12} /></button>
-                    </div>
-                  ))}
-                  <button onClick={() => setField("bullets", [...snap.bullets, ""])} className="flex items-center gap-1 text-[11px] text-zinc-600 hover:text-zinc-400"><Plus size={10} /> Add bullet</button>
-                </div>
-              </Field>
-              {(slide?.type === "stat" || snap.statValue) && (
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Stat Value"><input value={snap.statValue} onChange={e => setField("statValue", e.target.value)} placeholder="47%" className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500/50" /></Field>
-                  <Field label="Stat Label"><input value={snap.statLabel} onChange={e => setField("statLabel", e.target.value)} placeholder="of users" className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500/50" /></Field>
-                </div>
-              )}
-            </>
+            <ContentTab snap={snap} slide={slide} setField={setField} Field={Field} />
           )}
-
-          {/* ── STYLE ── */}
           {activeTab === "style" && (
-            <>
-              <Field label="Font Size">
-                <div className="flex gap-1 flex-wrap">
-                  {Object.keys(FONT_SIZES).map(k => (
-                    <button key={k} onClick={() => setField("titleSize", k, true)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${snap.titleSize === k ? "bg-violet-600 text-white" : "bg-zinc-800/60 text-zinc-400 hover:text-zinc-200"}`}>
-                      {k.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-              </Field>
-              <Field label="Title Color">
-                <div className="flex gap-2 flex-wrap">
-                  {TEXT_COLORS.map(c => (
-                    <button key={c} onClick={() => setField("titleColor", c, true)} style={{ backgroundColor: c }}
-                      className={`w-7 h-7 rounded-lg border-2 transition-all ${snap.titleColor === c ? "border-violet-500 scale-110" : "border-zinc-700"}`} />
-                  ))}
-                  <input type="color" value={snap.titleColor} onChange={e => setField("titleColor", e.target.value, true)} className="w-7 h-7 rounded-lg cursor-pointer border border-zinc-700 bg-transparent" />
-                </div>
-              </Field>
-              <Field label="Accent Color">
-                <div className="flex gap-2 flex-wrap">
-                  {ACCENT_PRESETS.map(c => (
-                    <button key={c} onClick={() => setField("accentColor", c, true)} style={{ backgroundColor: c }}
-                      className={`w-7 h-7 rounded-lg border-2 transition-all ${snap.accentColor === c ? "border-white scale-110" : "border-transparent"}`} />
-                  ))}
-                  <input type="color" value={snap.accentColor} onChange={e => setField("accentColor", e.target.value, true)} className="w-7 h-7 rounded-lg cursor-pointer border border-zinc-700 bg-transparent" />
-                </div>
-              </Field>
-              <Field label="Slide Type">
-                <div className="flex gap-1 flex-wrap">
-                  {SLIDE_TYPES.map(t => (
-                    <button key={t} onClick={() => setField("selectedType", t, true)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${snap.selectedType === t ? "bg-violet-600 text-white" : "bg-zinc-800/60 text-zinc-400 hover:text-zinc-200"}`}>
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </Field>
-              <Field label="Theme">
-                <div className="flex gap-2">
-                  {["aurora", "lumina"].map(t => (
-                    <button key={t} onClick={() => setField("selectedTheme", t, true)}
-                      className={`flex-1 py-2 rounded-xl text-xs font-bold capitalize transition-all ${snap.selectedTheme === t ? "bg-violet-600 text-white" : "bg-zinc-800/60 text-zinc-400 hover:text-zinc-200"}`}>
-                      {t === "aurora" ? "🌑 Aurora" : "☀️ Lumina"}
-                    </button>
-                  ))}
-                </div>
-              </Field>
-              {styleDirty && (
-                <button onClick={handleStyleSave} disabled={styleSaving}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-bold transition-all">
-                  {styleSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                  {styleSaving ? "Saving…" : "Save Style Changes"}
-                </button>
-              )}
-            </>
+            <StyleTab
+              snap={snap} setField={setField}
+              styleDirty={styleDirty} styleSaving={styleSaving}
+              onStyleSave={handleStyleSave} Field={Field}
+            />
           )}
-
-          {/* ── CHART ── */}
           {activeTab === "chart" && (
-            <>
-              <Field label="Chart Type">
-                <div className="flex gap-1 flex-wrap">
-                  {CHART_TYPES.map(t => (
-                    <button key={t} onClick={() => setField("chartType", t, true)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${snap.chartType === t ? "bg-violet-600 text-white" : "bg-zinc-800/60 text-zinc-400 hover:text-zinc-200"}`}>
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </Field>
-              <Field label="Data">
-                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
-                  {snap.chartLabels.map((label, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <input value={label} onChange={e => { const n = [...snap.chartLabels]; n[i] = e.target.value; setField("chartLabels", n); }} placeholder="Label"
-                        className="flex-1 bg-zinc-800/50 border border-zinc-700/50 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-violet-500/40" />
-                      <input type="number" value={snap.chartValues[i] ?? ""} onChange={e => { const n = [...snap.chartValues]; n[i] = Number(e.target.value); setField("chartValues", n); }} placeholder="Val"
-                        className="w-16 bg-zinc-800/50 border border-zinc-700/50 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-violet-500/40" />
-                      <button onClick={() => { setField("chartLabels", snap.chartLabels.filter((_, j) => j !== i)); setField("chartValues", snap.chartValues.filter((_, j) => j !== i)); }} className="text-zinc-700 hover:text-red-400 shrink-0"><X size={12} /></button>
-                    </div>
-                  ))}
-                  <button onClick={() => { setField("chartLabels", [...snap.chartLabels, ""]); setField("chartValues", [...snap.chartValues, 0]); }} className="flex items-center gap-1 text-[11px] text-zinc-600 hover:text-zinc-400"><Plus size={10} /> Add row</button>
-                </div>
-              </Field>
-              {snap.chartLabels.length > 0 && (
-                <div className="bg-zinc-900 rounded-xl p-3 border border-zinc-800/50">
-                  <ChartPreview chartType={snap.chartType} labels={snap.chartLabels} values={snap.chartValues} />
-                </div>
-              )}
-              {styleDirty && (
-                <button onClick={handleStyleSave} disabled={styleSaving}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-bold transition-all">
-                  {styleSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                  {styleSaving ? "Saving…" : "Save Chart Changes"}
-                </button>
-              )}
-            </>
+            <ChartTab
+              snap={snap} setField={setField}
+              styleDirty={styleDirty} styleSaving={styleSaving}
+              onStyleSave={handleStyleSave} Field={Field}
+            />
           )}
-
-          {/* ── IMAGE ── */}
           {activeTab === "image" && (
-            <div className="flex flex-col items-center justify-center py-8 gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center">
-                <ImageIcon size={28} className="text-zinc-600" />
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-semibold text-zinc-300 mb-1">Change slide image</p>
-                <p className="text-xs text-zinc-600">Search Pexels, upload a file, or paste a URL</p>
-              </div>
-              <button onClick={() => setImageModalOpen(true)}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold transition-all">
-                <ImageIcon size={14} /> Open Image Picker
-              </button>
-              <p className="text-[10px] text-zinc-700">Tip: you can also click on the image in the slide preview</p>
-            </div>
+            <ImageTab onOpenImageModal={() => setImageModalOpen(true)} />
           )}
         </div>
       </div>

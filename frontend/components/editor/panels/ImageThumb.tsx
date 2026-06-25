@@ -1,5 +1,6 @@
 "use client";
 import { Loader2, X, Trash2 } from "lucide-react";
+import { ASSET_BASE } from "@/lib/api/client";
 import type { ImageLibraryItem } from "@/lib/api";
 
 export interface ImageThumbProps {
@@ -27,11 +28,11 @@ export function ImageThumb({
     <div
       className={`relative group rounded-lg overflow-hidden bg-zinc-900 aspect-square transition-all duration-300 ${isGhost ? "opacity-30" : ""}`}
       draggable
-      onDragStart={e => e.dataTransfer.setData("imageUrl", `http://localhost:8000${item.url}`)}
+      onDragStart={e => e.dataTransfer.setData("imageUrl", `${ASSET_BASE}${item.url}`)}
       onContextMenu={e => onRightClick(e, item)}
     >
       <img
-        src={`http://localhost:8000${item.url}`}
+        src={`${ASSET_BASE}${item.url}`}
         alt={item.filename}
         className="w-full h-full object-cover"
         loading="lazy"
@@ -40,7 +41,7 @@ export function ImageThumb({
       {!dState && (
         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
           <button
-            onClick={() => onImageApply(`http://localhost:8000${item.url}`)}
+            onClick={() => onImageApply(`${ASSET_BASE}${item.url}`)}
             className="px-2 py-1 rounded bg-violet-600 text-white text-[10px] font-bold hover:bg-violet-500 transition-all"
           >
             Apply

@@ -10,6 +10,7 @@ import { api } from "@/lib/api";
 import { useBlankRunCreation } from "@/hooks/useBlankRunCreation";
 import type { FileBrowserProps } from "@/components/editor/FileBrowser";
 import type { ChartType, ChartData } from "@/types/chart";
+import { SLIDE_TEMPLATES } from "@/constants/slideTemplates";
 
 interface EditorLeftPanelProps extends FileBrowserProps {
   runId: string | null;
@@ -199,15 +200,6 @@ export function EditorLeftPanel({
 }
 
 // ── Template strip (bottom of Files tab) ─────────────────────────────────────
-
-const SLIDE_TEMPLATES = [
-  { type: "hook",    label: "Hook",    desc: "Bold opening",     color: "#7C6EFA" },
-  { type: "content", label: "Content", desc: "Text + image",     color: "#2DD4BF" },
-  { type: "stat",    label: "Stat",    desc: "Big number",       color: "#F59E0B" },
-  { type: "quote",   label: "Quote",   desc: "Pull quote",       color: "#EC4899" },
-  { type: "cta",     label: "CTA",     desc: "Call to action",   color: "#10B981" },
-  { type: "engage",  label: "Engage",  desc: "Engagement slide", color: "#6366F1" },
-] as const;
 
 function TemplateStrip({ onSelectTemplate }: { onSelectTemplate: (type: string) => void }) {
   return (

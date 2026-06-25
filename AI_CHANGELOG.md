@@ -6,6 +6,125 @@
 
 ---
 
+## 2026-06-25 — Sessions 51+: Code Splitting Round 4 + Canvas Component System
+
+### What Changed
+
+Continued systematic code splitting using a two-pass exhaustive audit. 13 splitting opportunities identified; all implemented and tested.
+
+---
+
+### Canvas Component System Expansion
+
+**Content layout-3 (Image Left / Text Right)** added — `aurora-content-3` registered in REGISTRY and in backend `_layout_variant_for_image()` (cycles 1→2→3 for landscape images).
+
+**Button component library** — all 6 styles now exposed in the editor TemplatesPanel Components tab:
+- `btn-gradient` — filled aurora gradient
+- `btn-ghost` — transparent + white border (used on Engage slide)
+- `btn-frosted-glow` — glassmorphism + glow shadow
+- `btn-solid-white` — white pill + gradient text
+- `btn-dark-pill` — dark cutout + white border
+- `btn-dark-gradient` — dark fill + gradient text
+
+**Component drop system refactored** — `canvasDropHandlers.ts` is now a 91-line router; each component has its own file in `componentDroppers/`:
+```
+canvasDropHandlers.ts     (91 lines)  — router + image drop
+componentDroppers/
+  brandBar.ts, glassCard.ts, statBlock.ts, quoteBlock.ts
+  bulletList.ts, accentLine.ts, eyebrowPill.ts, buttons.ts
+```
+
+**Bugs fixed in drop handler:**
+- `dark-card` and `brand-bar` were not moveable/deleteable — objects had `selectable: false`. Fixed by re-enabling before grouping with `fabric.Group`.
+- 4 missing component IDs (`dark-card`, `quote-block`, `eyebrow-pill`, `cta-button`) caused `Unknown component` warnings — all now handled.
+
+---
+
+### Chart Rendering Fully Decoupled
+
+`chartRenderer.ts` went from **369 → 54 lines**. Three levels of splitting:
+
+```
+chartRenderer.ts            (54)   — defaultSize + createChartObject dispatcher
+chartConfigs/
+  barConfig.ts              (44)   — bar + column
+  lineConfig.ts             (29)   — line + area
+  donutConfig.ts            (15)   — donut
+  radarConfig.ts            (20)   — radar
+  stackedConfig.ts          (46)   — stacked-bar + stacked-column + comparison
+  scatterConfig.ts          (22)   — scatter + bubble
+chartGroupBuilders/
+  helpers.ts                (24)   — makeGroup + makeFabricImage (shared)
+  funnelGroup.ts            (56)   — horizontal bar funnel (pure Fabric, no Chart.js)
+  progressGroup.ts          (51)   — track progress bars (pure Fabric, no Chart.js)
+  bigNumberGroup.ts         (44)   — stat value display (pure Fabric, no Chart.js)
+  chartImageRenderer.ts     (94)   — Chart.js → PNG → FabricImage
+```
+
+**Key architecture decision:** `chartGroupBuilders/` (funnel, progress, bigNumber) has zero Chart.js dependency — they're pure Fabric objects. Only `chartImageRenderer.ts` touches Chart.js and the DOM.
+
+---
+
+### Pill Button Styles Decoupled
+
+`shared/buttons.ts` went from **223 → 86 lines**:
+```
+shared/buttons.ts                          (86)  — createPillButton dispatcher + createEyebrowPill
+shared/pillButtons/styleBuilders.ts       (107)  — 6 style builder functions + FabricFill type + createShimmer
+```
+
+Each button style (`buildGradientStyle`, `buildGhostStyle`, etc.) is independently testable.
+
+---
+
+### ChartTypePicker SVG Icons
+
+`ChartTypePicker.tsx` 179 → **85 lines**. 13 chart-type preview SVGs moved to `chartTypeIcons.tsx` (117 lines). These are NOT generic icons — they're miniature data-structure previews showing what each chart type looks like. No icon library ships these.
+
+---
+
+### Code Splitting Round 4 — Full Audit (13 Opportunities)
+
+Two-pass exhaustive audit found 13 splitting opportunities. All implemented:
+
+**Phase 1 — Data extractions:**
+- `ASSET_BASE` centralised in `lib/api/client.ts` — 7 components were each defining their own `process.env... ?? "http://localhost:8000"`. Now all import from one source.
+- `constants/slideTemplates.ts` — `SLIDE_TYPES`, `STARTER_CONTENT`, `COMPONENTS` deduplicated across `TemplatesPanel.tsx` and `EditorLeftPanel.tsx`
+- `constants/chartDefaults.ts` — `MULTI_SERIES_TYPES`, `NO_PREVIEW_TYPES`, `DEFAULT_DATA` out of `ChartEditorPanel.tsx`
+- `utils/chartValidation.ts` — `getChartWarnings()` function extracted, independently testable
+
+**Phase 2 — Logic separation:**
+- `utils/canvasTextHelpers.ts` — `trunc`, `estimateLines`, `autoSize`, `tb` helpers extracted from `slideToCanvas.ts`. The duplicate `estimateLines` in `aurora_content.ts` also eliminated.
+- `utils/canvasTemplates/contentLayouts/` — `aurora_content.ts` 294 → **54 lines**. Five layout builders each in own file: `textOnly.ts`, `imgRight.ts`, `textTop.ts`, `imgTop.ts`, `imgLeft.ts`
+- `store/slices/pipelineReducers/` — `pipelineSlice.ts` 241 → **141 lines**. 30+ reducers grouped into 6 domain files: `configReducers`, `budgetReducers`, `discoveryReducers`, `evidenceReducers`, `stageReducers`, `resultReducers`. Zero breaking changes — action creators still exported from `pipelineSlice.ts`.
+
+**Phase 3 — Large component splits:**
+- `ImagesPanel.tsx` 380 → **331 lines**. Three new hooks: `useImageLibrary`, `useImageUpload`, `useImageContextMenu`
+- `SlideEditor.tsx` 455 → **291 lines**. Extracted: `types/slideEditor.ts`, `hooks/useSlideAI.ts`, `panels/ContentTab.tsx`, `panels/StyleTab.tsx`, `panels/ChartTab.tsx`, `panels/ImageTab.tsx`
+
+**Total new files created across all splitting rounds:** 50+ files
+
+---
+
+### Test Results
+
+E2E suite `e2e/full-validation.spec.ts` — **47/47 tests pass** after every change.
+TypeScript: **0 errors** after every phase.
+
+---
+
+### Architectural Pattern Established
+
+All code splitting follows the same pattern from `componentDroppers/`:
+1. One thin **router/dispatcher** file — reads like a table of contents
+2. Each independent branch/concern in its **own focused file**
+3. Shared helpers in a **helpers.ts** within the same folder
+4. **Barrel re-exports** where needed (zero call-site breakage)
+
+To add a new chart type, button style, or content layout: create one file, import in the dispatcher, add one `case` line.
+
+---
+
 ## 2026-06-24 — Sessions 41–50: Major Frontend Refactor (Rounds 1–3) + E2E Validation
 
 ### What Changed

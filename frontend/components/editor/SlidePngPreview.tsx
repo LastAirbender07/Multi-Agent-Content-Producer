@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { ASSET_BASE } from "@/lib/api/client";
 import { Pencil, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -39,7 +40,7 @@ export function SlidePngPreview({ runId, angleIndex, slideNumber, onEnterEditMod
           const png = angle.png_paths.find(p => p.includes(`slide_${String(slideNumber).padStart(2, "0")}`));
           if (png) {
             // Convert backend path to URL
-            const url = `http://localhost:8000${png.startsWith("/") ? png : "/" + png}`;
+            const url = `${ASSET_BASE}${png.startsWith("/") ? png : "/" + png}`;
             setPngUrl(url);
           }
         }

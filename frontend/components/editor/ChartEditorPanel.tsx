@@ -5,58 +5,8 @@ import { ChartTypePicker } from "./ChartTypePicker";
 import { ChartDataTable } from "./ChartDataTable";
 import { ChartPreview } from "./ChartPreview";
 import type { ChartType, ChartData } from "@/types/chart";
-
-const MULTI_SERIES_TYPES: ChartType[] = ["stacked-bar", "stacked-column", "comparison", "radar"];
-const NO_PREVIEW_TYPES: ChartType[] = ["funnel", "progress", "number-stat"];
-
-function getChartWarnings(type: ChartType, data: ChartData): string[] {
-  const w: string[] = [];
-  const vals = data.values ?? [];
-
-  if (type === "donut" && vals.length > 0) {
-    const sum = vals.reduce((a, b) => a + b, 0);
-    if (sum < 80 || sum > 120) {
-      w.push(`Values sum to ${Math.round(sum)} — donut charts should sum to ~100%`);
-    }
-  }
-
-  if (type === "funnel" && vals.length > 1) {
-    for (let i = 1; i < vals.length; i++) {
-      if (vals[i] > vals[i - 1]) {
-        w.push(`Step ${i + 1} (${vals[i]}) > step ${i} (${vals[i - 1]}) — funnel values should decrease`);
-        break;
-      }
-    }
-  }
-
-  const long = (data.labels ?? []).filter(l => String(l).length > 22);
-  if (long.length > 0) {
-    w.push(`${long.length} label${long.length > 1 ? "s" : ""} exceed 22 chars and will be truncated`);
-  }
-
-  return w;
-}
-
-const DEFAULT_DATA: Record<ChartType, ChartData> = {
-  "bar":            { labels: ["Option A","Option B","Option C","Option D"], values: [120,200,150,80] },
-  "column":         { labels: ["Q1","Q2","Q3","Q4"], values: [120,200,150,180] },
-  "line":           { labels: ["Jan","Feb","Mar","Apr","May"], values: [40,80,60,100,90] },
-  "area":           { labels: ["Jan","Feb","Mar","Apr","May"], values: [40,80,60,100,90] },
-  "donut":          { labels: ["A","B","C","D"], values: [35,25,25,15] },
-  "radar":          { labels: ["Speed","Power","Range","Economy","Safety"], values: [80,60,70,90,75],
-                      series: [{ label: "Product A", values: [80,60,70,90,75] }, { label: "Product B", values: [60,80,50,70,85] }] },
-  "funnel":         { labels: ["Awareness","Interest","Consideration","Intent","Purchase"], values: [1000,750,500,300,150] },
-  "stacked-bar":    { labels: ["Q1","Q2","Q3"], values: [120,200,150],
-                      series: [{ label: "Revenue", values: [120,200,150] }, { label: "Cost", values: [80,120,90] }] },
-  "stacked-column": { labels: ["Q1","Q2","Q3"], values: [120,200,150],
-                      series: [{ label: "Revenue", values: [120,200,150] }, { label: "Cost", values: [80,120,90] }] },
-  "comparison":     { labels: ["Feature 1","Feature 2","Feature 3"], values: [80,60,90],
-                      series: [{ label: "Ours", values: [80,60,90] }, { label: "Competitor", values: [60,80,70] }] },
-  "scatter":        { labels: [], values: [], points: [{x:10,y:20},{x:25,y:40},{x:35,y:30},{x:50,y:60},{x:65,y:45}] },
-  "bubble":         { labels: [], values: [], points: [{x:10,y:20,r:8},{x:25,y:40,r:15},{x:50,y:30,r:10}] },
-  "progress":       { labels: [], values: [], progressItems: [{ label: "Goal 1", value: 75 }, { label: "Goal 2", value: 45 }, { label: "Goal 3", value: 90 }] },
-  "number-stat":    { labels: [], values: [], statValue: "42%", statLabel: "Conversion Rate", statContext: "Q4 2025" },
-};
+import { MULTI_SERIES_TYPES, NO_PREVIEW_TYPES, DEFAULT_DATA } from "@/constants/chartDefaults";
+import { getChartWarnings } from "@/utils/chartValidation";
 
 interface ChartEditorPanelProps {
   initialType?: ChartType;

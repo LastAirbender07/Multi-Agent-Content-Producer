@@ -8,7 +8,7 @@ import { useAppSelector } from "@/store/hooks";
 // Dynamic import — react-md-editor uses browser APIs
 const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false });
 
-const BASE = "http://localhost:8000/api/v1";
+import { BASE } from "@/lib/api/client";
 
 interface MarkdownEditorProps {
   runId: string;

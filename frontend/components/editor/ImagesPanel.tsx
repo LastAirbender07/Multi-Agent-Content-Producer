@@ -1,11 +1,14 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Search, Upload, ChevronRight, Trash2, Loader2, ImageIcon, AlertCircle } from "lucide-react";
-import { useDropzone } from "react-dropzone";
 import { motion, AnimatePresence } from "framer-motion";
+import { ASSET_BASE } from "@/lib/api/client";
 import { api, type ImageLibraryItem, type PexelsPhoto, type DDGSImage } from "@/lib/api";
 import { ImageThumb } from "./panels/ImageThumb";
 import { SectionHeader } from "./panels/SectionHeader";
+import { useImageLibrary } from "@/hooks/useImageLibrary";
+import { useImageUpload } from "@/hooks/useImageUpload";
+import { useImageContextMenu } from "@/hooks/useImageContextMenu";
 
 const SEARCH_CACHE_KEY = "imgSearchCache";
 
@@ -29,37 +32,25 @@ export function ImagesPanel({ runId, onImageApply }: ImagesPanelProps) {
   const [searchResults, setSearchResults] = useState<(PexelsPhoto | DDGSImage)[]>([]);
   const [searching, setSearching] = useState(false);
 
-  // Library state
-  const [library, setLibrary] = useState<{ run_images: Record<string, ImageLibraryItem[]>; user_uploads: ImageLibraryItem[] } | null>(null);
-  const [libraryLoading, setLibraryLoading] = useState(false);
-  const [expandedAngles, setExpandedAngles] = useState<Set<string>>(new Set());
+  // Library hook
+  const { library, libraryLoading, expandedAngles, setExpandedAngles, setLibrary } = useImageLibrary(runId);
 
   // Delete state: path → "confirming" | "deleting" | "deleted"
   // "deleted" acts as the ghost (fading-out) phase, replacing the old ghostPaths Set.
   const [deleteState, setDeleteState] = useState<Record<string, "confirming" | "deleting" | "deleted">>({});
 
-  // Upload state
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  // Context menu hook
+  const { contextMenu, setContextMenu, contextMenuRef, handleRightClick } = useImageContextMenu();
 
-  // Context menu
-  const [contextMenu, setContextMenu] = useState<{ item: ImageLibraryItem; x: number; y: number } | null>(null);
-  const contextMenuRef = useRef<HTMLDivElement>(null);
-
-  // Load library
-  useEffect(() => {
-    if (!runId) return;
-    setLibraryLoading(true);
-    api.getImageLibrary(runId)
-      .then(lib => {
-        setLibrary(lib);
-        // Auto-expand first angle
-        const keys = Object.keys(lib.run_images);
-        if (keys.length > 0) setExpandedAngles(new Set([keys[0]]));
-      })
-      .catch(() => {})
-      .finally(() => setLibraryLoading(false));
-  }, [runId]);
+  // Upload hook
+  const { getRootProps, getInputProps, isDragActive, uploading, uploadError } = useImageUpload(
+    (item: ImageLibraryItem) => {
+      setLibrary(prev => prev
+        ? { ...prev, user_uploads: [item, ...prev.user_uploads] }
+        : { run_images: {}, user_uploads: [item] }
+      );
+    }
+  );
 
   // Restore search cache
   useEffect(() => {
@@ -73,17 +64,6 @@ export function ImagesPanel({ runId, onImageApply }: ImagesPanelProps) {
       }
     } catch {}
   }, []);
-
-  // Close context menu on outside click
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
-        setContextMenu(null);
-      }
-    }
-    if (contextMenu) document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [contextMenu]);
 
   async function handleSearch() {
     if (!query.trim()) return;
@@ -101,11 +81,6 @@ export function ImagesPanel({ runId, onImageApply }: ImagesPanelProps) {
   function getSearchSrc(img: PexelsPhoto | DDGSImage): string {
     if ("src" in img) return img.src?.large2x || img.src?.large || "";
     return (img as DDGSImage).image || "";
-  }
-
-  function handleRightClick(e: React.MouseEvent, item: ImageLibraryItem) {
-    e.preventDefault();
-    setContextMenu({ item, x: e.clientX, y: e.clientY });
   }
 
   function startDelete(item: ImageLibraryItem) {
@@ -140,30 +115,6 @@ export function ImagesPanel({ runId, onImageApply }: ImagesPanelProps) {
   function cancelDelete(path: string) {
     setDeleteState(s => { const n = { ...s }; delete n[path]; return n; });
   }
-
-  const onDrop = useCallback(async (accepted: File[]) => {
-    if (!accepted[0]) return;
-    setUploading(true);
-    setUploadError(null);
-    try {
-      const item = await api.uploadToLibrary(accepted[0]);
-      setLibrary(prev => prev
-        ? { ...prev, user_uploads: [item, ...prev.user_uploads] }
-        : { run_images: {}, user_uploads: [item] }
-      );
-    } catch (e: unknown) {
-      setUploadError(e instanceof Error ? e.message : "Upload failed");
-    } finally {
-      setUploading(false);
-    }
-  }, []);
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: { "image/*": [".jpg", ".jpeg", ".png", ".webp"] },
-    maxSize: 10 * 1024 * 1024,
-    multiple: false,
-  });
 
   const thumbProps = {
     deleteState,
@@ -362,7 +313,7 @@ export function ImagesPanel({ runId, onImageApply }: ImagesPanelProps) {
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >
           <button
-            onClick={() => { onImageApply(`http://localhost:8000${contextMenu.item.url}`); setContextMenu(null); }}
+            onClick={() => { onImageApply(`${ASSET_BASE}${contextMenu.item.url}`); setContextMenu(null); }}
             className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-zinc-300 hover:bg-zinc-800 transition-colors"
           >
             <ImageIcon size={11} /> Apply to slide
