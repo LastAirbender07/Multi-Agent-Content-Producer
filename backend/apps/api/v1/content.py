@@ -17,7 +17,10 @@ from core.persistence.slide_repository import read_slides, slides_json_path
 from core.services.run_browser_service import create_blank_run, get_run_manifest, list_runs
 from core.services import asset_library_service
 from core.services.carousel_export_service import build_carousel_zip
+from core.services.caption_service import get_caption, update_caption
+from core.services.slide_reorder_service import reorder_slides, delete_slide as svc_delete_slide
 from core.services.token_tracker import token_tracker
+from core.orchestrators.content import _progress_store as content_progress
 from core.services.slide_editor_service import (
     ai_rewrite_slide as svc_ai_rewrite,
     create_slide as svc_create_slide,
@@ -124,12 +127,58 @@ async def get_token_usage(run_id: str) -> dict:
     return token_tracker.get_run_summary(run_id)
 
 
+@router.get("/{run_id}/render-status")
+async def get_render_status(run_id: str) -> dict:
+    """Poll real-time slide rendering progress during content generation."""
+    prog = content_progress.get(run_id)
+    if not prog:
+        return {"run_id": run_id, "status": "unknown"}
+    return {"run_id": run_id, **prog}
+
+
+@router.get("/{run_id}/caption/{angle_index}")
+async def read_caption(run_id: str, angle_index: int) -> dict:
+    try:
+        return get_caption(run_id, angle_index)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.put("/{run_id}/caption/{angle_index}")
+async def write_caption(run_id: str, angle_index: int, body: dict) -> dict:
+    caption = body.get("caption", "")
+    hashtags = body.get("hashtags", [])
+    try:
+        return update_caption(run_id, angle_index, caption, hashtags)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
 @router.get("/{run_id}/slides/{angle_index}/{slide_number}/preview", response_class=HTMLResponse)
 async def preview_slide(run_id: str, angle_index: int, slide_number: int) -> str:
     return get_slide_html_preview(run_id, angle_index, slide_number)
 
 
 # ── Slide editing ──────────────────────────────────────────────────────────────
+
+@router.put("/{run_id}/slides/{angle_index}/reorder")
+async def reorder_slides_endpoint(run_id: str, angle_index: int, body: dict) -> dict:
+    new_order: list[int] = body.get("slide_numbers", [])
+    if not new_order:
+        raise HTTPException(status_code=422, detail="slide_numbers required")
+    try:
+        return reorder_slides(run_id, angle_index, new_order)
+    except (FileNotFoundError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/{run_id}/slides/{angle_index}/{slide_number}")
+async def delete_slide_endpoint(run_id: str, angle_index: int, slide_number: int) -> dict:
+    try:
+        return svc_delete_slide(run_id, angle_index, slide_number)
+    except (FileNotFoundError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 
 @router.post("/{run_id}/slides/{angle_index}/{slide_number}/edit", response_model=SlideEditResponse)
 async def edit_slide(run_id: str, angle_index: int, slide_number: int, request: SlideEditRequest) -> SlideEditResponse:

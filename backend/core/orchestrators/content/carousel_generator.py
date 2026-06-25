@@ -6,6 +6,7 @@ from playwright.async_api import async_playwright
 
 from configs.settings import get_settings
 from core.orchestration.contracts import ContentRequest, Slide
+from core.orchestrators.content import _progress_store as content_progress
 from core.orchestrators.content.render_server import serve_directory
 from core.schemas.workflow_state import ContentGraphState
 from infra.logging import get_logger
@@ -199,7 +200,10 @@ async def screenshot_slides_node(state: ContentGraphState) -> dict:
             )
             page = await context.new_page()
 
-            for html_path in html_paths:
+            for i, html_path in enumerate(html_paths):
+                slide_num = i + 1
+                content_progress.update(run_id, slide_num, len(html_paths))
+
                 rel = Path(html_path).relative_to(_BACKEND_ROOT)
                 url = f"{base_url}/{str(rel).replace('\\', '/')}"
 
@@ -221,6 +225,7 @@ async def screenshot_slides_node(state: ContentGraphState) -> dict:
 
             await browser.close()
 
+    content_progress.clear(run_id)
     return {
         "slide_png_paths": png_paths,
         "messages": state.get("messages", []) + [f"Screenshotted {len(png_paths)} slides"],

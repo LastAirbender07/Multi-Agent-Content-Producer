@@ -10,6 +10,7 @@ from apps.api.v1.research import router as research_router
 from apps.api.v1.content import router as content_router
 from apps.api.v1.tools import router as tools_router
 from apps.api.v1.chat import router as chat_router
+from apps.api.v1.analytics import router as analytics_router
 from configs.settings import get_settings
 from infra.logging import get_logger
 from fastapi.responses import RedirectResponse
@@ -34,6 +35,7 @@ app.include_router(pipeline_router, prefix="/api/v1")
 app.include_router(content_router, prefix="/api/v1")
 app.include_router(tools_router, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
+app.include_router(analytics_router, prefix="/api/v1")
 
 # Serve generated output files (slides PNGs etc.) at /outputs/<run_id>/...
 _outputs_dir = Path(__file__).parent / "outputs"

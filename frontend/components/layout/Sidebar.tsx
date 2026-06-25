@@ -11,16 +11,18 @@ import {
   ChevronRight,
   Menu,
   PencilRuler,
+  BarChart2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const nav = [
-  { href: "/pipeline",  icon: Zap,          label: "Pipeline"  },
-  { href: "/research",  icon: FlaskConical,  label: "Research"  },
+  { href: "/pipeline",   icon: Zap,         label: "Pipeline"   },
+  { href: "/research",   icon: FlaskConical, label: "Research"   },
   { href: "/images",    icon: ImageIcon,     label: "Images"    },
   { href: "/news",      icon: Newspaper,     label: "News"      },
   { href: "/chat",      icon: MessageSquare, label: "Chat"      },
-  { href: "/editor",    icon: PencilRuler,   label: "Editor"    },
+  { href: "/editor",     icon: PencilRuler,  label: "Editor"     },
+  { href: "/analytics",  icon: BarChart2,    label: "Analytics"  },
 ];
 
 export function Sidebar() {

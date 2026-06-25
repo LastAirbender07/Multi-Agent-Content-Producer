@@ -6,6 +6,7 @@ import { StageCard, useStageTimer } from "@/components/pipeline/StageCard";
 import { CarouselViewer } from "@/components/pipeline/CarouselViewer";
 import { BlogExportBar } from "@/components/pipeline/BlogExportBar";
 import { TokenChip } from "@/components/pipeline/TokenChip";
+import { useContentProgress } from "@/hooks/useContentProgress";
 
 interface ContentStageCardProps {
   open: boolean;
@@ -16,6 +17,7 @@ export function ContentStageCard({ open, onToggle }: ContentStageCardProps) {
   const router = useRouter();
   const { stages, contentResult, angleResult, runId, topic } = useAppSelector((s) => s.pipeline);
   const elapsed = useStageTimer(stages.content.status);
+  const renderProgress = useContentProgress();
 
   return (
     <StageCard
@@ -29,9 +31,26 @@ export function ContentStageCard({ open, onToggle }: ContentStageCardProps) {
     >
       <div className="pt-4">
         {stages.content.status === "running" && (
-          <div className="flex items-center gap-3 py-8 justify-center">
-            <div className="w-5 h-5 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
-            <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Generating carousels…</span>
+          <div className="py-6 space-y-4">
+            <div className="flex items-center gap-3 justify-center">
+              <div className="w-5 h-5 rounded-full border-2 border-violet-500 border-t-transparent animate-spin shrink-0" />
+              <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">
+                {renderProgress?.label ?? "Generating carousels…"}
+              </span>
+            </div>
+            {renderProgress && (
+              <div className="space-y-1.5">
+                <div className="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className="bg-violet-500 h-1.5 rounded-full transition-all duration-500"
+                    style={{ width: `${renderProgress.pct}%` }}
+                  />
+                </div>
+                <p className="text-center text-[10px] text-zinc-600 font-semibold tabular-nums">
+                  {renderProgress.current} / {renderProgress.total} slides
+                </p>
+              </div>
+            )}
           </div>
         )}
         {contentResult && (

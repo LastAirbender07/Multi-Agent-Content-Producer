@@ -6,11 +6,78 @@
 
 ---
 
-# AI Development Changelog
+## 2026-06-25 — Sessions 53+: Analytics Page, Caption Editor, Progress Feedback, Slide Reorder
 
-**Purpose:** Track architectural decisions for quick context restoration in new sessions.
+### Summary
 
-**Format:** Stack-based (newest first), concise summaries only.
+Phase 2 of the Improvement Roadmap: built the analytics page, caption editor, real-time generation progress bar, slide reorder/delete backend, and completed multiple Playwright visual audit cycles.
+
+---
+
+### #11 — Analytics Page (`/analytics`)
+
+**Backend:** `analytics_service.py` scans all run dirs, reads `token_usage.json`, classifies topics via 13-category keyword rules, returns KPIs + per-stage costs + token series + activity map + model breakdown. `GET /api/v1/analytics/summary` registered in `main.py`. Bugs fixed: unused `import re`, dead `run_ts` variable, `import time as _time` inside function body.
+
+**Frontend:** `app/analytics/page.tsx` (245 lines) + extracted components:
+- `components/analytics/KpiCard.tsx` (29 lines) — pure display
+- `components/analytics/ContributionCalendar.tsx` (230 lines) — SVG grid + tooltip
+- `lib/api/analytics.ts` — `getSummary()` + full TypeScript types
+- Analytics added to sidebar nav
+
+**Activity calendar — 3 redesign iterations to reach final SVG version:**
+
+| Version | Problem | Fix |
+|---|---|---|
+| CSS flex grid | Month labels misaligned; tooltip clipped at top; grid only 70% wide | — |
+| 12 per-month cards | Too bulky; doesn't feel like GitHub | — |
+| SVG-based 53-week grid | ✅ Final: pixel-exact `<text x={DOW_LABEL_W + col*STEP}>`, fixed-position tooltip, full-width | Shipped |
+
+**Tooltip jitter root cause and fix:** `onMouseMove` + `setState` was re-rendering 371 SVG `<rect>` elements on every pixel of cursor movement, causing visible page vibration. Fixed by:
+1. Removing `onMouseMove` (only `onMouseEnter`/`onMouseLeave` needed)
+2. Replacing `useState<TooltipState>` with `useRef<HTMLDivElement>` — tooltip always mounted at `opacity:0`, position + text set via direct DOM mutation (`tipRef.current.style.left/top/opacity`). React render cycle never triggered on hover.
+
+**Token chart empty state:** Filtered to `runsWithTokens.filter(r => r.total_tokens > 0)` — was showing 19 zero-bar rows before one real bar.
+
+---
+
+### #2 — Progress Feedback During Carousel Generation
+
+- `backend/core/orchestrators/content/_progress_store.py` — module-level dict matching research progress store pattern
+- Wired into `screenshot_slides_node` — emits `update(run_id, current, total)` before each screenshot
+- `GET /api/v1/content/{run_id}/render-status`
+- `hooks/useContentProgress.ts` — 1.5s polling while content stage running
+- `ContentStageCard` — animated progress bar + "Rendering slide N of M…" label replaces plain spinner
+
+---
+
+### #3 — Caption + Hashtag Editor
+
+- `backend/core/services/caption_service.py` — `get_caption()` / `update_caption()` read/write `carousel.json`
+- `GET/PUT /api/v1/content/{run_id}/caption/{angle_index}`
+- `components/pipeline/CaptionEditor.tsx` — char counter bar (green→amber at 1800→red at 2200), hook preview (first 125 chars), hashtag chips with × remove, copy buttons, `loadError`/`saveError` states surface failures instead of silent fail
+- `CarouselViewer` — "Caption" button alongside each Download button
+
+---
+
+### #4 — Slide Reorder + Delete (backend + API)
+
+- `backend/core/services/slide_reorder_service.py` — `reorder_slides()` permutes `slides.json` + renames PNGs via tmp-prefix buffer (prevents rename collisions on overlap); `delete_slide()` removes PNG and renumbers
+- `PUT /api/v1/content/{run_id}/slides/{angle}/reorder` + `DELETE /{angle}/{slide_number}`
+- `api.reorderSlides()` + `api.deleteSlide()` added to `lib/api/editor.ts`
+
+---
+
+### UI Audit Fixes (Playwright)
+
+| Issue | Fix |
+|---|---|
+| Analytics crashes on `activity.map` | Destructure all array fields with `= []` defaults |
+| Token chart 19 empty bars | Filter to runs with actual token data |
+| Caption editor blank on backend offline | `loadError` state shows message |
+| Research page native `<select>` dropdowns | Segmented chip controls with icons |
+| Research idle state sparse | 3-card explainer + tip banner |
+| Compare button disrupting slider | Moved to action row below carousel |
+| `claude.py` fence strip bug | `str.strip("```json")` strips chars not substring — fixed with `startswith/split` |
 
 ---
 

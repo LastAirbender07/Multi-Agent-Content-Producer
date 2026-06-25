@@ -1,9 +1,10 @@
 "use client";
 import { useRef, useState, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Download, Loader2, GitCompare } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Loader2, GitCompare, Pencil } from "lucide-react";
 import { motion } from "framer-motion";
 import { InstagramPost } from "@/components/pipeline/InstagramPreview";
 import { CarouselCompare } from "@/components/pipeline/CarouselCompare";
+import { CaptionEditor } from "@/components/pipeline/CaptionEditor";
 import type { ContentResponse, AngleResponse } from "@/lib/api";
 import { api } from "@/lib/api";
 
@@ -16,6 +17,7 @@ export function CarouselViewer({ contentResult, angleResult }: CarouselViewerPro
   const [activeCarousel, setActiveCarousel] = useState(0);
   const [downloading, setDownloading] = useState<number | null>(null);
   const [showCompare, setShowCompare] = useState(false);
+  const [editingCaption, setEditingCaption] = useState<number | null>(null);
   const carouselRef = useRef<HTMLDivElement>(null);
 
   const handleScroll = useCallback(() => {
@@ -137,15 +139,26 @@ export function CarouselViewer({ contentResult, angleResult }: CarouselViewerPro
           const runId = contentResult.run_id;
           const isDownloading = downloading === angleIdx;
           return (
-            <button
-              key={angleIdx}
-              onClick={() => handleDownload(runId, angleIdx)}
-              disabled={isDownloading || !runId}
-              className="flex items-center justify-center gap-2 py-2 rounded-xl border border-zinc-700/50 bg-zinc-900/60 text-zinc-400 text-xs font-bold hover:border-violet-500/40 hover:text-violet-300 hover:bg-violet-500/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-            >
-              {isDownloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
-              {total > 1 ? `Download Angle ${angleIdx + 1}` : "Download ZIP"}
-            </button>
+            <div key={angleIdx} className="flex gap-2">
+              <button
+                onClick={() => handleDownload(runId, angleIdx)}
+                disabled={isDownloading || !runId}
+                className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border border-zinc-700/50 bg-zinc-900/60 text-zinc-400 text-xs font-bold hover:border-violet-500/40 hover:text-violet-300 hover:bg-violet-500/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                {isDownloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                {total > 1 ? `Download Angle ${angleIdx + 1}` : "Download ZIP"}
+              </button>
+              {runId && (
+                <button
+                  onClick={() => setEditingCaption(angleIdx)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-700/50 bg-zinc-900/60 text-zinc-500 text-xs font-bold hover:border-violet-500/40 hover:text-violet-300 hover:bg-violet-500/5 transition-all"
+                  title="Edit caption & hashtags"
+                >
+                  <Pencil size={12} />
+                  Caption
+                </button>
+              )}
+            </div>
           );
         })}
         {total > 1 && (
@@ -165,6 +178,16 @@ export function CarouselViewer({ contentResult, angleResult }: CarouselViewerPro
         contentResult={contentResult}
         angleResult={angleResult}
       />
+
+      {editingCaption !== null && contentResult.run_id && (
+        <CaptionEditor
+          open
+          onClose={() => setEditingCaption(null)}
+          runId={contentResult.run_id}
+          angleIndex={editingCaption}
+          angleStatement={angleResult?.selected_angles[editingCaption]?.statement}
+        />
+      )}
     </div>
   );
 }

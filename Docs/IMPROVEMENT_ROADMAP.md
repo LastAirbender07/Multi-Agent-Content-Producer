@@ -3,7 +3,7 @@
 > Created: 2026-06-25
 > Updated: 2026-06-25
 > Context: Multi-Agent Content Producer — research → angles → carousel → editor pipeline.
-> Status: Phase 1 complete (items 1, 7, 9, 10, 12). Phase 2 in progress.
+> Status: Phase 1 complete. Phase 2 complete (items 2, 3, 4, 11).
 > Scope: Excludes publishing (Instagram API) and authentication — deferred.
 
 ---
@@ -13,16 +13,16 @@
 | #  | Improvement                                   | Impact      | Effort | Status          |
 | -- | --------------------------------------------- | ----------- | ------ | --------------- |
 | 1  | Carousel ZIP download                         | 🔴 Critical | Low    | ✅ Done          |
-| 2  | Progress feedback during generation           | 🔴 Critical | Low    | Not started     |
-| 3  | Caption + hashtag editor                      | 🔴 Critical | Medium | Not started     |
-| 4  | Slide reorder + delete                        | 🟠 High     | Medium | Not started     |
+| 2  | Progress feedback during generation           | 🔴 Critical | Low    | ✅ Done          |
+| 3  | Caption + hashtag editor                      | 🔴 Critical | Medium | ✅ Done          |
+| 4  | Slide reorder + delete                        | 🟠 High     | Medium | ✅ Done (backend)|
 | 5  | Batch style editing ("apply to all slides")   | 🟠 High     | Medium | Not started     |
 | 6  | Run search + tagging                          | 🟡 Medium   | Low    | Not started     |
 | 7  | Slide count flexibility (not fixed at 12)     | 🟡 Medium   | Low    | ✅ Done          |
 | 8  | `/settings` page — brand config               | 🟡 Medium   | Medium | Not started     |
 | 9  | Caption length + hashtag validation           | 🟡 Medium   | Low    | ✅ Done          |
 | 10 | Token usage + cost display per stage          | 🟡 Medium   | Medium | ✅ Done          |
-| 11 | `/analytics` page — usage, stats, insights   | 🟡 Medium   | Medium | Not started     |
+| 11 | `/analytics` page — usage, stats, insights   | 🟡 Medium   | Medium | ✅ Done          |
 | 12 | A/B carousel comparison                       | 🟢 Nice     | Medium | ✅ Done          |
 | 13 | Publishing (Instagram + Cloudinary)           | —           | High   | Deferred        |
 | 14 | Authentication + multi-user                   | —           | High   | Deferred        |
@@ -69,6 +69,7 @@ Constants: `IG_CAPTION_MAX=2200`, `IG_HASHTAG_MAX=30`, `IG_HOOK_CHARS=125`.
 **Shipped:** `backend/core/services/token_tracker.py`
 
 **Live pricing (not hardcoded):**
+
 - Exchange rate: `https://api.exchangerate-api.com/v4/latest/USD` — live INR rate (was hardcoded 84.0; actual at build time: 94.65 — 12.5% error)
 - LLM pricing: LiteLLM community JSON (`model_prices_and_context_window.json`, 2785 models), prices per-token converted to per-1M
 - Both cached 6h via `_LiveCache`; silent fallback to last known values if fetch fails
@@ -90,15 +91,18 @@ Constants: `IG_CAPTION_MAX=2200`, `IG_HASHTAG_MAX=30`, `IG_HOOK_CHARS=125`.
 **Architecture decision:** Two independent per-column indexes (not synced to `Math.min(totalA, totalB)` which silently truncated slides).
 
 **Synced mode (default):**
+
 - Shared `←→` nav in header moves both columns simultaneously
 - Dot nav shows `max(totalA, totalB)` dots; dots beyond the shorter carousel render at 50% opacity — unequal lengths are visually obvious
 - Clicking a dot clamps to valid range on each side independently
 
 **Independent mode (toggle):**
+
 - Each column has its own dot nav + arrow buttons below the slide
 - Can be on slide 4 in A and slide 9 in B simultaneously
 
 **Mismatch handling:**
+
 - When `safeIdx >= totalOther`: slide counter badge turns amber with `✦` suffix
 - Amber strip below slide says "Slide N has no counterpart — this angle has X extra slide(s)"
 - Nothing hidden, nothing truncated
@@ -108,6 +112,65 @@ Constants: `IG_CAPTION_MAX=2200`, `IG_HASHTAG_MAX=30`, `IG_HOOK_CHARS=125`.
 **UX details:** Angle picker as chips (not OS `<select>`), keyboard `←/→/Esc`, Framer Motion slide transition, "Synced"/"Independent" toggle button in header.
 
 **Compare button placement:** Moved from navigation bar (was disrupting the carousel slider aesthetic) to the action row below the carousel, alongside download buttons. Spans full width when 2+ angles exist.
+
+---
+
+### Improvement 2 — Progress Feedback During Generation ✅
+
+**Shipped:** `backend/core/orchestrators/content/_progress_store.py` — module-level dict mirroring the research progress store. `update(run_id, current, total)` called before each Playwright screenshot in `screenshot_slides_node`; `clear(run_id)` called on completion.
+
+`GET /api/v1/content/{run_id}/render-status` returns `{current, total, pct, label}`.
+
+Frontend: `hooks/useContentProgress.ts` polls at 1.5s intervals while `stages.content.status === "running"`. `ContentStageCard` shows animated progress bar + "Rendering slide N of M…" label instead of plain spinner.
+
+---
+
+### Improvement 3 — Caption + Hashtag Editor ✅
+
+**Shipped:** `backend/core/services/caption_service.py` — `get_caption()` / `update_caption()` read/write `carousel.json` per angle. `GET/PUT /api/v1/content/{run_id}/caption/{angle_index}`.
+
+`frontend/components/pipeline/CaptionEditor.tsx` — full modal with:
+- Char counter progress bar (green → amber at 1800 → red at 2200)
+- Hook preview showing exact first 125 chars (what Instagram shows before "more")
+- Hashtag chips with × to remove, input to add (Enter to confirm)
+- One-click copy for caption and hashtags separately
+- `loadError` / `saveError` states surface failures visibly instead of silent console.error
+
+`CarouselViewer` — "Caption" button added alongside each Download button.
+
+---
+
+### Improvement 4 — Slide Reorder + Delete ✅ (backend complete)
+
+**Shipped:** `backend/core/services/slide_reorder_service.py`
+
+`reorder_slides()` — permutes `slides.json` to match `new_order` list, then renames PNGs using a tmp-prefix swap buffer (prevents collision when new name equals existing name of a different slide).
+
+`delete_slide()` — removes the slide dict from `slides.json`, deletes its PNG, renumbers all remaining slides 1..N-1.
+
+`PUT /api/v1/content/{run_id}/slides/{angle_index}/reorder` + `DELETE /{angle_index}/{slide_number}`
+
+`api.reorderSlides()` + `api.deleteSlide()` added to `lib/api/editor.ts`.
+
+*Frontend drag-to-reorder UI (FileBrowser) not yet wired — the backend is ready for it.*
+
+---
+
+### Improvement 11 — `/analytics` Page ✅
+
+**Shipped:** `backend/core/services/analytics_service.py` + `backend/apps/api/v1/analytics.py`
+
+`GET /api/v1/analytics/summary` returns: KPIs (runs/slides/cost), token breakdown by stage, per-run token series (last 30), topic distribution (keyword classifier, 13 categories), daily activity map, model breakdown.
+
+**Frontend:** `app/analytics/page.tsx` + `components/analytics/KpiCard.tsx` + `components/analytics/ContributionCalendar.tsx`
+
+**Activity calendar final design** — SVG-based 53-week GitHub-style grid:
+- Month labels placed at exact pixel x-offset via `<text x={DOW_LABEL_W + col*STEP}>`
+- `buildGrid()` pure function — always exactly 53 weeks, handles leap years via `new Date()`, marks `padding` for days outside the selected year
+- Tooltip via `useRef<HTMLDivElement>` DOM mutation — no `useState`, no re-renders on hover. Eliminates page jitter from `onMouseMove` + `setState` on 371 SVG rects
+- Future cells render as `#27272a` (dim but visible), distinct from past-empty `#3f3f46`
+- Year picker chips — years computed from activity data, current year always included
+- Streak counter: consecutive days back from today
 
 ---
 
@@ -993,30 +1056,25 @@ No auth is planned until the app has a use case beyond a single user on localhos
 ```
 Phase 1 — Unblock the output ✅ COMPLETE
   Improvement 1:  Carousel ZIP download                  ✅ Done
-  Improvement 7:  Flexible slide count                   ✅ Done (was free — backend already supported it)
-  Improvement 9:  Caption validation (backend only)      ✅ Done
-  Improvement 10: Token tracking backend + stage chips   ✅ Done (live pricing via exchangerate-api + LiteLLM)
-  Improvement 12: A/B carousel comparison                ✅ Done (with independent nav + mismatch handling)
+  Improvement 7:  Flexible slide count                   ✅ Done
+  Improvement 9:  Caption validation (backend)           ✅ Done
+  Improvement 10: Token tracking + live pricing          ✅ Done
+  Improvement 12: A/B carousel comparison                ✅ Done
 
-Phase 2 — Enable editing + insights (next)
-  Improvement 3:  Caption + hashtag editor                ← 3–4 days  [next up]
-  Improvement 2:  Progress feedback during generation     ← 1–2 days
-  Improvement 4:  Slide reorder + delete                  ← 3–4 days
-  Improvement 11: /analytics page (token data now exists) ← 3–4 days
+Phase 2 — Enable editing + insights ✅ COMPLETE
+  Improvement 2:  Progress feedback during generation    ✅ Done
+  Improvement 3:  Caption + hashtag editor               ✅ Done
+  Improvement 4:  Slide reorder + delete (backend)       ✅ Done (frontend drag UI pending)
+  Improvement 11: /analytics page                        ✅ Done
 
-Phase 3 — Polish
-  Improvement 5:  Batch style editing                     ← 3 days
-  Improvement 6:  Run search + tagging                    ← 3 days
-  Improvement 8:  /settings page                          ← 4–5 days
-
-Phase 4 — Deferred
-  Publishing (Instagram)
-  Authentication
-```
-  Improvement 8:  /settings page                          ← 4–5 days
-  Improvement 12: A/B carousel comparison                 ← 2 days
+Phase 3 — Polish (next)
+  Improvement 4:  Slide reorder drag UI (FileBrowser)    ← 1–2 days
+  Improvement 5:  Batch style editing                    ← 3 days
+  Improvement 6:  Run search + tagging                   ← 3 days
+  Improvement 8:  /settings page                         ← 4–5 days
 
 Phase 4 — Deferred
-  Publishing (Instagram)
-  Authentication
+  Publishing (Instagram + Cloudinary)
+  Authentication + multi-user
 ```
+
