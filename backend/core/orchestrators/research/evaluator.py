@@ -1,14 +1,12 @@
 import re
 
-from langchain_core.messages import HumanMessage, SystemMessage
-
 from configs.settings import get_settings
 from core.orchestration.contracts import EvaluationResult, LLMEvaluationOutput
 from core.prompts.prompt_loader import load_prompt
 from core.prompts.system_prompts import get_system_prompt
 from core.schemas.workflow_state import ResearchGraphState
 from core.utils.text_utils import format_evidence_block, domain_from_url
-from infra.llm.langchain_adapter import get_langchain_llm
+from infra.llm.factory import LLMFactory
 from infra.logging import get_logger
 
 logger = get_logger(__name__)
@@ -34,10 +32,8 @@ def _compute_source_score(evidence: list, source_ids: set) -> float:
     diversity = min(1.0, len(source_ids) / _DIVERSITY_SATURATION)
     return round(0.5 * coverage + 0.5 * diversity, 4)
 
-async def _run_llm_judge(topic: str, synthesis, evidence: list) -> LLMEvaluationOutput:
+async def _run_llm_judge(topic: str, synthesis, evidence: list, run_id: str | None = None) -> LLMEvaluationOutput:
     try:
-        llm = get_langchain_llm()
-        structured_llm = llm.with_structured_output(LLMEvaluationOutput)
         system_prompt = get_system_prompt("research")
         key_points_text = "\n".join(f"- {p}" for p in (synthesis.key_points or []))
         evidence_block = format_evidence_block(evidence, max_items=10, compact=True)
@@ -48,11 +44,15 @@ async def _run_llm_judge(topic: str, synthesis, evidence: list) -> LLMEvaluation
             key_points=key_points_text or "(none)",
             evidence_block=evidence_block or "(no evidence provided)",
         )
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt),
-        ]
-        result: LLMEvaluationOutput = await structured_llm.ainvoke(messages)
+
+        result: LLMEvaluationOutput = await LLMFactory.get_client_with_retry(
+            lambda llm: llm.generate_structured(
+                prompt=user_prompt,
+                output_schema=LLMEvaluationOutput,
+                system_prompt=system_prompt,
+                _token_meta=(run_id, "research"),
+            )
+        )
         logger.info(
             "llm_judge_completed",
             topic=topic,
@@ -114,7 +114,7 @@ async def evaluate_node(state: ResearchGraphState) -> dict:
         )
     else:
         # Run LLM judge
-        llm_eval = await _run_llm_judge(topic, synthesis, evidence)
+        llm_eval = await _run_llm_judge(topic, synthesis, evidence, run_id=state.get("run_id"))
         llm_score = round(llm_eval.overall_score, 4)
         # LLM and source signals weighted equally now that LLM scoring is
         # per-article (more signal) and sources are always high-volume.

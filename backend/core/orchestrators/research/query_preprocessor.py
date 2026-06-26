@@ -33,12 +33,14 @@ class QueryPreprocessor:
     def __init__(self) -> None:
         self._template = _TEMPLATE_PATH.read_text(encoding="utf-8")
 
-    async def process(self, raw_topic: str) -> ProcessedQuery:
+    async def process(self, raw_topic: str, run_id: str | None = None) -> ProcessedQuery:
         logger.info("query_preprocessor_start", raw_topic=raw_topic)
 
         today = date.today().isoformat()
         prompt = self._template.format(raw_topic=raw_topic, current_date=today)
-        response = await LLMFactory.get_client_with_retry(lambda llm: llm.generate(prompt))
+        response = await LLMFactory.get_client_with_retry(
+            lambda llm: llm.generate(prompt, _token_meta=(run_id, "research"))
+        )
         raw = response.content
 
         try:

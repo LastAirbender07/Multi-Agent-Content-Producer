@@ -39,7 +39,7 @@ async def intake_node(state: ResearchGraphState) -> dict:
     if not request.preprocessed_queries:
         try:
             preprocessor = QueryPreprocessor()
-            processed = await preprocessor.process(request.topic)
+            processed = await preprocessor.process(request.topic, run_id=run_id)
             freshness = (
                 request.freshness
                 if request.freshness != "recent"

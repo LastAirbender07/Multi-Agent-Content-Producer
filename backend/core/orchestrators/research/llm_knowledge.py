@@ -24,8 +24,13 @@ async def llm_knowledge_node(state: ResearchGraphState) -> dict:
     try:
         system_prompt = get_system_prompt("research")
         user_prompt = load_prompt("llm_knowledge", topic=topic)
+        run_id = state.get("run_id")
         response = await LLMFactory.get_client_with_retry(
-            lambda llm: llm.generate(prompt=user_prompt, system_prompt=system_prompt)
+            lambda llm: llm.generate(
+                prompt=user_prompt,
+                system_prompt=system_prompt,
+                _token_meta=(run_id, "research"),
+            )
         )
         content = response.content
 
