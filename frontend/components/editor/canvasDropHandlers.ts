@@ -15,6 +15,8 @@ import { dropQuoteBlock }   from "./componentDroppers/quoteBlock";
 import { dropBulletList }   from "./componentDroppers/bulletList";
 import { dropAccentLine }   from "./componentDroppers/accentLine";
 import { dropEyebrowPill }  from "./componentDroppers/eyebrowPill";
+import { dropGlowBlob }     from "./componentDroppers/glowBlob";
+import { dropDecoRing }     from "./componentDroppers/decoRing";
 import {
   dropBtnGradient,
   dropBtnGhost,
@@ -62,9 +64,10 @@ export async function addComponentToCanvas(
   dropX: number,
   dropY: number,
   apiBase: string = API_BASE,
+  theme: "aurora" | "lumina" = "aurora",
 ): Promise<void> {
   const { getTokens } = await import("@/utils/canvasTokens");
-  const t = getTokens("aurora-hook");
+  const t = getTokens(`${theme}-hook`);
 
   switch (componentId) {
     case "brand-bar":         await dropBrandBar(canvas, t, apiBase);                  break;
@@ -74,6 +77,8 @@ export async function addComponentToCanvas(
     case "bullet-list":       await dropBulletList(canvas, t, dropX, dropY);           break;
     case "accent-line":       await dropAccentLine(canvas, t, dropX, dropY);           break;
     case "eyebrow-pill":      await dropEyebrowPill(canvas, t, dropX, dropY);          break;
+    case "glow-blob":         await dropGlowBlob(canvas, t, dropX, dropY);             break;
+    case "deco-ring":         await dropDecoRing(canvas, t, dropX, dropY);             break;
     // Buttons — all 6 styles
     case "cta-button":
     case "btn-gradient":      await dropBtnGradient(canvas, t, dropX, dropY);          break;

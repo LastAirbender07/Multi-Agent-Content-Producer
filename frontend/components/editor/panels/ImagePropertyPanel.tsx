@@ -1,5 +1,5 @@
 "use client";
-import { filters as fabricFilters } from "fabric";
+import { filters as fabricFilters, Rect as FabricRect } from "fabric";
 import { Row } from "./Row";
 import { getFilterValue, hasFilter, setFilter, toggleFilter } from "@/utils/fabricFilters";
 
@@ -31,6 +31,35 @@ export function ImagePropertyPanel({ obj, canvas, onChanged }: Props) {
     onChanged();
   }
 
+  function bringForward() {
+    if (!obj || !canvas) return;
+    canvas.bringObjectForward(obj);
+    canvas.renderAll();
+    onChanged();
+  }
+
+  function setCornerRadius(rx: number) {
+    if (!obj || !canvas) return;
+    const cp = obj.clipPath;
+    if (cp) {
+      cp.set({ rx, ry: rx });
+    } else {
+      const clip = new FabricRect({
+        left: 0, top: 0,
+        width: obj.width ?? 400, height: obj.height ?? 400,
+        rx, ry: rx,
+        absolutePositioned: false,
+        originX: "left" as const, originY: "top" as const,
+      });
+      obj.set("clipPath", clip);
+    }
+    canvas.renderAll();
+    onChanged();
+  }
+
+  const currentRx: number = obj?.clipPath?.rx ?? 0;
+  const currentAngle: number = Math.round(obj?.angle ?? 0);
+
   return (
     <div className="p-3 space-y-2.5">
       <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600">Image</p>
@@ -38,6 +67,18 @@ export function ImagePropertyPanel({ obj, canvas, onChanged }: Props) {
       <Row label={`Opacity (${Math.round((obj.opacity ?? 1) * 100)}%)`}>
         <input type="range" min={0} max={100} step={1} value={Math.round((obj.opacity ?? 1) * 100)}
           onChange={e => mutate({ opacity: Number(e.target.value) / 100 })}
+          className="w-full accent-violet-500" />
+      </Row>
+
+      <Row label={`Rotation (${currentAngle}°)`}>
+        <input type="range" min={-180} max={180} step={1} value={currentAngle}
+          onChange={e => mutate({ angle: Number(e.target.value) })}
+          className="w-full accent-violet-500" />
+      </Row>
+
+      <Row label={`Corner radius (${currentRx})`}>
+        <input type="range" min={0} max={200} step={2} value={currentRx}
+          onChange={e => setCornerRadius(Number(e.target.value))}
           className="w-full accent-violet-500" />
       </Row>
 
@@ -59,6 +100,13 @@ export function ImagePropertyPanel({ obj, canvas, onChanged }: Props) {
         <button onClick={() => toggleFilter(canvas, obj, "Grayscale", fabricFilters.Grayscale as new () => object, onChanged)}
           className={`w-full py-1.5 rounded-lg text-xs font-semibold transition-all ${hasFilter(obj, "Grayscale") ? "bg-violet-600 text-white" : "bg-zinc-800 text-zinc-500 hover:text-zinc-200"}`}>
           {hasFilter(obj, "Grayscale") ? "Remove Grayscale" : "Grayscale"}
+        </button>
+      </Row>
+
+      <Row label="">
+        <button onClick={bringForward}
+          className="w-full py-1.5 rounded-lg text-xs font-semibold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-all">
+          Bring Forward
         </button>
       </Row>
 

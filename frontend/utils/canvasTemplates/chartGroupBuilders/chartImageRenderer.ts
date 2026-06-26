@@ -84,11 +84,22 @@ export async function createChartFabricImage(
   theme: "aurora" | "lumina",
   opts: { left: number; top: number; width?: number; height?: number },
 ): Promise<fabric.FabricImage> {
-  const { w, h } = defaultSize(chartType);
-  const W = opts.width  ?? w;
-  const H = opts.height ?? h;
-  const dataUrl = await renderChartToDataURL(chartType, chartData, theme, W, H);
+  const { w: defaultW, h: defaultH } = defaultSize(chartType);
+  const targetW = opts.width  ?? defaultW;
+  const targetH = opts.height ?? defaultH;
+
+  // Render Chart.js canvas at the exact target dimensions.
+  // Fabric v7's _renderFill treats img.width/height as a crop window on the source
+  // (not a scale target), so source and target MUST match to avoid clipping.
+  const dataUrl = await renderChartToDataURL(chartType, chartData, theme, targetW, targetH);
   const img = await fabric.FabricImage.fromURL(dataUrl, { crossOrigin: "anonymous" });
-  img.set({ left: opts.left, top: opts.top, width: W, height: H, originX: "left" as const, originY: "top" as const });
-  return makeFabricImage(img, { role: "chart", chartType, chartData, theme, width: W, height: H });
+  img.set({
+    left:    opts.left,
+    top:     opts.top,
+    width:   targetW,
+    height:  targetH,
+    originX: "left" as const,
+    originY: "top" as const,
+  });
+  return makeFabricImage(img, { role: "chart", chartType, chartData, theme, width: targetW, height: targetH });
 }

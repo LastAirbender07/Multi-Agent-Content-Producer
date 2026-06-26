@@ -2,6 +2,7 @@ import * as fabric from "fabric";
 import { createBrandBar, createGlowBg, makeText, makeTitleText } from "./shared";
 import { createChartObject } from "./chartRenderer";
 import type { CanvasTokens } from "@/utils/canvasTokens";
+import { LUMINA } from "@/utils/canvasTokens";
 import type { SlideData } from "@/lib/api";
 import type { SlideMeta } from "./index";
 import type { ChartType, ChartData } from "@/types/chart";
@@ -132,13 +133,22 @@ export async function buildAuroraStat(
     const maxWords = hasChart ? 26 : 100;
     const bodyText = words.slice(0, maxWords).join(" ") + (words.length > maxWords ? "…" : "");
 
-    const BODY_FS  = 20;
-    const BODY_W   = CS - STAT_LEFT - 64 - 20;
-    const BODY_LH  = 1.6;
-    const bodyCharsPerLine = Math.max(1, Math.floor(BODY_W / (BODY_FS * 0.58)));
-    const bodyLines        = Math.max(1, Math.ceil(bodyText.length / bodyCharsPerLine));
-    const barH             = bodyLines * BODY_FS * BODY_LH;
+    const BODY_FS = 20;
+    const BODY_W  = CS - STAT_LEFT - 64 - 20;
+    const BODY_LH = 1.6;
 
+    // Build the Textbox first, then read Fabric's own measured height.
+    // Character-count heuristics mis-estimate word-wrap; calcTextHeight() is exact.
+    const bodyObj = makeText(bodyText, {
+      role: "stat_body", fontSize: BODY_FS, fill: "rgba(250,250,250,0.72)",
+      lineHeight: BODY_LH, width: BODY_W,
+      left: STAT_LEFT + 18, top: curY,
+      originX: "left" as const, originY: "top" as const,
+    });
+    // calcTextHeight is synchronous — returns accurate height after word-wrap
+    const barH = (bodyObj as fabric.Textbox).calcTextHeight?.() ?? (BODY_FS * BODY_LH * 2);
+
+    // Size the accent bar to match the measured text height
     const accentBar = new fabric.Rect({
       left: STAT_LEFT, top: curY,
       width: 3, height: barH, rx: 2,
@@ -150,25 +160,24 @@ export async function buildAuroraStat(
     });
     (accentBar as fabric.Rect & { data?: unknown }).data = { role: "stat_body_accent" };
     objects.push(accentBar);
-
-    objects.push(makeText(bodyText, {
-      role: "stat_body", fontSize: BODY_FS, fill: "rgba(250,250,250,0.72)",
-      lineHeight: BODY_LH, width: BODY_W,
-      left: STAT_LEFT + 18, top: curY,
-      originX: "left" as const, originY: "top" as const,
-    }));
+    objects.push(bodyObj);
     curY += barH + 22;
   }
 
   // ── Chart ─────────────────────────────────────────────────────────────────────
   if (hasChart) {
-    const chartH = Math.max(220, CS - t.brandBarH - curY - 28);
+    const chartTheme = t.bg === LUMINA.bg ? "lumina" : "aurora";
+    // Available vertical space between curY and the brand bar, minus a small bottom gap.
+    // Clamped: minimum 220px so small charts aren't tiny; maximum 520px so they don't
+    // dominate slides with long body text.
+    const availH = CS - t.brandBarH - curY - 28;
+    const chartH = Math.min(Math.max(220, availH), 520);
     objects.push(await createChartObject(
       slide.chart_type as ChartType,
       slide.chart_data as ChartData,
       t,
       { left: STAT_LEFT, top: curY, width: CS - STAT_LEFT * 2, height: chartH },
-      "aurora",
+      chartTheme,
     ));
   } else {
     // No chart — fill lower half with atmospheric glow so it doesn't look empty

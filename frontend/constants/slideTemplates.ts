@@ -35,6 +35,9 @@ export const COMPONENTS = [
   { id: "bullet-list",  label: "Bullet List",       desc: "3 numbered bullets",         color: "#10B981" },
   { id: "accent-line",  label: "Accent Line",       desc: "Gradient divider bar",       color: "#6366F1" },
   { id: "eyebrow-pill", label: "Eyebrow Pill",      desc: "Frosted label (on gradient)",color: "#2DD4BF" },
+  // ── Decorative ───────────────────────────────────────────────────────────────
+  { id: "glow-blob",    label: "Glow Blob",         desc: "Radial gradient atmosphere", color: "#7C6EFA" },
+  { id: "deco-ring",    label: "Deco Ring",         desc: "Decorative circle outline",  color: "#A0A0A0" },
   // ── Buttons — all 6 styles ───────────────────────────────────────────────────
   { id: "btn-gradient",     label: "Btn: Gradient",    desc: "Filled aurora gradient",     color: "#7C6EFA" },
   { id: "btn-ghost",        label: "Btn: Ghost",        desc: "White border, white text",   color: "#A0A0A0" },

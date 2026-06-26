@@ -5,6 +5,8 @@ import * as fabric from "fabric";
 import { api } from "@/lib/api";
 import { buildSlideCanvas } from "@/utils/canvasTemplates/index";
 import { getTokens } from "@/utils/canvasTokens";
+import { createChartObject } from "@/utils/canvasTemplates/chartRenderer";
+import type { ChartType, ChartData } from "@/types/chart";
 import { useCanvasHistory } from "./useCanvasHistory";
 import { useCanvasCheckpoint } from "./useCanvasCheckpoint";
 import { addImageToCanvas, addComponentToCanvas } from "./canvasDropHandlers";
@@ -12,6 +14,13 @@ import { loadSlide } from "./canvasSlideLoader";
 
 // Disable WebGL — avoids cross-origin texture errors for canvas2d filters
 fabric.config.configure({ enableGLFiltering: false });
+
+// Register "data" as a custom property so Fabric includes it in toObject()/toJSON()
+// for all shapes. This preserves role annotations, chart metadata, etc. across
+// undo/redo snapshots, canvas saves, and localStorage checkpoints.
+if (!fabric.FabricObject.customProperties.includes("data")) {
+  fabric.FabricObject.customProperties.push("data");
+}
 
 import { ASSET_BASE as API_BASE } from "@/lib/api/client";
 
@@ -100,24 +109,26 @@ export function FabricCanvas({
     if (!c || !activeObj || activeObj.type !== "group") return;
 
     const group = activeObj as fabric.Group;
-    const groupMatrix = group.calcTransformMatrix();
     const children = group.getObjects();
+
+    // Read absolute canvas positions BEFORE removing from group.
+    // getXY() converts group-local coords to canvas-global via calcTransformMatrix.
+    const absPositions = children.map(child => ({
+      child,
+      pos: child.getXY(),
+      scaleX: (child.scaleX ?? 1) * (group.scaleX ?? 1),
+      scaleY: (child.scaleY ?? 1) * (group.scaleY ?? 1),
+      angle:  (child.angle  ?? 0) + (group.angle  ?? 0),
+    }));
 
     commit("Ungroup");
     c.remove(group);
 
-    children.forEach(child => {
-      const localPoint = new fabric.Point(child.left ?? 0, child.top ?? 0);
-      const canvasPoint = fabric.util.transformPoint(localPoint, groupMatrix);
-      child.set({
-        left:    canvasPoint.x,
-        top:     canvasPoint.y,
-        angle:   (child.angle  ?? 0) + (group.angle  ?? 0),
-        scaleX:  (child.scaleX ?? 1) * (group.scaleX ?? 1),
-        scaleY:  (child.scaleY ?? 1) * (group.scaleY ?? 1),
-        originX: "left" as const,
-        originY: "top"  as const,
-      });
+    absPositions.forEach(({ child, pos, scaleX, scaleY, angle }) => {
+      child.set({ scaleX, scaleY, angle });
+      // setXY places the object using its originX/Y as the reference point
+      child.setXY(pos, child.originX as fabric.TOriginX, child.originY as fabric.TOriginY);
+      child.setCoords();
       c.add(child);
     });
 
@@ -127,6 +138,7 @@ export function FabricCanvas({
 
   // ── View-only flag (set at slide load time for legacy runs) ─────────────────
   const isViewOnlyRef = useRef(false);
+  const slideThemeRef = useRef<"aurora" | "lumina">("aurora");
 
   // ── Fabric canvas init ───────────────────────────────────────────────────────
 
@@ -156,7 +168,40 @@ export function FabricCanvas({
     c.on("selection:created", onSelected);
     c.on("selection:updated", onSelected);
     c.on("selection:cleared", () => onObjectSelected(null));
-    c.on("object:modified", () => { if (isViewOnlyRef.current) return; commit("modify"); onCanvasChanged(); });
+    c.on("object:modified", async (e) => {
+      if (isViewOnlyRef.current) return;
+      // Re-render Chart.js-backed chart images when resized/moved
+      const modified = e.target as fabric.FabricObject & {
+        data?: { role?: string; chartType?: ChartType; chartData?: ChartData; theme?: string }
+      };
+      if (
+        modified?.type === "image" &&
+        modified.data?.role === "chart" &&
+        modified.data?.chartType &&
+        modified.data?.chartData &&
+        (modified.scaleX !== 1 || modified.scaleY !== 1)
+      ) {
+        const br = modified.getBoundingRect();
+        const newW = Math.round(br.width);
+        const newH = Math.round(br.height);
+        const tokens = getTokens(`${slideThemeRef.current}-hook`);
+        try {
+          const newChart = await createChartObject(
+            modified.data.chartType,
+            modified.data.chartData,
+            tokens,
+            { left: modified.left ?? 0, top: modified.top ?? 0, width: newW, height: newH },
+            (modified.data.theme as "aurora" | "lumina" | undefined) ?? slideThemeRef.current,
+          );
+          c.remove(modified);
+          c.add(newChart);
+          c.setActiveObject(newChart);
+          c.renderAll();
+        } catch { /* keep original on error */ }
+      }
+      commit("modify");
+      onCanvasChanged();
+    });
     c.on("text:editing:exited", () => { if (isViewOnlyRef.current) return; commit("text edit"); onCanvasChanged(); });
 
     return () => { c.off(); c.dispose(); canvasRef.current = null; };
@@ -190,7 +235,12 @@ export function FabricCanvas({
     loadSlide({
       runId, angleIndex, slideNumber,
       canvasRef, isViewOnlyRef, loadTokenRef,
-      setLoading, setRestoreBanner, onSlideLoaded, resetHistory,
+      setLoading, setRestoreBanner,
+      onSlideLoaded: (theme, viewOnly) => {
+        slideThemeRef.current = theme;
+        onSlideLoaded?.(theme, viewOnly);
+      },
+      resetHistory,
       API_BASE, getTokens, buildSlideCanvas,
       apiClient: api,
     });
@@ -243,7 +293,7 @@ export function FabricCanvas({
       } else if (componentId) {
         try {
           commit("drop component");
-          await addComponentToCanvas(c, componentId, dropX, dropY, API_BASE);
+          await addComponentToCanvas(c, componentId, dropX, dropY, API_BASE, slideThemeRef.current);
           onCanvasChanged();
         } catch (err) { console.error("Component drop error:", err); }
       }
