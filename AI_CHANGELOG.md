@@ -6,7 +6,95 @@
 
 ---
 
-## 2026-06-27 — Phase 3 Improvements + Analytics Overhaul + Editor Bug Fixes + Chart DPR Fix
+## 2026-06-27 — Blogger Publishing Live + Analytics Fixes + Roadmap Cleanup
+
+### Summary
+
+Shipped end-to-end Google Blogger publishing: backend OAuth service, bulk publish script for all 19 existing posts, frontend "Publish to Blogger" button with full error handling, hashtag-as-labels, and cross-platform links (Instagram + Medium + Blogger) injected into every caption and blog post. Analytics data bugs fixed. Roadmap updated to reflect everything complete.
+
+---
+
+### Blogger Auto-Publishing — Full Stack
+
+**Backend service (`core/services/blogger_service.py`):**
+
+- OAuth 2.0 Desktop app flow via `google-auth-oauthlib` + `google-api-python-client`
+- `_get_credentials()` — loads `credentials.json`, auto-refreshes expired tokens, runs browser consent on first call only
+- `publish_post(title, html_content, labels, is_draft, blog_id)` — `POST /blogger/v3/blogs/{blogId}/posts`
+- `get_blog_info()` — used for the health-check status endpoint
+- Token saved to `blogger_token.json` at backend root (gitignored)
+
+**API router (`apps/api/v1/publishing.py`):**
+
+- `GET /api/v1/publishing/blogger/status` — confirms credentials work, returns blog name/URL/post count
+- `POST /api/v1/publishing/blogger` — publishes HTML post; `is_draft: false` for immediate publish
+
+**`re_auth.py`** — one-liner token refresh script for the 7-day Testing mode expiry.
+
+**Frontend (`BlogExportBar.tsx`):**
+
+- "Publish to Blogger" amber button alongside existing Edit/Markdown/HTML buttons
+- Fetches `blog_post.html` and `caption` (for hashtags) in parallel before posting
+- 4 clear states: idle → publishing (spinner) → success (green "Published! View post ↗" link) → error (red banner)
+- `friendlyError()` maps raw HTTP/exception messages to plain English:
+  - 429 → token expiry instruction
+  - 403 → Test User setup instruction
+  - 401 → backend restart instruction
+  - missing credentials.json → file path instruction
+  - network error → backend offline instruction
+- Retry button on error, dismiss ×, no page reload needed
+
+---
+
+### Cross-Platform Links in Every Piece of Content
+
+**Caption footer (new format):**
+
+```
+Read the full story 👉 {medium_url}
+📖 Also on Blogger: {blogger_url}
+
+Follow us on Instagram: {instagram_url}
+```
+
+**Blog post CTA block:** Instagram + "Read more on Blogger" + "Long reads on Medium" links side by side.
+
+**Blog post footer attribution:** `Originally produced by [@Handle](ig) · [Blogger](blogger) · [Medium](medium)`
+
+All three links come from settings — configurable in `/settings` page and stored in `settings_overrides.json`.
+
+---
+
+### Settings — Blogger URL Added
+
+- `configs/settings.py` — `blogger_url: str = "https://theopinionboard07.blogspot.com/"` added to Brand section
+- `settings_service.py` — `blogger_url` added to `_EDITABLE_FIELDS` and brand return dict
+- `frontend/app/settings/page.tsx` — Blogger URL field added to Brand Identity card
+- `frontend/lib/api/settings.ts` — `SettingsBrand` interface gains `blogger_url?: string`
+
+---
+
+### Analytics Bug Fixes
+
+**Blog count wrong (showing 3 instead of 20):** Was computed from `run_readiness[-10:]` (last 10 runs only). Fixed: `blog_count` now scanned across ALL runs in `aggregator.py`, exposed as a dedicated field separate from the readiness table.
+
+**Quality gate 100% instead of ~92%:** Was checking `evaluation.passed` (final result, which always passes). Fixed: now reads `iterations[0].evaluation.passed` — the first real evaluation before the forced second loop. Correct value: 92%.
+
+**Emotional hooks showing 40+ verbose strings:** LLM returns `"Anger - exposing systemic exploitation"` instead of `"Anger"`. Fixed: `_normalise_hook()` in `run_loader.py` regex-matches canonical prefix, collapses to `{Anger, Hope, Curiosity, FOMO, Other}`. `_sort(hooks, cap=5)` caps display at top-5 with tie-breaking.
+
+**Blog path wrong:** Was checking `content/blog_post.md` — actual path is `{run_dir}/blog_post.md`. Fixed in `run_loader.py`.
+
+**`image_assets.json` parse bug:** File is stored as `{"image_assets": [...]}` dict wrapper, not flat list. Old code iterated over dict keys, counting nothing. Fixed: handle both `raw if isinstance(raw, list) else raw.get("image_assets", [])`.
+
+---
+
+### Documentation
+
+- `Docs/publishing/BLOGGER_COMPLETE_RECORD.md` — living doc: auth flow, token expiry caveat, error messages table, all files involved, API endpoints, limitations
+- `Docs/pending-works/IMPROVEMENT_ROADMAP.md` — fully updated: all 13 items marked ✅, Blogger publishing added as #13 ✅, auth removed as "not needed", Instagram API publishing correctly deferred with pointer to its own doc
+- Old `Docs/pending-works/BLOGGER_AUTOMATION.md` deleted (replaced by BLOGGER_COMPLETE_RECORD.md)
+
+---
 
 ### Summary
 
@@ -22,6 +110,7 @@ All 5 call sites (`useCanvasHistory.ts` ×3, `FabricCanvas.tsx` `getCanvasJson`,
 **Legacy view-only banner:** Slides without `canvas_template` field (generated before the canvas editor existed) are now blocked from edit mode in `SlidePngPreview.tsx` with amber badge: "This slide format is not supported for editing — regenerate to enable editing." Previously they silently opened a broken canvas.
 
 **Lumina theme pollution:** Two hardcoded `"aurora"` strings fixed:
+
 - `aurora_stat.ts` line 166 — chart theme now derived from `t.bg === LUMINA.bg` check
 - `canvasDropHandlers.ts` — `addComponentToCanvas()` now accepts `theme` param, tracked via `slideThemeRef` in `FabricCanvas`
 
@@ -42,6 +131,7 @@ All 5 call sites (`useCanvasHistory.ts` ×3, `FabricCanvas.tsx` `getCanvasJson`,
 **Root cause confirmed via Playwright DPR=2 testing:** `Chart.js` reads `window.devicePixelRatio` and calls `ctx.setTransform(DPR, 0, 0, DPR, 0, 0)` internally. On a DPR=2 display, Chart.js rendered all bars at 2× width, so only the left half of the chart fit in the canvas — only the first bar was visible, second bar was off-screen to the right.
 
 **Fix:** Single line in `chartImageRenderer.ts`:
+
 ```typescript
 (config as any).options = { ...(config as any).options, devicePixelRatio: 1 };
 ```
@@ -56,15 +146,16 @@ Also added `enableRetinaScaling: false` to the Fabric canvas constructor — pre
 
 **Modularised into `core/services/analytics/` package:**
 
-| File | Responsibility |
-|---|---|
-| `cache.py` | Thread-safe TTL cache (`_AnalyticsCache`, 5-min TTL, explicit invalidation) |
-| `run_loader.py` | All I/O for one run: research quality, hooks, slide types, image sources, blog check, publish readiness |
-| `aggregator.py` | Pure computation — no I/O, all new aggregations |
-| `summary.py` | Cache-aware public entry points |
-| `analytics_service.py` | 10-line shim (re-exports from package) |
+| File                     | Responsibility                                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `cache.py`             | Thread-safe TTL cache (`_AnalyticsCache`, 5-min TTL, explicit invalidation)                           |
+| `run_loader.py`        | All I/O for one run: research quality, hooks, slide types, image sources, blog check, publish readiness |
+| `aggregator.py`        | Pure computation — no I/O, all new aggregations                                                        |
+| `summary.py`           | Cache-aware public entry points                                                                         |
+| `analytics_service.py` | 10-line shim (re-exports from package)                                                                  |
 
 **New data extracted from existing files (no new storage):**
+
 - `research_result.json` → `combined_confidence`, `passed` (iteration 1 via `iterations[0].evaluation`), `key_points_count`, `gaps_count`, `evidence_count`, `total_iterations`
 - `angles/selection.json` → `emotional_hook` (normalised via `_normalise_hook()` — collapses verbose LLM strings like `"Anger - exposing..."` to canonical 4 values)
 - `content/angle_*/slides.json` → slide type distribution
@@ -72,12 +163,14 @@ Also added `enableRetinaScaling: false` to the Fabric canvas constructor — pre
 - `blog_post.md` → existence check (fixed path — was `content/blog_post.md`, correct is `{run_dir}/blog_post.md`)
 
 **Bug fixes during analytics rebuild:**
+
 - Blog count was pulled from `run_readiness[-10:]` (last 10 runs only) → now scanned across ALL runs, exposed as `blog_count` field
 - Quality gate was 100% because it checked `evaluation.passed` (final result always passes). Now checks `iterations[0].evaluation.passed` — the first real evaluation before the forced second loop. Result: 92% (correct)
 - Hook deduplication: `_sort(hooks, "hook", cap=5)` keeps top-5 and excludes tail; `_normalise_hook()` maps verbose strings to `{Anger, Hope, Curiosity, FOMO, Other}`
 - `image_assets.json` parse bug: file is `{"image_assets": [...]}` dict wrapper, not flat list — loader now handles both
 
 **Cache layer:**
+
 - `_AnalyticsCache` is thread-safe with `threading.Lock`, 5-min TTL
 - `analytics_cache.invalidate()` called from `save_research_output()` and `finalize_content_node()` — fresh data on next load after any pipeline run
 - `POST /api/v1/analytics/invalidate-cache` endpoint for the UI Refresh button
@@ -86,14 +179,14 @@ Also added `enableRetinaScaling: false` to the Fabric canvas constructor — pre
 
 **Frontend analytics page modularised:**
 
-| Component | Purpose |
-|---|---|
-| `Card.tsx` | `Card`, `CardHeader`, `DistributionRow` primitives |
-| `ResearchQualitySection.tsx` | Confidence bar list + depth stats |
-| `StageSections.tsx` | Cost by Stage + Stage Performance latency table |
-| `TopicSections.tsx` | Topics by Category + Quality by Topic heatmap |
-| `ContentStrategySection.tsx` | Hooks + Slide Types + Image Sources (3-col grid) |
-| `PublishReadinessTable.tsx` | Last 10 runs ✓/✗ grid |
+| Component                      | Purpose                                                  |
+| ------------------------------ | -------------------------------------------------------- |
+| `Card.tsx`                   | `Card`, `CardHeader`, `DistributionRow` primitives |
+| `ResearchQualitySection.tsx` | Confidence bar list + depth stats                        |
+| `StageSections.tsx`          | Cost by Stage + Stage Performance latency table          |
+| `TopicSections.tsx`          | Topics by Category + Quality by Topic heatmap            |
+| `ContentStrategySection.tsx` | Hooks + Slide Types + Image Sources (3-col grid)         |
+| `PublishReadinessTable.tsx`  | Last 10 runs ✓/✗ grid                                  |
 
 **New KPI layout:** 2 rows of 4 cards. Row 1: Cost & Volume. Row 2: Quality & Content (Research Efficiency, Avg Confidence, Blog Posts Written, Pexels Image Rate). Refresh button in header calls `POST /invalidate-cache` + re-fetches. `computed_at` timestamp shows data freshness.
 
@@ -102,6 +195,7 @@ Also added `enableRetinaScaling: false` to the Fabric canvas constructor — pre
 ### Phase 3 Roadmap — All 4 Items Shipped
 
 **#4 — Slide Reorder Drag UI (RunRow.tsx)**
+
 - New `DraggableSlideList` component inside RunRow using native HTML5 drag (no DnD library)
 - `GripVertical` handle (hover-reveal), violet drop indicator line, `Trash2` delete button
 - Delete: inline confirm chip `[Delete / ×]` → `api.deleteSlide()` → local state renumbers
@@ -109,14 +203,17 @@ Also added `enableRetinaScaling: false` to the Fabric canvas constructor — pre
 - `busy` flag dims list during API call
 
 **#6 — Run Search + Tagging**
+
 - Backend: `list_runs(search, starred)` — topic substring filter + starred flag from `run_metadata.json`. New `update_run_metadata()`. `GET /content/runs?search=&starred=`, `PATCH /content/{run_id}/metadata`
 - Frontend: `RunSummary` gains `starred?` + `tags?`. `getRunsList(opts)` + `updateRunMetadata()` in API client. FileBrowser gets search input (300ms debounce) + ⭐ filter toggle. RunRow gets hover-reveal star button.
 
 **#8 — /settings Page**
+
 - Backend: `settings_service.py` — `get_user_settings()` / `update_user_settings()` read/write `settings_overrides.json`. API keys always masked in GET (`sk-••••last4`). `GET/PUT /api/v1/settings/`
 - Frontend: `lib/api/settings.ts`, `app/settings/page.tsx` — 3 sections: Brand Identity, Content Defaults (chip selectors), API Keys (masked with Replace/Add buttons + show/hide toggle). Settings added to Sidebar nav.
 
 **#5 — Batch Style Editing**
+
 - Backend: `bulk_style_slides()` in `slide_editor_service.py` — reads slides.json once, merges overrides into N slides, writes once, re-renders PNGs sequentially. `POST /content/{run_id}/slides/{angle}/bulk-style`
 - Frontend: `BulkStyleModal.tsx` — checkbox grid (current slide excluded as source reference), "Select All / None", style preview, spinner. `CanvasToolbar` gains amber "Style →" button when slide has `slide_overrides`. Editor page loads slide overrides on slide change.
 
@@ -125,6 +222,7 @@ Also added `enableRetinaScaling: false` to the Fabric canvas constructor — pre
 ### Google Blogger Automation Documentation
 
 `Docs/publishing/BLOGGER_AUTOMATION.md` — Complete guide covering:
+
 - Why service accounts don't work for personal Blogger (OAuth 2.0 required)
 - Google Cloud project setup + OAuth consent screen + Desktop app credentials
 - Token lifecycle: first-run browser login → `token.json` → automatic refresh
@@ -147,8 +245,6 @@ Also added `enableRetinaScaling: false` to the Fabric canvas constructor — pre
 
 ---
 
-
-
 ### Summary
 
 Phase 2 of the Improvement Roadmap: built the analytics page, caption editor, real-time generation progress bar, slide reorder/delete backend, and completed multiple Playwright visual audit cycles.
@@ -160,6 +256,7 @@ Phase 2 of the Improvement Roadmap: built the analytics page, caption editor, re
 **Backend:** `analytics_service.py` scans all run dirs, reads `token_usage.json`, classifies topics via 13-category keyword rules, returns KPIs + per-stage costs + token series + activity map + model breakdown. `GET /api/v1/analytics/summary` registered in `main.py`. Bugs fixed: unused `import re`, dead `run_ts` variable, `import time as _time` inside function body.
 
 **Frontend:** `app/analytics/page.tsx` (245 lines) + extracted components:
+
 - `components/analytics/KpiCard.tsx` (29 lines) — pure display
 - `components/analytics/ContributionCalendar.tsx` (230 lines) — SVG grid + tooltip
 - `lib/api/analytics.ts` — `getSummary()` + full TypeScript types
@@ -167,13 +264,14 @@ Phase 2 of the Improvement Roadmap: built the analytics page, caption editor, re
 
 **Activity calendar — 3 redesign iterations to reach final SVG version:**
 
-| Version | Problem | Fix |
-|---|---|---|
-| CSS flex grid | Month labels misaligned; tooltip clipped at top; grid only 70% wide | — |
-| 12 per-month cards | Too bulky; doesn't feel like GitHub | — |
-| SVG-based 53-week grid | ✅ Final: pixel-exact `<text x={DOW_LABEL_W + col*STEP}>`, fixed-position tooltip, full-width | Shipped |
+| Version                | Problem                                                                                        | Fix     |
+| ---------------------- | ---------------------------------------------------------------------------------------------- | ------- |
+| CSS flex grid          | Month labels misaligned; tooltip clipped at top; grid only 70% wide                            | —      |
+| 12 per-month cards     | Too bulky; doesn't feel like GitHub                                                            | —      |
+| SVG-based 53-week grid | ✅ Final: pixel-exact`<text x={DOW_LABEL_W + col*STEP}>`, fixed-position tooltip, full-width | Shipped |
 
 **Tooltip jitter root cause and fix:** `onMouseMove` + `setState` was re-rendering 371 SVG `<rect>` elements on every pixel of cursor movement, causing visible page vibration. Fixed by:
+
 1. Removing `onMouseMove` (only `onMouseEnter`/`onMouseLeave` needed)
 2. Replacing `useState<TooltipState>` with `useRef<HTMLDivElement>` — tooltip always mounted at `opacity:0`, position + text set via direct DOM mutation (`tipRef.current.style.left/top/opacity`). React render cycle never triggered on hover.
 
@@ -210,15 +308,15 @@ Phase 2 of the Improvement Roadmap: built the analytics page, caption editor, re
 
 ### UI Audit Fixes (Playwright)
 
-| Issue | Fix |
-|---|---|
-| Analytics crashes on `activity.map` | Destructure all array fields with `= []` defaults |
-| Token chart 19 empty bars | Filter to runs with actual token data |
-| Caption editor blank on backend offline | `loadError` state shows message |
-| Research page native `<select>` dropdowns | Segmented chip controls with icons |
-| Research idle state sparse | 3-card explainer + tip banner |
-| Compare button disrupting slider | Moved to action row below carousel |
-| `claude.py` fence strip bug | `str.strip("```json")` strips chars not substring — fixed with `startswith/split` |
+| Issue                                      | Fix                                                                                    |
+| ------------------------------------------ | -------------------------------------------------------------------------------------- |
+| Analytics crashes on`activity.map`       | Destructure all array fields with`= []` defaults                                     |
+| Token chart 19 empty bars                  | Filter to runs with actual token data                                                  |
+| Caption editor blank on backend offline    | `loadError` state shows message                                                      |
+| Research page native`<select>` dropdowns | Segmented chip controls with icons                                                     |
+| Research idle state sparse                 | 3-card explainer + tip banner                                                          |
+| Compare button disrupting slider           | Moved to action row below carousel                                                     |
+| `claude.py` fence strip bug              | `str.strip("```json")` strips chars not substring — fixed with `startswith/split` |
 
 ---
 
@@ -235,6 +333,7 @@ Full feature sprint: recovery for interrupted pipeline runs, complete pipeline f
 **Problem:** Runs interrupted after research (or mid-pipeline) were invisible in Recent Runs — `addRun` only fires when content stage completes. Users lost access to completed research and generated carousels on disk.
 
 **`PipelineRecentRuns` cross-references backend:**
+
 - Fetches `api.getRunsList()` on mount; diffs against Redux `state.history.runs`
 - Runs on disk but not in Redux → shown as amber orphaned cards with "Recover →" button
 - `useRecoverRun` hook: fetches `research_result.json`, `angles/generated.json`, `angles/selection.json`, and `content/angle_N/carousel.json` from backend static files; reconstructs full `AngleResponse` + `ContentResponse`; dispatches both `loadRun` (active pipeline) and `addRun` (history, moves run out of orphan list permanently)
@@ -247,17 +346,20 @@ When research is recovered but angles are idle, Stage 2 shows a violet "Continue
 ### Pipeline Frontend Modularisation (page.tsx 390 → 145 lines)
 
 **New hooks:**
+
 - `hooks/useAngleRegeneration.ts` — `regenerating` state + `handleRegenerateAngles`
 - `hooks/useTopicRefinement.ts` — `topicLoading`, `refineHint`, `applyArticleAsTopic` (renamed from `useArticleAsTopic` — violated React hook naming convention)
 - `hooks/useResearchProgress.ts` — 2s polling interval for research progress
 - `hooks/useRecoverRun.ts` — full run recovery from disk
 
 **New stage card components (each reads Redux directly):**
+
 - `components/pipeline/ResearchStageCard.tsx` — owns `showLlmKnowledge`, progress bar, TokenChip
 - `components/pipeline/AngleStageCard.tsx` — recover button, angle section, regenerate
 - `components/pipeline/ContentStageCard.tsx` — carousel viewer, blog export, editor button, TokenChips
 
 **`PipelineRecentRuns.tsx` modularised:**
+
 - `components/pipeline/OrphanedRunCard.tsx` — amber card UI
 - `PipelineRecentRuns.tsx` → 60 lines, pure orchestration
 
@@ -266,20 +368,24 @@ When research is recovered but angles are idle, Stage 2 shows a violet "Continue
 ### Improvement Roadmap Phase 1 — 6 Items Shipped
 
 **#7 — Flexible Slide Count:**
+
 - Default 12 → 10 (Instagram single-post limit)
 - Chip toolbar: `5 · 7 · 10 · 12` quick-select inline; green dot marks 10 as recommended
 - AdvancedSettings: chip presets replacing dual steppers
 
 **#1 — Carousel ZIP Download:**
+
 - `backend/core/services/carousel_export_service.py` — builds ZIP: slide PNGs + `caption.txt` + `hashtags.txt` + `README.txt`; private helpers `_read_carousel_meta()` + `_build_readme()`
 - `GET /api/v1/content/{run_id}/carousel-download?angle=0`
 - `CarouselViewer` — "Download Angle N" buttons, spinner, browser download
 
 **#9 — Caption Validation Backend:**
+
 - `backend/core/services/caption_validator.py` — checks `IG_CAPTION_MAX=2200`, `IG_HASHTAG_MAX=30`, `IG_HOOK_CHARS=125`; `enforce_caption_limits()` silently trims
 - Wired into `caption_generator.py`
 
 **#12 — A/B Carousel Comparison (full redesign):**
+
 - `CarouselCompare.tsx` — full-viewport overlay, violet/cyan color identity per side
 - **Synced mode** — shared `←→` nav moves both; dots show unequal lengths honestly
 - **Independent mode** — each column has own dots nav + arrows
@@ -287,6 +393,7 @@ When research is recovered but angles are idle, Stage 2 shows a violet "Continue
 - Compare button moved from nav bar to action row (keeps slider aesthetic clean)
 
 **#10 — Token Tracking:**
+
 - `backend/core/services/token_tracker.py` — writes `token_usage.json` per run; per-run `threading.Lock` prevents race conditions; `_aggregate_records()` eliminates duplication
 - **Live pricing:** `_LiveCache` fetches exchange rate (`exchangerate-api.com`) + LLM pricing (LiteLLM's community JSON, 2785 models), both cached 6h. At build time INR=94.65 (was hardcoded 84.0 — 12.5% off)
 - `_token_meta=(run_id, stage)` opt-in kwarg in `ClaudeLLM.generate()` — zero regression; wired in caption, slide, angle generators
@@ -297,18 +404,18 @@ When research is recovered but angles are idle, Stage 2 shows a violet "Continue
 
 ### Critical Bug Fixes
 
-| Bug | Root cause | Fix |
-|---|---|---|
-| `claude.py` JSON stripping | `str.strip("```json")` strips individual chars (j,s,o,n,backtick), not substring — corrupts valid JSON like `{"json":true}` | Explicit `startswith`/`split`/`rsplit` with comment |
-| Token tracker `total_runs_with_data=0` | Tried reading `run_id` field that doesn't exist in `TokenRecord` | Count run directories containing `token_usage.json` instead |
-| Carousel export crash on corrupt JSON | `json.loads()` propagated `JSONDecodeError` to user | `_read_carousel_meta()` with try/except + safe defaults |
-| Caption validator `IndexError` | `caption[124]` on strings shorter than 125 chars | Guard: only check if `len(caption) >= IG_HOOK_CHARS` |
-| Token tracker race condition | Read-modify-write without lock — concurrent LLM calls lose records | Per-run `threading.Lock` via `_get_lock(run_id)` |
-| Hydration mismatch pipeline page | `useState(() => typeof window !== 'undefined')` runs on server (always `false`), client renders `true` | `useState(false)` + `useEffect(() => setMounted(true), [])` |
-| `handleGenerateAngles is not defined` | `usePipelineOrchestration()` placed after `useEffect` hooks — JSX referenced it before declaration in render | Moved to line 40 with other hook calls |
-| `PipelineRecentRuns` duplicate body | Edit tool matched substring, appended instead of replacing — two function bodies | Full `Write` rewrite |
-| `catch (e: any)` in `useAngleRegeneration` | Untyped catch | `catch (e: unknown)` with `instanceof Error` guard |
-| Silent `.catch(() => {})` | Errors silently swallowed | `console.warn("Could not fetch server runs:", err)` |
+| Bug                                            | Root cause                                                                                                                       | Fix                                                             |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `claude.py` JSON stripping                   | `str.strip("```json")` strips individual chars (j,s,o,n,backtick), not substring — corrupts valid JSON like `{"json":true}` | Explicit`startswith`/`split`/`rsplit` with comment        |
+| Token tracker`total_runs_with_data=0`        | Tried reading`run_id` field that doesn't exist in `TokenRecord`                                                              | Count run directories containing`token_usage.json` instead    |
+| Carousel export crash on corrupt JSON          | `json.loads()` propagated `JSONDecodeError` to user                                                                          | `_read_carousel_meta()` with try/except + safe defaults       |
+| Caption validator`IndexError`                | `caption[124]` on strings shorter than 125 chars                                                                               | Guard: only check if`len(caption) >= IG_HOOK_CHARS`           |
+| Token tracker race condition                   | Read-modify-write without lock — concurrent LLM calls lose records                                                              | Per-run`threading.Lock` via `_get_lock(run_id)`             |
+| Hydration mismatch pipeline page               | `useState(() => typeof window !== 'undefined')` runs on server (always `false`), client renders `true`                     | `useState(false)` + `useEffect(() => setMounted(true), [])` |
+| `handleGenerateAngles is not defined`        | `usePipelineOrchestration()` placed after `useEffect` hooks — JSX referenced it before declaration in render                | Moved to line 40 with other hook calls                          |
+| `PipelineRecentRuns` duplicate body          | Edit tool matched substring, appended instead of replacing — two function bodies                                                | Full`Write` rewrite                                           |
+| `catch (e: any)` in `useAngleRegeneration` | Untyped catch                                                                                                                    | `catch (e: unknown)` with `instanceof Error` guard          |
+| Silent`.catch(() => {})`                     | Errors silently swallowed                                                                                                        | `console.warn("Could not fetch server runs:", err)`           |
 
 ---
 
@@ -317,6 +424,7 @@ When research is recovered but angles are idle, Stage 2 shows a violet "Continue
 Playwright screenshot audit across all pages. Visual scores and fixes:
 
 **Research page `ResearchConfigPanel.tsx` (5/10 → 9/10):**
+
 - Native `<select>` dropdowns → custom segmented chip controls with icons per option
 - Claim verification → toggle row with mini pill switch
 - Idle right panel → 3-card explainer (Web Search / Deep Read / Synthesis) + amber depth tip banner
@@ -340,6 +448,7 @@ Continued systematic code splitting using a two-pass exhaustive audit. 13 splitt
 **Content layout-3 (Image Left / Text Right)** added — `aurora-content-3` registered in REGISTRY and in backend `_layout_variant_for_image()` (cycles 1→2→3 for landscape images).
 
 **Button component library** — all 6 styles now exposed in the editor TemplatesPanel Components tab:
+
 - `btn-gradient` — filled aurora gradient
 - `btn-ghost` — transparent + white border (used on Engage slide)
 - `btn-frosted-glow` — glassmorphism + glow shadow
@@ -348,6 +457,7 @@ Continued systematic code splitting using a two-pass exhaustive audit. 13 splitt
 - `btn-dark-gradient` — dark fill + gradient text
 
 **Component drop system refactored** — `canvasDropHandlers.ts` is now a 91-line router; each component has its own file in `componentDroppers/`:
+
 ```
 canvasDropHandlers.ts     (91 lines)  — router + image drop
 componentDroppers/
@@ -356,6 +466,7 @@ componentDroppers/
 ```
 
 **Bugs fixed in drop handler:**
+
 - `dark-card` and `brand-bar` were not moveable/deleteable — objects had `selectable: false`. Fixed by re-enabling before grouping with `fabric.Group`.
 - 4 missing component IDs (`dark-card`, `quote-block`, `eyebrow-pill`, `cta-button`) caused `Unknown component` warnings — all now handled.
 
@@ -389,6 +500,7 @@ chartGroupBuilders/
 ### Pill Button Styles Decoupled
 
 `shared/buttons.ts` went from **223 → 86 lines**:
+
 ```
 shared/buttons.ts                          (86)  — createPillButton dispatcher + createEyebrowPill
 shared/pillButtons/styleBuilders.ts       (107)  — 6 style builder functions + FabricFill type + createShimmer
@@ -409,17 +521,20 @@ Each button style (`buildGradientStyle`, `buildGhostStyle`, etc.) is independent
 Two-pass exhaustive audit found 13 splitting opportunities. All implemented:
 
 **Phase 1 — Data extractions:**
+
 - `ASSET_BASE` centralised in `lib/api/client.ts` — 7 components were each defining their own `process.env... ?? "http://localhost:8000"`. Now all import from one source.
 - `constants/slideTemplates.ts` — `SLIDE_TYPES`, `STARTER_CONTENT`, `COMPONENTS` deduplicated across `TemplatesPanel.tsx` and `EditorLeftPanel.tsx`
 - `constants/chartDefaults.ts` — `MULTI_SERIES_TYPES`, `NO_PREVIEW_TYPES`, `DEFAULT_DATA` out of `ChartEditorPanel.tsx`
 - `utils/chartValidation.ts` — `getChartWarnings()` function extracted, independently testable
 
 **Phase 2 — Logic separation:**
+
 - `utils/canvasTextHelpers.ts` — `trunc`, `estimateLines`, `autoSize`, `tb` helpers extracted from `slideToCanvas.ts`. The duplicate `estimateLines` in `aurora_content.ts` also eliminated.
 - `utils/canvasTemplates/contentLayouts/` — `aurora_content.ts` 294 → **54 lines**. Five layout builders each in own file: `textOnly.ts`, `imgRight.ts`, `textTop.ts`, `imgTop.ts`, `imgLeft.ts`
 - `store/slices/pipelineReducers/` — `pipelineSlice.ts` 241 → **141 lines**. 30+ reducers grouped into 6 domain files: `configReducers`, `budgetReducers`, `discoveryReducers`, `evidenceReducers`, `stageReducers`, `resultReducers`. Zero breaking changes — action creators still exported from `pipelineSlice.ts`.
 
 **Phase 3 — Large component splits:**
+
 - `ImagesPanel.tsx` 380 → **331 lines**. Three new hooks: `useImageLibrary`, `useImageUpload`, `useImageContextMenu`
 - `SlideEditor.tsx` 455 → **291 lines**. Extracted: `types/slideEditor.ts`, `hooks/useSlideAI.ts`, `panels/ContentTab.tsx`, `panels/StyleTab.tsx`, `panels/ChartTab.tsx`, `panels/ImageTab.tsx`
 
@@ -437,6 +552,7 @@ TypeScript: **0 errors** after every phase.
 ### Architectural Pattern Established
 
 All code splitting follows the same pattern from `componentDroppers/`:
+
 1. One thin **router/dispatcher** file — reads like a table of contents
 2. Each independent branch/concern in its **own focused file**
 3. Shared helpers in a **helpers.ts** within the same folder
@@ -478,6 +594,7 @@ utils/fabricFilters.ts — extracted from RightPanel, shared with ContextToolbar
 **Hooks created:** `useExpandedSet<T>` (replaces identical Set toggle pattern in both FileBrowser and pipeline page), `useToolbarPosition`, `timeUtils.ts`
 
 **Inline fixes:**
+
 - `pipeline/page.tsx` — 3× duplicate `useEffect` for stage auto-expand → 1 effect with `STAGE_KEYS.forEach`
 - `editor/page.tsx` — `editMode: Record<string, boolean>` (accumulating per-slide history) → `useState(false)` that resets on slide change
 - `research/page.tsx` — `useState(6)` × 3 for budget constants that never update → plain `const`
@@ -491,12 +608,12 @@ utils/fabricFilters.ts — extracted from RightPanel, shared with ContextToolbar
 
 **4 correctness bugs fixed in FabricCanvas.tsx:**
 
-| Bug | Line | Fix |
-|---|---|---|
-| View-only race condition | 241–265 | `c.selection = false` set immediately when `viewOnly` determined, before loadInitial async gap |
-| Commit before async mutation (drop handler) | 370 | `commit()` moved to AFTER `FabricImage.fromURL()` succeeds |
-| Commit before async mutation (applyImage) | 478 | Same fix — was missing from original plan |
-| `handleRestoreYes` missing `onCanvasChanged()` | 337 | Added — RightPanel wasn't re-rendering after checkpoint restore |
+| Bug                                                | Line     | Fix                                                                                                |
+| -------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------- |
+| View-only race condition                           | 241–265 | `c.selection = false` set immediately when `viewOnly` determined, before loadInitial async gap |
+| Commit before async mutation (drop handler)        | 370      | `commit()` moved to AFTER `FabricImage.fromURL()` succeeds                                     |
+| Commit before async mutation (applyImage)          | 478      | Same fix — was missing from original plan                                                         |
+| `handleRestoreYes` missing `onCanvasChanged()` | 337      | Added — RightPanel wasn't re-rendering after checkpoint restore                                   |
 
 **FabricCanvas.tsx decoupled: 575 → 371 lines**
 
@@ -511,6 +628,7 @@ canvasSlideLoader.ts (139 lines) — loadSlide + loadInitial via SlideLoaderCont
 ```
 
 **Other logic decoupling:**
+
 - `useDiscoverDrawer` extracted from PipelineConfig (4 useState + 3 async functions → 1 hook call)
 - `buildSeededEvidence()` extracted from `usePipelineOrchestration` as pure function
 - `useBlankRunCreation` hook replaces `api.createBlankRun` duplicated in 3 places
@@ -519,6 +637,7 @@ canvasSlideLoader.ts (139 lines) — loadSlide + loadInitial via SlideLoaderCont
 - `resetPipeline` reducer documented: preserves config, clears run results
 
 **3 proposals rejected after architect review:**
+
 - useMemo on FabricCanvas API ref — `useMemo` not imported; real fix is stable parent props
 - REGISTRY generation (`Object.fromEntries`) — loses TypeScript key verification at compile time
 - `loadSlide`/`loadInitial` extraction via hooks — fixed instead via `SlideLoaderContext` interface
@@ -534,6 +653,7 @@ canvasSlideLoader.ts (139 lines) — loadSlide + loadInitial via SlideLoaderCont
 **Scoring:** Content-zone diff (bottom 55% of canvas) + full diff. Bands: <5% EXCELLENT, <15% GREAT, <25% GOOD, <35% FAIR, >35% BROKEN.
 
 **Final Aurora scores (content-zone):**
+
 - stat::line 1.6%, stat::column 1.9%, stat 2.8%, stat::bar 4.3% — EXCELLENT
 - engage 4.7%, cta 4.8%, stat::donut 5.3%, stat::funnel 5.8% — EXCELLENT/GREAT
 - content-text 6.4%, content-0 7.3%, quote 6.1% — GREAT
@@ -546,6 +666,7 @@ canvasSlideLoader.ts (139 lines) — loadSlide + loadInitial via SlideLoaderCont
 **Content layout-3 added:** Image LEFT / Text RIGHT — mirror of layout-0. Registered in REGISTRY. Backend `_layout_variant_for_image()` updated to cycle 1→2→3 for landscape images.
 
 **Button component library expanded:** 6 named styles in `createPillButton()`:
+
 - `gradient` — filled aurora gradient (CTA)
 - `ghost` — transparent + white border + white text (Engage bottom)
 - `frosted-glow` — translucent white + bright border + glow shadow (Engage top pill)
@@ -562,6 +683,7 @@ canvasSlideLoader.ts (139 lines) — loadSlide + loadInitial via SlideLoaderCont
 ### Known Issues Documented
 
 `Docs/editor/CANVAS_ISSUES.md` — 5 issues tracked:
+
 - A: Layout-3 never assigned by backend pipeline (1-line fix applied)
 - B+E: Legacy runs (`canvas_template: null`) → view-only mode implemented
 - C: Groups not individually editable → Ungroup button added to ContextToolbar
@@ -587,6 +709,7 @@ canvasSlideLoader.ts (139 lines) — loadSlide + loadInitial via SlideLoaderCont
 **File:** `e2e/full-validation.spec.ts` — 47 tests, 12 sections, 3.7 minutes runtime.
 
 **Coverage:**
+
 - All 6 routes load correctly (pipeline, research, images, news, chat, editor)
 - Dark theme verified (`rgb(0,0,0)` background, not white)
 - No `NaN`, `undefined`, raw HTML visible to users
@@ -629,15 +752,15 @@ Tooling: `scripts/gan_iterate.js` — renders, compares, saves `report.json` + c
 
 **7 Iterations — 52.6% Improvement**
 
-| Iter | Avg Diff | POOR | Key Fix |
-|---|---|---|---|
-| 1 | 22.1% | 3 | Baseline |
-| 2 | 20.6% | 3 | Image panel sizing rewrite |
-| 3 | 17.1% | 3 | `absolutePositioned:true` on Fabric clipPath |
-| 4 | 13.7% | 2 | Correct layout variants (content-1, content-2) from HTML flex-direction check |
-| 5 | 12.7% | 1 | CSS 135deg gradient direction (top-right→bottom-left, not top-left→bottom-right) |
-| 6 | 11.3% | 1 | Visual polish pass |
-| **7** | **10.5%** | **0** | Stat label dynamic width, layout-2 top-align |
+| Iter        | Avg Diff        | POOR        | Key Fix                                                                            |
+| ----------- | --------------- | ----------- | ---------------------------------------------------------------------------------- |
+| 1           | 22.1%           | 3           | Baseline                                                                           |
+| 2           | 20.6%           | 3           | Image panel sizing rewrite                                                         |
+| 3           | 17.1%           | 3           | `absolutePositioned:true` on Fabric clipPath                                     |
+| 4           | 13.7%           | 2           | Correct layout variants (content-1, content-2) from HTML flex-direction check      |
+| 5           | 12.7%           | 1           | CSS 135deg gradient direction (top-right→bottom-left, not top-left→bottom-right) |
+| 6           | 11.3%           | 1           | Visual polish pass                                                                 |
+| **7** | **10.5%** | **0** | Stat label dynamic width, layout-2 top-align                                       |
 
 **Final: 10/12 GOOD, 2/12 FAIR, 0/12 POOR.** The two FAIR slides are image crop mismatches — same photo, same layout, but CSS `object-fit:cover` and Fabric's clipPath crop to different pixel boundaries.
 
@@ -645,15 +768,15 @@ Tooling: `scripts/gan_iterate.js` — renders, compares, saves `report.json` + c
 
 **Root Causes Found**
 
-| Bug | Discovery | Fix |
-|---|---|---|
+| Bug                        | Discovery     | Fix                                                                                                                                      |
+| -------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | Image panel tiny thumbnail | Iter 1 visual | `loadPanelImage()` with cover-scale. Old code set `width/height` on `FabricImage` which resizes bounding box but not visual output |
-| Image not clipped to panel | Iter 2 | `absolutePositioned:true` on clipPath rect — Fabric v7 interprets clipPath in canvas space not local space |
-| Wrong layout variants | Iter 3 | Checked rendered HTML `flex-direction` values to identify which variant each slide used; patched `canvas_template` into slides.json |
-| Engage gradient flipped | Iter 4 | CSS `linear-gradient(135deg)` = top-right→bottom-left. Fabric gradient used `cos(135°)*h` which computed the wrong vector |
-| Stat label overlaps number | Iter 6 | Dynamic stat_value width: `min(660, charCount * 67px)` instead of fixed 520px |
-| Layout-2 missing bullets | Iter 6 | Accidentally omitted bullet loop in layout-2 block (content with top-image) |
-| Line chart no area fill | Iter 6 | `fill:true` + `backgroundColor: primary+'44'` in Chart.js config to match reference |
+| Image not clipped to panel | Iter 2        | `absolutePositioned:true` on clipPath rect — Fabric v7 interprets clipPath in canvas space not local space                            |
+| Wrong layout variants      | Iter 3        | Checked rendered HTML`flex-direction` values to identify which variant each slide used; patched `canvas_template` into slides.json   |
+| Engage gradient flipped    | Iter 4        | CSS`linear-gradient(135deg)` = top-right→bottom-left. Fabric gradient used `cos(135°)*h` which computed the wrong vector           |
+| Stat label overlaps number | Iter 6        | Dynamic stat_value width:`min(660, charCount * 67px)` instead of fixed 520px                                                           |
+| Layout-2 missing bullets   | Iter 6        | Accidentally omitted bullet loop in layout-2 block (content with top-image)                                                              |
+| Line chart no area fill    | Iter 6        | `fill:true` + `backgroundColor: primary+'44'` in Chart.js config to match reference                                                  |
 
 ---
 
@@ -682,7 +805,6 @@ Three editor docs (`EDITOR_REQUIREMENTS.md`, `EDITOR_MASTER_PLAN.md`, `EDITOR_FI
 
 ---
 
-
 **Decision:** Introduced adversarial iteration methodology (GAN-style) to validate Fabric.js canvas templates against Jinja2/Playwright reference PNGs, then fixed all identified bugs over 7 iterations.
 
 ---
@@ -708,15 +830,15 @@ Tooling: `scripts/gan_iterate.js` — renders, compares, saves `report.json` + c
 
 **7 Iterations — 52.6% Improvement**
 
-| Iter | Avg Diff | POOR | Key Fix |
-|---|---|---|---|
-| 1 | 22.1% | 3 | Baseline |
-| 2 | 20.6% | 3 | Image panel sizing rewrite |
-| 3 | 17.1% | 3 | `absolutePositioned:true` on Fabric clipPath |
-| 4 | 13.7% | 2 | Correct layout variants (content-1, content-2) from HTML flex-direction check |
-| 5 | 12.7% | 1 | CSS 135deg gradient direction (top-right→bottom-left, not top-left→bottom-right) |
-| 6 | 11.3% | 1 | Visual polish pass |
-| **7** | **10.5%** | **0** | Stat label dynamic width, layout-2 top-align |
+| Iter        | Avg Diff        | POOR        | Key Fix                                                                            |
+| ----------- | --------------- | ----------- | ---------------------------------------------------------------------------------- |
+| 1           | 22.1%           | 3           | Baseline                                                                           |
+| 2           | 20.6%           | 3           | Image panel sizing rewrite                                                         |
+| 3           | 17.1%           | 3           | `absolutePositioned:true` on Fabric clipPath                                     |
+| 4           | 13.7%           | 2           | Correct layout variants (content-1, content-2) from HTML flex-direction check      |
+| 5           | 12.7%           | 1           | CSS 135deg gradient direction (top-right→bottom-left, not top-left→bottom-right) |
+| 6           | 11.3%           | 1           | Visual polish pass                                                                 |
+| **7** | **10.5%** | **0** | Stat label dynamic width, layout-2 top-align                                       |
 
 **Final: 10/12 GOOD, 2/12 FAIR, 0/12 POOR.** The two FAIR slides are image crop mismatches — same photo, same layout, but CSS `object-fit:cover` and Fabric's clipPath crop to different pixel boundaries.
 
@@ -724,15 +846,15 @@ Tooling: `scripts/gan_iterate.js` — renders, compares, saves `report.json` + c
 
 **Root Causes Found**
 
-| Bug | Discovery | Fix |
-|---|---|---|
+| Bug                        | Discovery     | Fix                                                                                                                                      |
+| -------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | Image panel tiny thumbnail | Iter 1 visual | `loadPanelImage()` with cover-scale. Old code set `width/height` on `FabricImage` which resizes bounding box but not visual output |
-| Image not clipped to panel | Iter 2 | `absolutePositioned:true` on clipPath rect — Fabric v7 interprets clipPath in canvas space not local space |
-| Wrong layout variants | Iter 3 | Checked rendered HTML `flex-direction` values to identify which variant each slide used; patched `canvas_template` into slides.json |
-| Engage gradient flipped | Iter 4 | CSS `linear-gradient(135deg)` = top-right→bottom-left. Fabric gradient used `cos(135°)*h` which computed the wrong vector |
-| Stat label overlaps number | Iter 6 | Dynamic stat_value width: `min(660, charCount * 67px)` instead of fixed 520px |
-| Layout-2 missing bullets | Iter 6 | Accidentally omitted bullet loop in layout-2 block (content with top-image) |
-| Line chart no area fill | Iter 6 | `fill:true` + `backgroundColor: primary+'44'` in Chart.js config to match reference |
+| Image not clipped to panel | Iter 2        | `absolutePositioned:true` on clipPath rect — Fabric v7 interprets clipPath in canvas space not local space                            |
+| Wrong layout variants      | Iter 3        | Checked rendered HTML`flex-direction` values to identify which variant each slide used; patched `canvas_template` into slides.json   |
+| Engage gradient flipped    | Iter 4        | CSS`linear-gradient(135deg)` = top-right→bottom-left. Fabric gradient used `cos(135°)*h` which computed the wrong vector           |
+| Stat label overlaps number | Iter 6        | Dynamic stat_value width:`min(660, charCount * 67px)` instead of fixed 520px                                                           |
+| Layout-2 missing bullets   | Iter 6        | Accidentally omitted bullet loop in layout-2 block (content with top-image)                                                              |
+| Line chart no area fill    | Iter 6        | `fill:true` + `backgroundColor: primary+'44'` in Chart.js config to match reference                                                  |
 
 ---
 
@@ -782,6 +904,7 @@ Merged `CANVAS_TEMPLATE_SYSTEM_PLAN.md` + `CHART_EDITOR_PLAN.md` into a single d
 - Deleted `CANVAS_EDITOR_IMPLEMENTATION_PLAN.md`, `CANVAS_TEMPLATE_SYSTEM_PLAN.md`, `CHART_EDITOR_PLAN.md` — all superseded
 
 **Bugs caught during plan audit (vs. original drafts):**
+
 1. Quote slide: `slide.title` = quote text, `slide.body` = attribution (NOT swapped)
 2. Quote slide has "Key Insights" section from `slide.bullets` (omitted in draft)
 3. Stat slide hierarchy: `stat_value` BIG beside `stat_label`, `slide.title` = context text
@@ -792,12 +915,12 @@ Merged `CANVAS_TEMPLATE_SYSTEM_PLAN.md` + `CHART_EDITOR_PLAN.md` into a single d
 
 **Implementation — Phase 0 (Foundation, no deps):**
 
-| File | Purpose |
-|---|---|
-| `frontend/types/chart.ts` | `ChartType` union (13 types), `ChartData`, `ChartSeries`, `ScatterPoint`, `BubblePoint`, `ChartObjectData` |
-| `frontend/utils/canvasTokens.ts` | `AURORA` + `LUMINA` tokens, `CHART_PALETTE` (aurora/lumina), `getTokens()`, `applyOverrides()` |
-| `frontend/utils/canvasFonts.ts` | `loadCanvasFonts()` singleton — loads Syne-Bold + Plus Jakarta Sans (3 weights) via FontFace API. Non-fatal: `Promise.allSettled()` so canvas works even if fonts unavailable |
-| `frontend/utils/parseChartCsv.ts` | `parseChartCsv(csv)` — auto-detects single-series, multi-series, scatter, bubble from header shape |
+| File                                | Purpose                                                                                                                                                                            |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `frontend/types/chart.ts`         | `ChartType` union (13 types), `ChartData`, `ChartSeries`, `ScatterPoint`, `BubblePoint`, `ChartObjectData`                                                             |
+| `frontend/utils/canvasTokens.ts`  | `AURORA` + `LUMINA` tokens, `CHART_PALETTE` (aurora/lumina), `getTokens()`, `applyOverrides()`                                                                           |
+| `frontend/utils/canvasFonts.ts`   | `loadCanvasFonts()` singleton — loads Syne-Bold + Plus Jakarta Sans (3 weights) via FontFace API. Non-fatal: `Promise.allSettled()` so canvas works even if fonts unavailable |
+| `frontend/utils/parseChartCsv.ts` | `parseChartCsv(csv)` — auto-detects single-series, multi-series, scatter, bubble from header shape                                                                              |
 
 **Implementation — Phase 1 (Chart rendering engine):**
 
@@ -817,17 +940,17 @@ All chart palettes match the Jinja2 templates exactly: `#7C6EFA` primary, `#2DD4
 
 **Build order (remaining):**
 
-| Phase | Status |
-|---|---|
-| Phase 0: Foundation | ✅ Done |
-| Phase 1: Chart renderer | ✅ Done |
-| Phase 2: shared.ts (Fabric components) | 🚧 Next |
-| Phase 3: Aurora templates (6 files) | Pending |
-| Phase 4: Template registry + buildSlideCanvas() | Pending |
-| Phase 5: Backend canvas_template field | Pending |
-| Phase 6: FabricCanvas.loadInitial() wiring | Pending |
+| Phase                                                                 | Status  |
+| --------------------------------------------------------------------- | ------- |
+| Phase 0: Foundation                                                   | ✅ Done |
+| Phase 1: Chart renderer                                               | ✅ Done |
+| Phase 2: shared.ts (Fabric components)                                | 🚧 Next |
+| Phase 3: Aurora templates (6 files)                                   | Pending |
+| Phase 4: Template registry + buildSlideCanvas()                       | Pending |
+| Phase 5: Backend canvas_template field                                | Pending |
+| Phase 6: FabricCanvas.loadInitial() wiring                            | Pending |
 | Phase 7: Chart UI (ChartTypePicker, ChartDataTable, ChartEditorPanel) | Pending |
-| Phase 8: RightPanel split + chart wiring | Pending |
+| Phase 8: RightPanel split + chart wiring                              | Pending |
 | Phase 9-11: TemplatesPanel + EditorLeftPanel + user templates backend | Pending |
 
 **TypeScript: 0 errors across all new files. 61/61 E2E tests passing (unchanged).**
@@ -851,9 +974,7 @@ Backend Jinja2 template → Playwright PNG → served as iframe → side-panel f
 This hit three hard walls:
 
 1. **In-place editing is a postMessage workaround, not real editing.** Clicking the slide sends a message to the parent; the parent focuses a sidebar textarea. The user edits in a panel, not on the slide. True in-place editing — click text on the image and type there — is impossible because the iframe is a rendered static HTML snapshot, not an interactive object graph.
-
 2. **Auto-save races with the user's keystrokes.** A debounced save fires a backend call that re-renders the Jinja2 HTML and reloads the iframe. If the user is mid-word when the 300ms debounce fires, the iframe reload interrupts them. The only safe fix is to block saves until the user stops typing — which is exactly "explicit save button", making auto-save meaningless.
-
 3. **No concept of canvas objects.** The slide has no element model — it is a rendered image. There is no way to drag an image box, resize a text element in-place, set transparency on a background, or apply per-element filters. These require a scene graph, not a screenshot.
 
 ---
@@ -862,12 +983,12 @@ This hit three hard walls:
 
 **Why Fabric.js over alternatives:**
 
-| Library | Fit | Reason |
-|---|---|---|
-| **Fabric.js v7.x** | ✅ Best | Native `Textbox` (cursor, selection, per-char styles); `Image.filters.*` (brightness, contrast, blur, grayscale built-in); `canvas.toJSON()` exact serialization; MIT, 31k stars, v7.4.0 May 2026 |
-| react-konva | ✓ Strong alt | Good transformer/resize handles, but text editing requires manual `<textarea>` DOM overlay — replicating what Fabric already ships |
-| tldraw | ✗ Skip | Designed for infinite canvas; commercial license for production |
-| Polotno SDK | ✗ Skip | Vendor lock-in; paid; overkill |
+| Library                  | Fit           | Reason                                                                                                                                                                                                 |
+| ------------------------ | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Fabric.js v7.x** | ✅ Best       | Native`Textbox` (cursor, selection, per-char styles); `Image.filters.*` (brightness, contrast, blur, grayscale built-in); `canvas.toJSON()` exact serialization; MIT, 31k stars, v7.4.0 May 2026 |
+| react-konva              | ✓ Strong alt | Good transformer/resize handles, but text editing requires manual`<textarea>` DOM overlay — replicating what Fabric already ships                                                                   |
+| tldraw                   | ✗ Skip       | Designed for infinite canvas; commercial license for production                                                                                                                                        |
+| Polotno SDK              | ✗ Skip       | Vendor lock-in; paid; overkill                                                                                                                                                                         |
 
 Reference implementations validated: **Fabritor** (1.2k ★, MIT, Fabric.js + React — production Canva clone), **react-image-editor** (544 ★, MIT, Konva — undo/redo reference).
 
@@ -876,11 +997,13 @@ Reference implementations validated: **Fabritor** (1.2k ★, MIT, Fabric.js + Re
 ### What changes
 
 **Retired components:**
+
 - `SlidePreviewFrame.tsx` — iframe approach retired
 - `ImageEditModal.tsx` — popup approach replaced by persistent panel
 - `use-undoable` hook — replaced by Command Pattern
 
 **New architecture:**
+
 ```
 /editor
 ├── LeftPanel (collapsible tabs)
@@ -905,6 +1028,7 @@ Each user action pushes a `{ label, snapshot: FabricJSON }` onto a local `comman
 Canva, Figma, and Adobe Express all use a persistent left asset panel. Search results and uploads survive across slides. Images are dragged from the panel onto the canvas, becoming first-class `fabric.Image` objects with resize/rotate handles.
 
 **Backend changes needed:**
+
 - `GET /content/{run_id}/slides/{ai}/{sn}/canvas` — returns Fabric JSON (converts legacy slide JSON on first load)
 - `PUT /content/{run_id}/slides/{ai}/{sn}/canvas` — stores Fabric JSON (explicit save)
 - Playwright PNG export still used for download/generation — rendering pipeline untouched
@@ -936,11 +1060,13 @@ Canva, Figma, and Adobe Express all use a persistent left asset panel. Search re
 **R2 — Image management modal (`ImageEditModal.tsx` — new)**
 
 Three-tab modal:
+
 - **Search** — Pexels or Web (DDG), 12-result grid, click to stage (violet border), Apply → `api.swapSlideImage()`
 - **Upload** — `react-dropzone` v15; accepts JPG/PNG/WEBP ≤ 10MB; drag-drop or click; calls new `api.uploadSlideImage()`
 - **URL** — paste URL, live `<img>` thumbnail preview, "Use This Image" → `api.swapSlideImageUrl()`
 
 New backend endpoints:
+
 - `POST /content/{run_id}/slides/{ai}/{sn}/upload-image` — Pillow converts to JPG, saves, re-renders PNG
 - `POST /content/{run_id}/slides/{ai}/{sn}/swap-image-url` — httpx downloads URL, validates content-type, same save/render pipeline
 
@@ -995,12 +1121,12 @@ New endpoint: `POST /content/new-blank-run`.
 
 **P1 — `content.py` split into proper layers (483 → 119 lines)**
 
-| New file | Purpose | Lines |
-|---|---|---|
-| `core/services/slide_editor_service.py` | All slide editing logic: preview, edit, AI rewrite, swap image, create. Deduplicated Jinja2 env (cached per theme) + single `_render_and_save_png()` helper replacing two identical render+screenshot blocks | 238 |
-| `core/services/run_browser_service.py` | `list_runs()` + `get_run_manifest()` | 88 |
-| `core/persistence/slide_repository.py` | `read_slides()`, `write_slides()`, `read_image_assets()`, `write_image_assets()` — handles both flat list and `{"slides": [...]}` wrapper JSON formats | 76 |
-| `core/persistence/run_repository.py` | `read_topic()`, `static_image_url()` | 42 |
+| New file                                  | Purpose                                                                                                                                                                                                       | Lines |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `core/services/slide_editor_service.py` | All slide editing logic: preview, edit, AI rewrite, swap image, create. Deduplicated Jinja2 env (cached per theme) + single`_render_and_save_png()` helper replacing two identical render+screenshot blocks | 238   |
+| `core/services/run_browser_service.py`  | `list_runs()` + `get_run_manifest()`                                                                                                                                                                      | 88    |
+| `core/persistence/slide_repository.py`  | `read_slides()`, `write_slides()`, `read_image_assets()`, `write_image_assets()` — handles both flat list and `{"slides": [...]}` wrapper JSON formats                                             | 76    |
+| `core/persistence/run_repository.py`    | `read_topic()`, `static_image_url()`                                                                                                                                                                      | 42    |
 
 `apps/api/v1/content.py` is now **119 lines of pure routing** — every handler is validate → delegate → respond.
 
@@ -1014,11 +1140,11 @@ New endpoint: `POST /content/new-blank-run`.
 
 **P3 — Helper functions moved to `core/` from API layer**
 
-| Function | From | To |
-|---|---|---|
-| `_fetch_category()` + `_DISCOVER_CATEGORIES` | `tools_news.py` | `core/tools/News/discovery.py` |
-| `_age_label()` | `tools_news.py` | `core/utils/time_utils.py` |
-| `_ddgs_multi_search()` | `tools_images.py` | `core/tools/Search/multi_search.py` |
+| Function                                         | From                | To                                    |
+| ------------------------------------------------ | ------------------- | ------------------------------------- |
+| `_fetch_category()` + `_DISCOVER_CATEGORIES` | `tools_news.py`   | `core/tools/News/discovery.py`      |
+| `_age_label()`                                 | `tools_news.py`   | `core/utils/time_utils.py`          |
+| `_ddgs_multi_search()`                         | `tools_images.py` | `core/tools/Search/multi_search.py` |
 
 `tools_news.py` 237 → 120 lines. `tools_images.py` 164 → 113 lines.
 
@@ -1044,25 +1170,23 @@ Was duplicated inline in `news_api.py` and `evaluator.py`. Now centralized in `t
 
 ---
 
-
-
 **Decision:** Implemented the final major planned feature — the `/editor` page. A Canva-inspired slide editor where users can edit text, font sizes, colors, accents, slide type, theme, chart data, swap images, and AI-rewrite any slide, plus a full Markdown blog editor with an LLM assistant sidebar. Architecture validated by research: Canva uses DOM+CSS (not canvas), and our Playwright pipeline already matches the Chart.js rendering engine (Skia), so no visual mismatch.
 
 ---
 
 **Backend — 9 new endpoints in `content.py`**
 
-| Method | Path | Purpose |
-|---|---|---|
-| `GET` | `/content/runs` | List all pipeline runs from disk with metadata |
-| `GET` | `/content/{run_id}/manifest` | File tree: angles, slide counts, png paths, blog flag |
-| `GET` | `/content/{run_id}/slides/{angle}` | Raw slides.json for an angle |
-| `GET` | `/content/{run_id}/slides/{angle}/{n}/preview` | **Live Jinja2 render → HTMLResponse** (powers the iframe) |
-| `POST` | `/content/{run_id}/slides/{angle}/{n}/edit` | Patch slide fields, re-render, re-screenshot |
-| `POST` | `/content/{run_id}/slides/{angle}/{n}/ai-rewrite` | LLM rewrite with feedback |
-| `POST` | `/content/{run_id}/slides/{angle}/{n}/swap-image` | Fetch + download new image, re-render |
-| `POST` | `/content/{run_id}/slides/{angle}/new` | Create blank slide from template |
-| `PUT` | `/content/{run_id}/blog-post` | Save updated markdown, regenerate HTML |
+| Method   | Path                                                | Purpose                                                          |
+| -------- | --------------------------------------------------- | ---------------------------------------------------------------- |
+| `GET`  | `/content/runs`                                   | List all pipeline runs from disk with metadata                   |
+| `GET`  | `/content/{run_id}/manifest`                      | File tree: angles, slide counts, png paths, blog flag            |
+| `GET`  | `/content/{run_id}/slides/{angle}`                | Raw slides.json for an angle                                     |
+| `GET`  | `/content/{run_id}/slides/{angle}/{n}/preview`    | **Live Jinja2 render → HTMLResponse** (powers the iframe) |
+| `POST` | `/content/{run_id}/slides/{angle}/{n}/edit`       | Patch slide fields, re-render, re-screenshot                     |
+| `POST` | `/content/{run_id}/slides/{angle}/{n}/ai-rewrite` | LLM rewrite with feedback                                        |
+| `POST` | `/content/{run_id}/slides/{angle}/{n}/swap-image` | Fetch + download new image, re-render                            |
+| `POST` | `/content/{run_id}/slides/{angle}/new`            | Create blank slide from template                                 |
+| `PUT`  | `/content/{run_id}/blog-post`                     | Save updated markdown, regenerate HTML                           |
 
 New schemas: `SlideEditRequest`, `SlideEditResponse`, `BlogPostUpdateRequest` in `schemas.py`.
 
@@ -1079,20 +1203,21 @@ New schemas: `SlideEditRequest`, `SlideEditResponse`, `BlogPostUpdateRequest` in
 
 **Frontend — 6 new components**
 
-| File | Purpose |
-|---|---|
-| `app/editor/page.tsx` | Two-panel shell; URL params drive which editor panel shows |
-| `components/editor/FileBrowser.tsx` | Left panel: recent runs (Redux) + all runs (API), expand to slides + blog |
-| `components/editor/SlidePreviewFrame.tsx` | `<iframe>` pointing to `/preview` endpoint; `previewKey` forces reload on save |
-| `components/editor/SlideEditor.tsx` | 5-tab Canva-style editor: Content / Style / Chart / Image / AI |
-| `components/editor/ChartPreview.tsx` | `react-chartjs-2` live preview (same Skia engine as Playwright — no visual mismatch) |
-| `components/editor/MarkdownEditor.tsx` | `@uiw/react-md-editor` dark mode + LLM chat sidebar using existing `api.chat()` |
+| File                                        | Purpose                                                                                 |
+| ------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `app/editor/page.tsx`                     | Two-panel shell; URL params drive which editor panel shows                              |
+| `components/editor/FileBrowser.tsx`       | Left panel: recent runs (Redux) + all runs (API), expand to slides + blog               |
+| `components/editor/SlidePreviewFrame.tsx` | `<iframe>` pointing to `/preview` endpoint; `previewKey` forces reload on save    |
+| `components/editor/SlideEditor.tsx`       | 5-tab Canva-style editor: Content / Style / Chart / Image / AI                          |
+| `components/editor/ChartPreview.tsx`      | `react-chartjs-2` live preview (same Skia engine as Playwright — no visual mismatch) |
+| `components/editor/MarkdownEditor.tsx`    | `@uiw/react-md-editor` dark mode + LLM chat sidebar using existing `api.chat()`     |
 
 **New packages:** `react-chartjs-2`, `chart.js`, `@uiw/react-md-editor`
 
 ---
 
 **Style controls implemented (per-slide, Canva-style):**
+
 - Font size (XS/SM/MD/LG/XL) → `slide_overrides.title_font_size`
 - Title color (swatches + `<input type="color">`) → `slide_overrides.title_color`
 - Accent color (preset palette + custom) → `slide_overrides.accent_color`
@@ -1114,8 +1239,6 @@ New schemas: `SlideEditRequest`, `SlideEditResponse`, `BlogPostUpdateRequest` in
 **TypeScript: 0 errors. E2E: 61/61 passing.**
 
 ---
-
-
 
 **Decision:** Second comprehensive audit of the entire backend. Extracted the embedded HTML template, deduplicated `_has_cjk`, moved all remaining hardcoded constants to settings, split two large functions, extracted an LLM prompt, and made a dozen minor clarity fixes. No behaviour changes.
 
@@ -1143,25 +1266,26 @@ Inline f-string prompt in `apps/api/v1/tools_images.py` (used for LLM filtering 
 
 All remaining hardcoded values consolidated:
 
-| Setting | Was hardcoded in |
-|---|---|
-| `medium_url` | `caption_generator.py` |
-| `backend_base_url` | `blog_post_generator.py` |
-| `cors_origins` | `main.py` |
-| `image_relevance_threshold` | `tools_images.py` |
-| `image_max_tags` | `tools_images.py` |
-| `image_tag_stopwords` | `tools_images.py` |
-| `carousel_viewport_size` | `carousel_generator.py` (×2) |
-| `carousel_scale_factor` | `carousel_generator.py` |
-| `carousel_chart_render_wait_ms` | `carousel_generator.py` |
-| `crawl_markdown_max_chars` | `normalizer.py` |
-| `crawl_snippet_max_chars` | `normalizer.py` |
+| Setting                           | Was hardcoded in                |
+| --------------------------------- | ------------------------------- |
+| `medium_url`                    | `caption_generator.py`        |
+| `backend_base_url`              | `blog_post_generator.py`      |
+| `cors_origins`                  | `main.py`                     |
+| `image_relevance_threshold`     | `tools_images.py`             |
+| `image_max_tags`                | `tools_images.py`             |
+| `image_tag_stopwords`           | `tools_images.py`             |
+| `carousel_viewport_size`        | `carousel_generator.py` (×2) |
+| `carousel_scale_factor`         | `carousel_generator.py`       |
+| `carousel_chart_render_wait_ms` | `carousel_generator.py`       |
+| `crawl_markdown_max_chars`      | `normalizer.py`               |
+| `crawl_snippet_max_chars`       | `normalizer.py`               |
 
 ---
 
 **Change 5 — `execute_tools_node` split (executor.py)**
 
 `execute_tools_node` was 132 lines — a single function running 4 tools in sequence with ~30 lines each. Extracted four module-level helpers:
+
 - `_run_ddgs_text(ddgs, query)`
 - `_run_ddgs_news(ddgs, query)`
 - `_run_news_api(query, run_id, degraded_flags)`
@@ -1226,8 +1350,6 @@ Magic numbers `15.0` and `8.0` in `evaluator.py` replaced with named constants `
 
 ---
 
-
-
 **Decision:** Two evidence pipeline gaps filled: (1) the full article content already fetched during Discover was being discarded after topic drafting — now injected as a seeded evidence item into the research pipeline; (2) users can now attach documents (PDF, DOCX, TXT, MD, JSON, CSV, PPTX, XLSX, etc.) from the Discover drawer and have them incorporated as high-credibility evidence in the research run.
 
 ---
@@ -1276,24 +1398,23 @@ Magic numbers `15.0` and `8.0` in `evaluator.py` replaced with named constants `
 
 ---
 
-
-
 **Decision:** Audited every non-test `.tsx`/`.ts` file for inline component definitions and large page files. Extracted all remaining inline components into dedicated files organised by feature folder. Every page is now pure layout wiring — no component or business logic defined inline.
 
 ---
 
 **Files decomposed:**
 
-| Page (before → after) | Extracted to |
-|---|---|
-| `app/images/page.tsx` 480 → 168 lines | `components/images/ImageCard.tsx` (`PexelsCard`, `DDGSCard`, `SelectOverlay`), `components/images/ImageTagChips.tsx`, `components/images/SelectionActionBar.tsx`, `hooks/useImageSearch.ts` (all search + download logic) |
-| `app/research/page.tsx` 428 → 224 lines | `components/research/ConfidenceBar.tsx` (`ConfidenceBar`, `Badge`), `components/research/EvidenceCard.tsx`, `components/research/ResearchConfigPanel.tsx` (full left sidebar) |
-| `app/news/page.tsx` 307 → 177 lines | `components/news/NewsCard.tsx` |
-| `app/chat/page.tsx` 210 → 153 lines | `components/chat/MessageBubble.tsx` (`MessageBubble`, `TypingIndicator`) |
+| Page (before → after)                     | Extracted to                                                                                                                                                                                                                            |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/images/page.tsx` 480 → 168 lines   | `components/images/ImageCard.tsx` (`PexelsCard`, `DDGSCard`, `SelectOverlay`), `components/images/ImageTagChips.tsx`, `components/images/SelectionActionBar.tsx`, `hooks/useImageSearch.ts` (all search + download logic) |
+| `app/research/page.tsx` 428 → 224 lines | `components/research/ConfidenceBar.tsx` (`ConfidenceBar`, `Badge`), `components/research/EvidenceCard.tsx`, `components/research/ResearchConfigPanel.tsx` (full left sidebar)                                                 |
+| `app/news/page.tsx` 307 → 177 lines     | `components/news/NewsCard.tsx`                                                                                                                                                                                                        |
+| `app/chat/page.tsx` 210 → 153 lines     | `components/chat/MessageBubble.tsx` (`MessageBubble`, `TypingIndicator`)                                                                                                                                                          |
 
 **New folders created:** `components/images/`, `components/research/`, `components/news/`, `components/chat/`, `hooks/`
 
 **Pattern applied consistently across all pages:**
+
 - Reusable UI → `components/<feature>/ComponentName.tsx`
 - Business/async logic → `hooks/useFeatureName.ts`
 - Page files contain only: imports, state wiring, layout JSX
@@ -1302,7 +1423,6 @@ Magic numbers `15.0` and `8.0` in `evaluator.py` replaced with named constants `
 
 ---
 
-
 **Decision:** Three compounding sessions of UI work culminating in a fully decomposed, maintainable pipeline frontend with a modern command bar, enriched topic discovery, and zero dead code.
 
 ---
@@ -1310,11 +1430,13 @@ Magic numbers `15.0` and `8.0` in `evaluator.py` replaced with named constants `
 **Change 1 — Command bar complete redesign (PipelineConfig)**
 
 Replaced the old cluttered horizontal toolbar with a card-based launcher:
+
 - **Row 1:** Full-width topic textarea (transparent, no border) + Discover button right-aligned
 - **Row 2:** Chip toolbar — LLM mode toggle, depth/freshness/angles `OptionChip` dropdowns, spacer, Config button, Produce Content CTA
 - **Settings panel:** Expands inline inside the card (not a floating popover) — 2-column grid with Research Budget (tool calls, sources, loops, crawl URLs, claim verification) and Content Generation (angles, slide range, image source)
 
 Key UX fixes vs old design:
+
 - Advanced settings now expands **downward inside the card** — no longer clips above viewport
 - "Source" label renamed to **"LLM Mode"** — chip shows "Web" or "LLM only" clearly
 - All configs exposed: `max_angles_to_select`, `needs_claim_verification`, `min_slides`, `max_crawl_urls`, `image_source` (in advanced)
@@ -1328,6 +1450,7 @@ Key UX fixes vs old design:
 Old behaviour: selecting a discover article called `/tools/query-refine` with just the headline → returned a raw keyword list with no context, dumped into the query strip automatically.
 
 New behaviour:
+
 1. User clicks "Use →" on a discover article card
 2. Topic field immediately seeds with the article headline
 3. `POST /tools/topic-from-url` fires in background — LLM drafts a **one rich research statement** (15–25 words) grounded in the article's actual content
@@ -1338,13 +1461,16 @@ New behaviour:
 **Why no Crawl4AI for drafting:** The news APIs (Google News / DDGS) already return full article content in `a.content` / `r.body`. The `_fetch_category` function was truncating to 200 chars — removed that truncation. The full content is now passed directly to the LLM in the `topic-from-url` endpoint. No additional web requests needed.
 
 **New backend endpoint (`backend/apps/api/v1/tools.py`):**
+
 - `POST /tools/topic-from-url` — accepts `{url, title, snippet}` (snippet = full article content from news API), calls LLM, returns `{topic, freshness, entities, crawl_failed}`
 - `crawl_failed: bool` is always `False` in normal flow (snippet-based); used as fallback signal if LLM fails
 
 **New backend schemas (`backend/apps/api/v1/schemas.py`):**
+
 - `TopicFromUrlRequest`, `TopicFromUrlResponse`
 
 **New Redux field (`pipelineSlice.ts`):**
+
 - `discoverUrl: string | null` — cleared on `resetPipeline`, wired into `runResearch` as `explicit_urls`
 
 ---
@@ -1354,6 +1480,7 @@ New behaviour:
 Old: `line-clamp-2` truncated both title and snippet; clicking anywhere on the card selected it.
 
 New layout per card:
+
 - Full title (semibold, no truncation)
 - Full snippet (no line-clamp)
 - Source + age in footer
@@ -1368,14 +1495,14 @@ Category filter chips now have full category names; loading skeleton has realist
 
 All inlined helper components and logic extracted to dedicated files:
 
-| File | Content |
-|---|---|
-| `components/pipeline/OptionChip.tsx` | Dropdown chip with animated popover, click-outside close |
-| `components/pipeline/LlmChip.tsx` | LLM mode toggle button with mini inline switch |
-| `components/pipeline/SettingsPrimitives.tsx` | `Stepper`, `SettingRow`, `ToggleRow`, `SectionHead` |
-| `components/pipeline/AdvancedSettings.tsx` | Full settings expansion panel (reads/dispatches Redux) |
-| `components/pipeline/RefinedQueriesStrip.tsx` | Collapsible query editor strip |
-| `hooks/usePipelineOrchestration.ts` | All pipeline run logic: `handleRun`, `handleGenerateAngles`, `runContent`, `runAngleAndContent` |
+| File                                            | Content                                                                                                |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `components/pipeline/OptionChip.tsx`          | Dropdown chip with animated popover, click-outside close                                               |
+| `components/pipeline/LlmChip.tsx`             | LLM mode toggle button with mini inline switch                                                         |
+| `components/pipeline/SettingsPrimitives.tsx`  | `Stepper`, `SettingRow`, `ToggleRow`, `SectionHead`                                            |
+| `components/pipeline/AdvancedSettings.tsx`    | Full settings expansion panel (reads/dispatches Redux)                                                 |
+| `components/pipeline/RefinedQueriesStrip.tsx` | Collapsible query editor strip                                                                         |
+| `hooks/usePipelineOrchestration.ts`           | All pipeline run logic:`handleRun`, `handleGenerateAngles`, `runContent`, `runAngleAndContent` |
 
 `PipelineConfig.tsx` is now **pure layout wiring** — imports everything, defines nothing inline.
 
@@ -1384,6 +1511,7 @@ All inlined helper components and logic extracted to dedicated files:
 **Change 5 — Dead code removal**
 
 Deleted two orphaned files that were never imported anywhere:
+
 - `components/pipeline/RefinedQueriesStrip.tsx` (old stale version — shadowed by inline duplicate in PipelineConfig)
 - `components/pipeline/PipelineProgress.tsx` (superseded by StageCard-based layout in pipeline/page.tsx)
 
@@ -1404,6 +1532,7 @@ New fields: `maxTools`, `maxSources`, `maxLoops`, `maxSlides`, `minSlides`, `max
 **E2E test updates**
 
 Updated selectors across `pipeline-config.spec.ts`, `llm-research-mode.spec.ts`, `pipeline-normal-flow.spec.ts` for new dropdown-chip UI:
+
 - Pill button checks → chip label visibility checks
 - Active class `bg-violet-600` → chip label text presence
 - `getByRole("button", { name: /^auto$/ })` → open dropdown first, then pick option
@@ -1454,7 +1583,6 @@ Updated selectors across `pipeline-config.spec.ts`, `llm-research-mode.spec.ts`,
 ---
 
 ## 2026-06-07 - Session 27: Research Pipeline Fixes, LLMFactory JWT Retry, Codebase Cleanup
-
 
 **Decision:** Fixed three research pipeline bugs identified from live run analysis: URLs in topics being silently discarded, query_variants being static boilerplate instead of LLM-refined, and LLM background knowledge failing due to JWT expiry on the singleton client. Added LLMFactory retry pattern to all callers. Pinned llm_knowledge evidence outside relevance ranking. Embedded evidence list in research_result.json. Deleted dead files.
 
@@ -1516,7 +1644,6 @@ Updated `.gitignore`: added `backend/build/` and `frontend/test-results/`.
 
 ## 2026-05-30 - Session 26: Blog Post Export (Markdown + HTML + In-App Preview)
 
-
 **Decision:** Auto-generate a publish-ready blog article at the end of every content run. Produces `blog_post.md` (Medium/Substack/Ghost) and `blog_post.html` (Wix/Blogger/standalone) with real images, inline citations, stat pull-quotes, and a branded footer. Accessible from the frontend via a full-screen preview modal + two download buttons.
 
 ---
@@ -1547,6 +1674,7 @@ Updated `.gitignore`: added `backend/build/` and `frontend/test-results/`.
 - `generate_blog_post(assets)` → `(markdown_str, html_str)` — calls LLM via `LLMFactory.get_client()` (no JWT risk), assembles markdown, converts to HTML, loads hashtags from `carousel.json` for tag chips.
 
 **Bugs fixed vs original plan:**
+
 1. `synthesis` was built only from `ContentRequest.research_summary + key_points` — missing `implications`, `contradictions`, `gaps`. Fixed: load full `research_result.json` from disk and parse complete synthesis dict.
 2. HTML footer said "Content Studio AI" — corrected to `@TheOpinionBoard`.
 3. `markdown` package wasn't installed — added to `pyproject.toml`.
@@ -1596,7 +1724,6 @@ outputs/<run_id>/
 
 ## 2026-05-30 - Session 25: Research Progress Bar, run_id Pipeline Fix, E2E Test Suite, Stage Timers
 
-
 **Decision:** Four separate deliverables in one session — research progress polling, critical run_id bug fix, full E2E Playwright coverage for all 5 pages, and live stage timers in the pipeline UI.
 
 ---
@@ -1617,6 +1744,7 @@ outputs/<run_id>/
 **Change 2 — run_id consistency verified across full pipeline**
 
 Traced run_id through all three phases:
+
 - **Research:** `pendingRunId` → `/research/run` → `researchRes.run_id === pendingRunId` → `setResearchResult` overwrites Redux `runId` with same value ✅
 - **Angle:** `research.run_id` passed to `/angle/run` → orchestrator uses it → `angleRes.run_id === pendingRunId` ✅
 - **Content (auto):** `angle.run_id` used in `/content/run` → same UUID → all outputs in `outputs/{pendingRunId}/` ✅
@@ -1629,15 +1757,15 @@ Traced run_id through all three phases:
 
 Added `test-results/` and `playwright-report/` to `frontend/.gitignore` — Playwright auto-generates `error-context.md` files in `test-results/` on failure; these are diagnostic artifacts, not code.
 
-| File | Tests | Coverage |
-|---|---|---|
-| `e2e/pipeline-normal-flow.spec.ts` | 12 | Auto mode end-to-end, manual HITL modal, angle regeneration, progress bar polling, error banner |
-| `e2e/pipeline-config.spec.ts` | 8 | Mode/freshness selectors, advanced settings, LLM mode persistence through reset |
-| `e2e/research-page.spec.ts` | 5 | Query refinement, results display, error state |
-| `e2e/images-page.spec.ts` | 5 | Pexels/DDGS search, tag chips, download |
-| `e2e/news-page.spec.ts` | 5 | Source switching, time filters, results render |
-| `e2e/chat-page.spec.ts` | 5 | Message send, multi-turn history in request, error reply, clear chat |
-| `e2e/llm-research-mode.spec.ts` | 20 | *(existing)* LLM-only research flow |
+| File                                 | Tests | Coverage                                                                                        |
+| ------------------------------------ | ----- | ----------------------------------------------------------------------------------------------- |
+| `e2e/pipeline-normal-flow.spec.ts` | 12    | Auto mode end-to-end, manual HITL modal, angle regeneration, progress bar polling, error banner |
+| `e2e/pipeline-config.spec.ts`      | 8     | Mode/freshness selectors, advanced settings, LLM mode persistence through reset                 |
+| `e2e/research-page.spec.ts`        | 5     | Query refinement, results display, error state                                                  |
+| `e2e/images-page.spec.ts`          | 5     | Pexels/DDGS search, tag chips, download                                                         |
+| `e2e/news-page.spec.ts`            | 5     | Source switching, time filters, results render                                                  |
+| `e2e/chat-page.spec.ts`            | 5     | Message send, multi-turn history in request, error reply, clear chat                            |
+| `e2e/llm-research-mode.spec.ts`    | 20    | *(existing)* LLM-only research flow                                                           |
 
 All tests mock backend via `page.route()`. Key selector fixes discovered during test runs: research page button is "START RESEARCH" not generic text; images placeholder is "Describe the visual concept…"; news placeholder is "Search global events and signals…"; source button labels are "PEXELS"/"DUCKDUCKGO"/"DDG"; HITL modal confirm button text is "Generate Content for N Angles"; angle text in HITL modal must be scoped inside `[class*='fixed'][class*='inset']` to avoid strict mode violation with stage card backdrop.
 
@@ -1696,8 +1824,6 @@ Each stage runs its own independent stopwatch. Timer appears only when the stage
 **Status:** ✅ Complete — 5 changes, verified via Playwright screenshots.
 
 ---
-
-
 
 **Decision:** Implemented a post-generation validation pipeline (new LangGraph node) that enforces slide structure, filters irrelevant content, strengthens image/graph quality. Then diagnosed three production bugs from a live run and fixed them.
 
@@ -1884,11 +2010,13 @@ Each stage runs its own independent stopwatch. Timer appears only when the stage
 **Decision:** Refactored the monolithic frontend into a modular, premium-grade SPA using Redux Toolkit for persistent state management and Framer Motion for high-fidelity animations.
 
 **Why:**
+
 - Monolithic page structure was unmaintainable and caused state loss on navigation.
 - Needed a "premium" feel to match the sophisticated multi-agent backend.
 - Global state was required to track pipeline progress, chat history, and research data across the application.
 
 **Key Implementation:**
+
 1. **Redux Toolkit Architecture**:
    - `pipelineSlice`: Tracks active production runs, research results, and stage statuses.
    - `chatSlice`: Manages persistent AI assistant conversations.
@@ -1944,6 +2072,7 @@ Each stage runs its own independent stopwatch. Timer appears only when the stage
 - `ResearchOrchestrator.run()` now returns the best synthesis (not just the last) so downstream angle/content nodes always get the highest-quality research regardless of how many loops ran.
 
 **New `research_result.json` structure:**
+
 ```json
 {
   "total_iterations": 2,
@@ -2709,6 +2838,7 @@ For in-depth analysis, see:
 **Motivation:** Web research sometimes deviates the narrative (e.g. wanted a carousel exposing a politician's past controversies → web tools returned his generic official bio instead). LLM-only mode lets the user force a specific angle from the start and iteratively sharpen the research brief before generating content.
 
 **Data flow:**
+
 ```
 Toggle ON → "Draft Research" → POST /research/llm-draft → ResearchResponse (saved to disk)
   ↓ Stage 1 shows synthesis + key_points + evidence chips
@@ -2739,6 +2869,7 @@ Toggle ON → "Draft Research" → POST /research/llm-draft → ResearchResponse
 The pill toggle thumb was overflowing the track in ON state and looked off-centre in OFF state. Root cause: `absolute` positioned thumb with no explicit `left` + no `overflow-hidden` on the track.
 
 Rewrote to the standard Headless UI / Tailwind UI pattern:
+
 - Track: `inline-flex h-6 w-11 border-2 border-transparent` (24×44px; 2px padding all sides makes inner = 20×40px)
 - Thumb: `inline-block h-5 w-5` (20×20px; flows naturally from left edge)
 - OFF: `translate-x-0` / ON: `translate-x-5` (0 or 20px — exactly fills the 40px inner width)
@@ -2760,4 +2891,4 @@ Rewrote to the standard Headless UI / Tailwind UI pattern:
 
 ---
 
-_Last updated: 2026-06-19 (Session 40)_
+_Last updated: 2026-06-27
