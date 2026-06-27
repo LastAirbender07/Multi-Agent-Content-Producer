@@ -6,7 +6,148 @@
 
 ---
 
-## 2026-06-25 — Sessions 53+: Analytics Page, Caption Editor, Progress Feedback, Slide Reorder
+## 2026-06-27 — Phase 3 Improvements + Analytics Overhaul + Editor Bug Fixes + Chart DPR Fix
+
+### Summary
+
+Full sprint covering: editor bug fixes (8 issues), analytics complete rebuild with caching, Phase 3 roadmap items (slide reorder drag UI, run search+tagging, settings page, batch style editing), Google Blogger automation docs, and a DPR-related chart rendering bug that only manifested on real browsers (not Playwright headless).
+
+---
+
+### Editor Bug Fixes (8 issues from EDITOR_ISSUES.md)
+
+**Critical — `canvas.toJSON()` missing `["data"]` parameter:**
+All 5 call sites (`useCanvasHistory.ts` ×3, `FabricCanvas.tsx` `getCanvasJson`, `useCanvasCheckpoint.ts`) were serializing without custom properties. In Fabric v7, custom properties (`data.role`, `chartType`, `chartData`) must be registered via `FabricObject.customProperties.push("data")` at init — done once in `FabricCanvas`. This fixed undo/redo losing role annotations, save/load losing chart identity, and checkpoint losing all semantic metadata.
+
+**Legacy view-only banner:** Slides without `canvas_template` field (generated before the canvas editor existed) are now blocked from edit mode in `SlidePngPreview.tsx` with amber badge: "This slide format is not supported for editing — regenerate to enable editing." Previously they silently opened a broken canvas.
+
+**Lumina theme pollution:** Two hardcoded `"aurora"` strings fixed:
+- `aurora_stat.ts` line 166 — chart theme now derived from `t.bg === LUMINA.bg` check
+- `canvasDropHandlers.ts` — `addComponentToCanvas()` now accepts `theme` param, tracked via `slideThemeRef` in `FabricCanvas`
+
+**Ungroup coordinate bug:** `handleUngroup` was using `fabric.util.transformPoint(child.left, groupMatrix)` — wrong in Fabric v7 where group-local coords use center origin. Replaced with `child.getXY()` (reads absolute canvas position before removal) + `child.setXY(pos, originX, originY)` after removal. This is Fabric v7's correct API (`toActiveSelection()` doesn't exist in v7).
+
+**Bullet editing via RightPanel:** `createBulletItem` creates Groups `[circle, num, label]` — `label` at index 2 is a Textbox but groups don't forward text editing. New `BulletsPropertyPanel.tsx` scans all canvas objects for `data.role === "bullet_item"`, reads `getObjects()[2]` (the label Textbox), renders editable textareas, writes back via `label.set("text", value)`.
+
+**Chart resize re-render:** `object:modified` hook detects `data.role === "chart"` + scale change → re-renders Chart.js at new `getBoundingRect()` dimensions → swaps old image object.
+
+**Image panel additions:** `ImagePropertyPanel` now includes rotation slider (−180°→180°), corner radius slider (reads/writes `obj.clipPath.rx`), and "Bring Forward" button.
+
+**Decorative elements (P3):** `glow-blob` and `deco-ring` added to component dropper registry + `COMPONENTS` constant. All template decorative elements now have `data.role` set.
+
+---
+
+### Chart DPR Bug Fix (the real responsiveness issue)
+
+**Root cause confirmed via Playwright DPR=2 testing:** `Chart.js` reads `window.devicePixelRatio` and calls `ctx.setTransform(DPR, 0, 0, DPR, 0, 0)` internally. On a DPR=2 display, Chart.js rendered all bars at 2× width, so only the left half of the chart fit in the canvas — only the first bar was visible, second bar was off-screen to the right.
+
+**Fix:** Single line in `chartImageRenderer.ts`:
+```typescript
+(config as any).options = { ...(config as any).options, devicePixelRatio: 1 };
+```
+
+Also added `enableRetinaScaling: false` to the Fabric canvas constructor — prevents Fabric from creating a 2160×2160 backing store on DPR=2 displays which caused the canvas coordinate system to mismatch CSS dimensions.
+
+**Validation:** Playwright tested at DPR=1.0, 1.25, 1.5, and 2.0 — all show both bars correctly. The earlier aurora_stat body text heuristic was also replaced with `calcTextHeight()` + `chartH = clamp(availH, 220, 520)`.
+
+---
+
+### Analytics — Complete Rebuild
+
+**Modularised into `core/services/analytics/` package:**
+
+| File | Responsibility |
+|---|---|
+| `cache.py` | Thread-safe TTL cache (`_AnalyticsCache`, 5-min TTL, explicit invalidation) |
+| `run_loader.py` | All I/O for one run: research quality, hooks, slide types, image sources, blog check, publish readiness |
+| `aggregator.py` | Pure computation — no I/O, all new aggregations |
+| `summary.py` | Cache-aware public entry points |
+| `analytics_service.py` | 10-line shim (re-exports from package) |
+
+**New data extracted from existing files (no new storage):**
+- `research_result.json` → `combined_confidence`, `passed` (iteration 1 via `iterations[0].evaluation`), `key_points_count`, `gaps_count`, `evidence_count`, `total_iterations`
+- `angles/selection.json` → `emotional_hook` (normalised via `_normalise_hook()` — collapses verbose LLM strings like `"Anger - exposing..."` to canonical 4 values)
+- `content/angle_*/slides.json` → slide type distribution
+- `content/angle_*/image_assets.json` → image source breakdown (fixed dict/list wrapper bug)
+- `blog_post.md` → existence check (fixed path — was `content/blog_post.md`, correct is `{run_dir}/blog_post.md`)
+
+**Bug fixes during analytics rebuild:**
+- Blog count was pulled from `run_readiness[-10:]` (last 10 runs only) → now scanned across ALL runs, exposed as `blog_count` field
+- Quality gate was 100% because it checked `evaluation.passed` (final result always passes). Now checks `iterations[0].evaluation.passed` — the first real evaluation before the forced second loop. Result: 92% (correct)
+- Hook deduplication: `_sort(hooks, "hook", cap=5)` keeps top-5 and excludes tail; `_normalise_hook()` maps verbose strings to `{Anger, Hope, Curiosity, FOMO, Other}`
+- `image_assets.json` parse bug: file is `{"image_assets": [...]}` dict wrapper, not flat list — loader now handles both
+
+**Cache layer:**
+- `_AnalyticsCache` is thread-safe with `threading.Lock`, 5-min TTL
+- `analytics_cache.invalidate()` called from `save_research_output()` and `finalize_content_node()` — fresh data on next load after any pipeline run
+- `POST /api/v1/analytics/invalidate-cache` endpoint for the UI Refresh button
+- `Cache-Control: public, max-age=60, stale-while-revalidate=300` on the GET endpoint
+- `get_analytics_summary_async()` ready for 200+ run scale (background executor)
+
+**Frontend analytics page modularised:**
+
+| Component | Purpose |
+|---|---|
+| `Card.tsx` | `Card`, `CardHeader`, `DistributionRow` primitives |
+| `ResearchQualitySection.tsx` | Confidence bar list + depth stats |
+| `StageSections.tsx` | Cost by Stage + Stage Performance latency table |
+| `TopicSections.tsx` | Topics by Category + Quality by Topic heatmap |
+| `ContentStrategySection.tsx` | Hooks + Slide Types + Image Sources (3-col grid) |
+| `PublishReadinessTable.tsx` | Last 10 runs ✓/✗ grid |
+
+**New KPI layout:** 2 rows of 4 cards. Row 1: Cost & Volume. Row 2: Quality & Content (Research Efficiency, Avg Confidence, Blog Posts Written, Pexels Image Rate). Refresh button in header calls `POST /invalidate-cache` + re-fetches. `computed_at` timestamp shows data freshness.
+
+---
+
+### Phase 3 Roadmap — All 4 Items Shipped
+
+**#4 — Slide Reorder Drag UI (RunRow.tsx)**
+- New `DraggableSlideList` component inside RunRow using native HTML5 drag (no DnD library)
+- `GripVertical` handle (hover-reveal), violet drop indicator line, `Trash2` delete button
+- Delete: inline confirm chip `[Delete / ×]` → `api.deleteSlide()` → local state renumbers
+- Reorder: `onDrop` computes new order array → `api.reorderSlides()` → `toggleAngle()` re-fetches manifest
+- `busy` flag dims list during API call
+
+**#6 — Run Search + Tagging**
+- Backend: `list_runs(search, starred)` — topic substring filter + starred flag from `run_metadata.json`. New `update_run_metadata()`. `GET /content/runs?search=&starred=`, `PATCH /content/{run_id}/metadata`
+- Frontend: `RunSummary` gains `starred?` + `tags?`. `getRunsList(opts)` + `updateRunMetadata()` in API client. FileBrowser gets search input (300ms debounce) + ⭐ filter toggle. RunRow gets hover-reveal star button.
+
+**#8 — /settings Page**
+- Backend: `settings_service.py` — `get_user_settings()` / `update_user_settings()` read/write `settings_overrides.json`. API keys always masked in GET (`sk-••••last4`). `GET/PUT /api/v1/settings/`
+- Frontend: `lib/api/settings.ts`, `app/settings/page.tsx` — 3 sections: Brand Identity, Content Defaults (chip selectors), API Keys (masked with Replace/Add buttons + show/hide toggle). Settings added to Sidebar nav.
+
+**#5 — Batch Style Editing**
+- Backend: `bulk_style_slides()` in `slide_editor_service.py` — reads slides.json once, merges overrides into N slides, writes once, re-renders PNGs sequentially. `POST /content/{run_id}/slides/{angle}/bulk-style`
+- Frontend: `BulkStyleModal.tsx` — checkbox grid (current slide excluded as source reference), "Select All / None", style preview, spinner. `CanvasToolbar` gains amber "Style →" button when slide has `slide_overrides`. Editor page loads slide overrides on slide change.
+
+---
+
+### Google Blogger Automation Documentation
+
+`Docs/publishing/BLOGGER_AUTOMATION.md` — Complete guide covering:
+- Why service accounts don't work for personal Blogger (OAuth 2.0 required)
+- Google Cloud project setup + OAuth consent screen + Desktop app credentials
+- Token lifecycle: first-run browser login → `token.json` → automatic refresh
+- Blog ID discovery methods
+- Full API reference (insert post endpoint, request/response schema)
+- Python implementation skeleton (`blogger_service.py` + `publishing.py` FastAPI router)
+- The "Testing mode" 7-day refresh token expiry gotcha + `re_auth.py` workaround
+- Frontend integration plan for "Publish to Blogger" button
+
+---
+
+### Documentation Updates
+
+- `Docs/ANALYTICS_DEEP_DIVE.md` — Full inventory of all data collected vs displayed
+- `Docs/ANALYTICS_IMPLEMENTATION_PLAN.md` — Phase A-E implementation guide with exact code snippets
+- `Docs/EDITOR_ISSUES.md` — 8 editor issues with root causes and fixes
+- `Docs/analytics/ANALYTICS_COMPLETE_RECORD.md` — Living doc (mirrors editor doc style)
+- `Docs/frontend/FRONTEND.md` — Fully updated to reflect current state (moved from wrong location in orchestrators/content/)
+- `Docs/orchestrators/` — research, content, angle subdirs (reorganised from flat structure)
+
+---
+
+
 
 ### Summary
 

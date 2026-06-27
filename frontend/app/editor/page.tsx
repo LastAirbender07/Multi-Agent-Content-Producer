@@ -10,6 +10,7 @@ import { ContextToolbar } from "@/components/editor/ContextToolbar";
 import { RightPanel } from "@/components/editor/RightPanel";
 import { MarkdownEditor } from "@/components/editor/MarkdownEditor";
 import { SlidePngPreview } from "@/components/editor/SlidePngPreview";
+import { BulkStyleModal } from "@/components/editor/BulkStyleModal";
 import { api } from "@/lib/api";
 import type { FabricCanvasAPI, SelectedObjectInfo } from "@/components/editor/FabricCanvas";
 import type { Canvas as FabricCanvasType } from "fabric";
@@ -42,12 +43,15 @@ function EditorContent() {
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [exportStatus, setExportStatus] = useState<"idle" | "exporting" | "exported">("idle");
   const [zoom, setZoom] = useState(1);
-  // Track current slide's theme so chart insertion uses the correct color palette
   const [slideTheme, setSlideTheme] = useState<"aurora" | "lumina">("aurora");
   const [isViewOnly, setIsViewOnly] = useState(false);
-  const [changeKey, setChangeKey] = useState(0); // used to force RightPanel re-evaluation
-  // Track canvas instance for ContextToolbar + RightPanel
+  const [changeKey, setChangeKey] = useState(0);
   const [canvasInstance, setCanvasInstance] = useState<FabricCanvasType | null>(null);
+  // Bulk style modal
+  const [bulkStyleOpen, setBulkStyleOpen] = useState(false);
+  const [totalSlides, setTotalSlides] = useState(1);
+  const [currentSlideOverrides, setCurrentSlideOverrides] = useState<Record<string, string>>({});
+  const [currentCanvasTemplate, setCurrentCanvasTemplate] = useState<string | undefined>();
 
   function navigateTo(rid: string, v: "slide" | "blog", angle?: number, slide?: number) {
     const p = new URLSearchParams();
@@ -66,12 +70,14 @@ function EditorContent() {
     setSelectedSlide(slide);
     setSelectedView("slide");
     setSelectedObject(null);
-    if (!topic || rid !== selectedRunId) {
-      try {
-        const m = await api.getRunManifest(rid);
-        setTopic(m.topic);
-      } catch {}
-    }
+    setCurrentSlideOverrides({});
+    setCurrentCanvasTemplate(undefined);
+    try {
+      const m = await api.getRunManifest(rid);
+      setTopic(m.topic);
+      const angleData = m.angles.find((a: { index: number }) => a.index === angle);
+      if (angleData) setTotalSlides(angleData.slide_count);
+    } catch {}
     navigateTo(rid, "slide", angle, slide);
   }
 
@@ -218,6 +224,7 @@ function EditorContent() {
             topic={topic}
             angleIndex={selectedAngle!}
             slideNumber={selectedSlide!}
+            totalSlides={totalSlides}
             canUndo={canUndo && !isViewOnly}
             canRedo={canRedo && !isViewOnly}
             onUndo={() => canvasApiRef.current?.undo()}
@@ -230,6 +237,27 @@ function EditorContent() {
             onZoom={z => {
               const next = z === -1 ? 1 : Math.max(0.25, Math.min(2, z));
               setZoom(next);
+            }}
+            slideOverrides={currentSlideOverrides}
+            canvasTemplate={currentCanvasTemplate}
+            onBulkStyle={() => setBulkStyleOpen(true)}
+          />
+        )}
+
+        {/* Bulk style modal */}
+        {bulkStyleOpen && selectedRunId && selectedAngle !== null && selectedSlide !== null && (
+          <BulkStyleModal
+            runId={selectedRunId}
+            angleIndex={selectedAngle}
+            slideNumber={selectedSlide}
+            totalSlides={totalSlides}
+            slideOverrides={currentSlideOverrides}
+            canvasTemplate={currentCanvasTemplate}
+            onClose={() => setBulkStyleOpen(false)}
+            onApplied={count => {
+              setBulkStyleOpen(false);
+              setExportStatus("exported");
+              setTimeout(() => setExportStatus("idle"), 3000);
             }}
           />
         )}
@@ -291,7 +319,24 @@ function EditorContent() {
                         setCanvasInstance(api_?.getCanvas() ?? null);
                       }}
                       onUndoRedoStateChange={handleUndoRedoChange}
-                      onSlideLoaded={(theme, viewOnly) => { setSlideTheme(theme); setIsViewOnly(viewOnly); }}
+                      onSlideLoaded={(theme, viewOnly) => {
+                        setSlideTheme(theme);
+                        setIsViewOnly(viewOnly);
+                        // Load slide overrides so the bulk style button knows what to show
+                        if (selectedRunId && selectedAngle !== null && selectedSlide !== null) {
+                          api.getRunManifest(selectedRunId).catch(() => {});
+                          // Fetch the actual slide data for overrides
+                          api.getSlides(selectedRunId, selectedAngle)
+                            .then((result: { slides: Array<{ slide_number: number; slide_overrides?: Record<string,string>; canvas_template?: string }> }) => {
+                              const slide = (result.slides ?? result as unknown as Array<{slide_number: number; slide_overrides?: Record<string,string>; canvas_template?: string}>).find(
+                                (s) => s.slide_number === selectedSlide
+                              );
+                              setCurrentSlideOverrides(slide?.slide_overrides ?? {});
+                              setCurrentCanvasTemplate(slide?.canvas_template);
+                            })
+                            .catch(() => {});
+                        }
+                      }}
                     />
                     {/* ContextToolbar — floats above selected object */}
                     {selectedObject && canvasInstance && toolbarPos && (

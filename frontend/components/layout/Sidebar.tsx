@@ -12,6 +12,7 @@ import {
   Menu,
   PencilRuler,
   BarChart2,
+  Settings,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -23,6 +24,7 @@ const nav = [
   { href: "/chat",      icon: MessageSquare, label: "Chat"      },
   { href: "/editor",     icon: PencilRuler,  label: "Editor"     },
   { href: "/analytics",  icon: BarChart2,    label: "Analytics"  },
+  { href: "/settings",   icon: Settings,     label: "Settings"   },
 ];
 
 export function Sidebar() {

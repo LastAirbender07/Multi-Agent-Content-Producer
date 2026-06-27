@@ -1,7 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { History, Loader2, ChevronDown, PanelLeft, Plus, X, Check } from "lucide-react";
+import { History, Loader2, ChevronDown, PanelLeft, Plus, X, Check, Search, Star } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppSelector } from "@/store/hooks";
 import { api, RunSummary, RunManifest } from "@/lib/api";
@@ -31,7 +31,6 @@ export function FileBrowser({
   const [mounted, setMounted] = useState(false);
   const [allRuns, setAllRuns] = useState<RunSummary[]>([]);
 
-  // Only render Redux state after hydration to avoid server/client mismatch
   useEffect(() => { setMounted(true); }, []);
   const [allRunsLoading, setAllRunsLoading] = useState(false);
   const [allRunsExpanded, setAllRunsExpanded] = useState(false);
@@ -39,15 +38,53 @@ export function FileBrowser({
   const { expanded: expandedAngles, toggle: toggleAngleKey } = useExpandedSet<string>();
   const [manifests, setManifests] = useState<Record<string, RunManifest>>({});
 
+  // Search + starred filter
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showStarredOnly, setShowStarredOnly] = useState(false);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // New Post state
   const [newPostInput, setNewPostInput] = useState("");
   const [newPostOpen, setNewPostOpen] = useState(false);
   const [newPostLoading, setNewPostLoading] = useState(false);
 
-  // Add Slide state: "runId:angleIdx" → type picker open
+  // Add Slide state
   const [addSlideTarget, setAddSlideTarget] = useState<string | null>(null);
   const [addSlideType, setAddSlideType] = useState<string>("content");
   const [addSlideLoading, setAddSlideLoading] = useState(false);
+
+  const fetchAllRuns = useCallback(async (search?: string, starred?: boolean) => {
+    setAllRunsLoading(true);
+    try {
+      const data = await api.getRunsList({
+        search: search || undefined,
+        starred: starred || undefined,
+      });
+      setAllRuns(data.runs);
+    } catch {}
+    finally { setAllRunsLoading(false); }
+  }, []);
+
+  function handleSearchChange(value: string) {
+    setSearchQuery(value);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      if (allRunsExpanded) fetchAllRuns(value, showStarredOnly ? true : undefined);
+    }, 300);
+  }
+
+  function handleStarredToggle() {
+    const next = !showStarredOnly;
+    setShowStarredOnly(next);
+    if (allRunsExpanded) fetchAllRuns(searchQuery, next ? true : undefined);
+  }
+
+  async function handleStarRun(runId: string, currentStarred: boolean) {
+    try {
+      await api.updateRunMetadata(runId, { starred: !currentStarred });
+      setAllRuns(prev => prev.map(r => r.run_id === runId ? { ...r, starred: !currentStarred } : r));
+    } catch {}
+  }
 
   async function handleCreateBlankRun() {
     if (!newPostInput.trim()) return;
@@ -56,7 +93,6 @@ export function FileBrowser({
       const { run_id } = await api.createBlankRun(newPostInput.trim());
       setNewPostOpen(false);
       setNewPostInput("");
-      // Navigate to editor and force add-slide open via URL param
       router.push(`/editor?run=${run_id}&view=slide&angle=0&addslide=1`);
     } catch {}
     finally { setNewPostLoading(false); }
@@ -65,16 +101,12 @@ export function FileBrowser({
   async function handleAddSlide(runId: string, angleIndex: number) {
     setAddSlideLoading(true);
     try {
-      // Create the blank slide
       const { slide } = await api.newSlide(runId, angleIndex, addSlideType, "aurora");
       const newSlideNum = slide.slide_number as number;
-      // Trigger first render by calling editSlide with basic title
       await api.editSlide(runId, angleIndex, newSlideNum, { title: "New Slide", body: "" });
-      // Reload the manifest so the new slide appears
       const m = await api.getRunManifest(runId);
       setManifests(prev => ({ ...prev, [runId]: m }));
       setAddSlideTarget(null);
-      // Navigate to the new slide
       onSelectSlide(runId, angleIndex, newSlideNum);
     } catch {}
     finally { setAddSlideLoading(false); }
@@ -82,12 +114,7 @@ export function FileBrowser({
 
   async function loadAllRuns() {
     if (allRuns.length > 0) return;
-    setAllRunsLoading(true);
-    try {
-      const data = await api.getRunsList();
-      setAllRuns(data.runs);
-    } catch {}
-    finally { setAllRunsLoading(false); }
+    await fetchAllRuns(searchQuery, showStarredOnly ? true : undefined);
   }
 
   function toggleAllRuns() {
@@ -124,28 +151,12 @@ export function FileBrowser({
   }
 
   const sharedRunRowProps = {
-    manifests,
-    expandedRuns,
-    expandedAngles: expandedAngles,
-    toggleRun,
-    toggleAngle,
-    isActiveSlide,
-    isActiveBlog,
-    selectedView,
-    selectedRunId,
-    selectedAngle,
-    selectedSlide,
-    onSelectSlide,
-    onSelectBlog,
-    addSlideTarget,
-    setAddSlideTarget,
-    addSlideType,
-    setAddSlideType,
-    addSlideLoading,
-    onAddSlide: handleAddSlide,
+    manifests, expandedRuns, expandedAngles, toggleRun, toggleAngle,
+    isActiveSlide, isActiveBlog, selectedView, selectedRunId, selectedAngle, selectedSlide,
+    onSelectSlide, onSelectBlog, addSlideTarget, setAddSlideTarget,
+    addSlideType, setAddSlideType, addSlideLoading, onAddSlide: handleAddSlide,
   };
 
-  // Collapsed state — just a thin icon strip
   if (collapsed) {
     return (
       <div className="w-10 shrink-0 flex flex-col items-center bg-zinc-950 border-r border-zinc-800/50 py-3 gap-3">
@@ -158,7 +169,6 @@ export function FileBrowser({
 
   return (
     <div className="flex flex-col h-full bg-zinc-950 overflow-hidden">
-      {/* Header — hidden when rendered inside EditorLeftPanel (which provides its own tab bar) */}
       {!hideHeader && (
         <div className="flex items-center justify-between px-3 py-2.5 border-b border-zinc-800/50 shrink-0">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Files</p>
@@ -177,14 +187,11 @@ export function FileBrowser({
         </div>
       )}
 
-      {/* New Post input */}
       <AnimatePresence>
         {newPostOpen && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.15 }}
+            initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.15 }}
             className="overflow-hidden border-b border-zinc-800/40 bg-zinc-900/30"
           >
             <div className="flex items-center gap-2 px-3 py-2.5">
@@ -192,8 +199,7 @@ export function FileBrowser({
                 value={newPostInput}
                 onChange={e => setNewPostInput(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") handleCreateBlankRun(); if (e.key === "Escape") { setNewPostOpen(false); setNewPostInput(""); } }}
-                placeholder="Post title…"
-                autoFocus
+                placeholder="Post title…" autoFocus
                 className="flex-1 bg-zinc-800/60 border border-zinc-700/60 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-violet-500/50"
               />
               <button onClick={handleCreateBlankRun} disabled={!newPostInput.trim() || newPostLoading}
@@ -209,7 +215,7 @@ export function FileBrowser({
       </AnimatePresence>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {/* Recent runs — only after hydration (Redux state is client-only) */}
+        {/* Recent runs */}
         {mounted && recentRuns.length > 0 && (
           <div>
             <div className="flex items-center gap-1.5 px-3 py-2">
@@ -226,7 +232,7 @@ export function FileBrowser({
           </div>
         )}
 
-        {/* All runs — collapsed by default */}
+        {/* All Runs header + search */}
         <button onClick={toggleAllRuns} className="w-full flex items-center justify-between px-3 py-2 hover:bg-zinc-800/20 transition-colors">
           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600">
             All Runs {allRuns.length > 0 ? `(${allRuns.length})` : ""}
@@ -240,23 +246,55 @@ export function FileBrowser({
         <AnimatePresence initial={false}>
           {allRunsExpanded && (
             <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.18 }}
+              initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18 }}
               className="overflow-hidden"
             >
+              {/* Search + starred filter */}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-zinc-800/30">
+                <div className="flex-1 flex items-center gap-1.5 bg-zinc-800/40 rounded-lg px-2 py-1">
+                  <Search size={9} className="text-zinc-600 shrink-0" />
+                  <input
+                    value={searchQuery}
+                    onChange={e => handleSearchChange(e.target.value)}
+                    placeholder="Search runs…"
+                    className="flex-1 bg-transparent text-[10px] text-zinc-300 placeholder-zinc-600 focus:outline-none min-w-0"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => handleSearchChange("")} className="text-zinc-600 hover:text-zinc-400">
+                      <X size={9} />
+                    </button>
+                  )}
+                </div>
+                <button
+                  onClick={handleStarredToggle}
+                  className={`p-1 rounded-lg transition-all ${showStarredOnly ? "text-amber-400 bg-amber-500/10" : "text-zinc-600 hover:text-zinc-400"}`}
+                  title={showStarredOnly ? "Show all runs" : "Show starred only"}
+                >
+                  <Star size={11} className={showStarredOnly ? "fill-amber-400" : ""} />
+                </button>
+              </div>
+
               {allRunsLoading && (
                 <div className="flex items-center gap-2 px-3 py-2 text-zinc-700">
                   <Loader2 size={10} className="animate-spin" />
                   <span className="text-[10px]">Loading…</span>
                 </div>
               )}
-              {allRuns.filter(r => r.has_content || r.has_blog).map(run => (
-                <RunRow key={run.run_id} run={run} {...sharedRunRowProps} />
-              ))}
+              {allRuns
+                .filter(r => r.has_content || r.has_blog)
+                .map(run => (
+                  <RunRow
+                    key={run.run_id}
+                    run={run}
+                    {...sharedRunRowProps}
+                    onStarRun={handleStarRun}
+                  />
+                ))}
               {!allRunsLoading && allRuns.length === 0 && (
-                <p className="px-3 py-4 text-[10px] text-zinc-700 text-center">No runs found</p>
+                <p className="px-3 py-4 text-[10px] text-zinc-700 text-center">
+                  {searchQuery || showStarredOnly ? "No matching runs" : "No runs found"}
+                </p>
               )}
             </motion.div>
           )}

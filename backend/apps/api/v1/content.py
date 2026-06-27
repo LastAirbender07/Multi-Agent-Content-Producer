@@ -14,7 +14,7 @@ from core.orchestrators.content.blog_post_generator import _markdown_to_html
 from core.orchestrators.content.orchestrator import ContentOrchestrator
 from core.persistence.run_repository import read_topic, static_image_url
 from core.persistence.slide_repository import read_slides, slides_json_path
-from core.services.run_browser_service import create_blank_run, get_run_manifest, list_runs
+from core.services.run_browser_service import create_blank_run, get_run_manifest, list_runs, update_run_metadata
 from core.services import asset_library_service
 from core.services.carousel_export_service import build_carousel_zip
 from core.services.caption_service import get_caption, update_caption
@@ -23,6 +23,7 @@ from core.services.token_tracker import token_tracker
 from core.orchestrators.content import _progress_store as content_progress
 from core.services.slide_editor_service import (
     ai_rewrite_slide as svc_ai_rewrite,
+    bulk_style_slides as svc_bulk_style,
     create_slide as svc_create_slide,
     edit_slide as svc_edit_slide,
     get_slide_html_preview,
@@ -90,8 +91,21 @@ async def new_blank_run(request: NewBlankRunRequest) -> dict:
 
 
 @router.get("/runs")
-async def list_runs_endpoint() -> dict:
-    return list_runs()
+async def list_runs_endpoint(
+    search: str | None = None,
+    starred: bool | None = None,
+) -> dict:
+    return list_runs(search=search, starred=starred)
+
+
+@router.patch("/{run_id}/metadata")
+async def update_run_metadata_endpoint(run_id: str, body: dict) -> dict:
+    """Patch starred flag and/or tags for a run."""
+    return update_run_metadata(
+        run_id,
+        tags=body.get("tags"),
+        starred=body.get("starred"),
+    )
 
 
 @router.get("/{run_id}/manifest")
@@ -183,6 +197,20 @@ async def delete_slide_endpoint(run_id: str, angle_index: int, slide_number: int
 @router.post("/{run_id}/slides/{angle_index}/{slide_number}/edit", response_model=SlideEditResponse)
 async def edit_slide(run_id: str, angle_index: int, slide_number: int, request: SlideEditRequest) -> SlideEditResponse:
     return await svc_edit_slide(run_id, angle_index, slide_number, request)
+
+
+@router.post("/{run_id}/slides/{angle_index}/bulk-style")
+async def bulk_style_slides(run_id: str, angle_index: int, body: dict) -> dict:
+    """Apply style overrides to multiple slides at once.
+
+    Body: { slide_numbers: [1,3,5], slide_overrides: {"accent_color": "#EC4899"}, canvas_template?: "..." }
+    """
+    slide_numbers = body.get("slide_numbers", [])
+    overrides = body.get("slide_overrides", {})
+    canvas_template = body.get("canvas_template")
+    if not slide_numbers or not overrides:
+        raise HTTPException(status_code=400, detail="slide_numbers and slide_overrides are required")
+    return await svc_bulk_style(run_id, angle_index, slide_numbers, overrides, canvas_template)
 
 
 @router.post("/{run_id}/slides/{angle_index}/{slide_number}/ai-rewrite")

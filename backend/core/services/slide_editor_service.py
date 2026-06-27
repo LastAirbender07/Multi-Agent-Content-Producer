@@ -188,6 +188,56 @@ async def edit_slide(
     return SlideEditResponse(png_url=png_url, updated_at=datetime.now(timezone.utc).isoformat())
 
 
+async def bulk_style_slides(
+    run_id: str,
+    angle_index: int,
+    slide_numbers: list[int],
+    slide_overrides: dict,
+    canvas_template: str | None = None,
+) -> dict:
+    """Apply style overrides to multiple slides in one operation.
+
+    Reads slides.json once, patches all targets, writes once, then re-renders
+    PNGs for each affected slide sequentially.
+    Returns {"updated": N, "skipped": M}.
+    """
+    path = slides_json_path(run_id, angle_index)
+    slides_raw = read_slides(path)
+    angle_dir = _OUTPUTS_ROOT / run_id / "content" / f"angle_{angle_index}"
+
+    updated = 0
+    skipped = 0
+
+    for sn in slide_numbers:
+        idx = next((i for i, s in enumerate(slides_raw) if s["slide_number"] == sn), None)
+        if idx is None:
+            skipped += 1
+            continue
+        slides_raw[idx]["slide_overrides"] = {
+            **slides_raw[idx].get("slide_overrides", {}),
+            **slide_overrides,
+        }
+        if canvas_template is not None:
+            slides_raw[idx]["canvas_template"] = canvas_template
+        updated += 1
+
+    if updated:
+        write_slides(path, slides_raw)
+        # Re-render PNGs for affected slides
+        for sn in slide_numbers:
+            slide_data = next((s for s in slides_raw if s["slide_number"] == sn), None)
+            if slide_data is None:
+                continue
+            try:
+                image_path, has_image = _resolve_image(angle_dir, sn)
+                slide = Slide.model_validate(slide_data)
+                await _render_and_save_png(run_id, angle_index, sn, slide, slide_data, slides_raw, angle_dir, image_path, has_image)
+            except Exception:
+                pass  # continue rendering remaining slides on failure
+
+    return {"updated": updated, "skipped": skipped}
+
+
 async def ai_rewrite_slide(run_id: str, angle_index: int, slide_number: int, feedback: str) -> dict:
     """Rewrite slide content via LLM, persist updated slide."""
     from core.orchestrators.content.slide_validator import _regen_single_slide
