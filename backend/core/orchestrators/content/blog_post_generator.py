@@ -209,10 +209,12 @@ def _assemble_markdown(prose: str, assets: BlogAssets, images: list[dict]) -> st
         if citations:
             result.append("\n\n---\n\n" + citations)
 
-    # Instagram CTA
+    # Social CTA
     result.append(
         f"\n**Follow us on Instagram for daily bite-sized insights: "
-        f"[{_settings.instagram_handle}]({_settings.instagram_url})**\n"
+        f"[{_settings.instagram_handle}]({_settings.instagram_url})**\n\n"
+        f"📖 [Read more articles on Blogger]({_settings.blogger_url}) &nbsp;|&nbsp; "
+        f"📝 [Long reads on Medium]({_settings.medium_url})\n"
     )
 
     assembled = "".join(result)
@@ -329,7 +331,11 @@ async def generate_blog_post(assets: BlogAssets) -> tuple[str, str]:
         # Prefix with zero-width space to prevent Markdown treating #tag as heading
         tags_line = " ".join(f"\\#{t}" for t in tags[:12])
         markdown_str += f"\n\n---\n\n{tags_line}\n"
-    markdown_str += f"\n*Originally produced by [{_settings.instagram_handle}]({_settings.instagram_url})*\n"
+    markdown_str += (
+        f"\n*Originally produced by [{_settings.instagram_handle}]({_settings.instagram_url}) · "
+        f"[Blogger]({_settings.blogger_url}) · "
+        f"[Medium]({_settings.medium_url})*\n"
+    )
 
     html_str = _markdown_to_html(markdown_str, assets.topic, tags)
     return markdown_str, html_str

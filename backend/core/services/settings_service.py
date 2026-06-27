@@ -23,7 +23,7 @@ _OVERRIDES_FILE = _BACKEND_ROOT / "settings_overrides.json"
 # Fields the user is allowed to edit via the API (no secrets in plain text except masked keys)
 _EDITABLE_FIELDS = {
     # Brand
-    "brand_name", "instagram_url", "instagram_handle", "medium_url",
+    "brand_name", "instagram_url", "instagram_handle", "medium_url", "blogger_url",
     # Content defaults
     "content_max_slides", "content_min_slides",
     "research_default_mode", "research_default_freshness",
@@ -69,6 +69,7 @@ def get_user_settings() -> dict:
             "instagram_url":     _val("instagram_url"),
             "instagram_handle":  _val("instagram_handle"),
             "medium_url":        _val("medium_url"),
+            "blogger_url":       _val("blogger_url"),
         },
         "content_defaults": {
             "max_slides":            _val("content_max_slides"),

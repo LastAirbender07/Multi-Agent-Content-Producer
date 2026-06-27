@@ -146,6 +146,7 @@ export default function SettingsPage() {
   const [igUrl, setIgUrl] = useState("");
   const [igHandle, setIgHandle] = useState("");
   const [mediumUrl, setMediumUrl] = useState("");
+  const [bloggerUrl, setBloggerUrl] = useState("");
   const [maxSlides, setMaxSlides] = useState<number>(10);
   const [researchMode, setResearchMode] = useState("standard");
   const [researchFreshness, setResearchFreshness] = useState("recent");
@@ -158,6 +159,7 @@ export default function SettingsPage() {
         setIgUrl(d.brand.instagram_url);
         setIgHandle(d.brand.instagram_handle);
         setMediumUrl(d.brand.medium_url);
+        setBloggerUrl(d.brand.blogger_url ?? "");
         setMaxSlides(d.content_defaults.max_slides);
         setResearchMode(d.content_defaults.research_mode);
         setResearchFreshness(d.content_defaults.research_freshness);
@@ -174,6 +176,7 @@ export default function SettingsPage() {
         instagram_url: igUrl,
         instagram_handle: igHandle,
         medium_url: mediumUrl,
+        blogger_url: bloggerUrl,
         content_max_slides: maxSlides,
         research_default_mode: researchMode,
         research_default_freshness: researchFreshness,
@@ -231,6 +234,9 @@ export default function SettingsPage() {
           </div>
           <Field label="Medium URL">
             <TextInput value={mediumUrl} onChange={setMediumUrl} placeholder="https://medium.com/@..." />
+          </Field>
+          <Field label="Blogger URL" hint="Added to captions and blog post footers">
+            <TextInput value={bloggerUrl} onChange={setBloggerUrl} placeholder="https://yourblog.blogspot.com/" />
           </Field>
         </Section>
 

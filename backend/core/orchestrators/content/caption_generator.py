@@ -43,7 +43,12 @@ async def generate_caption_node(state: ContentGraphState) -> dict:
         )
 
         logger.info("generate_caption_node_complete", run_id=state.get("run_id"))
-        caption = result.caption.rstrip() + f"\n\nRead the full story → {_settings.medium_url}\n\nFollow us on Instagram: {_settings.instagram_url}"
+        caption = (
+            result.caption.rstrip()
+            + f"\n\nRead the full story 👉 {_settings.medium_url}"
+            + f"\n📖 Also on Blogger: {_settings.blogger_url}"
+            + f"\n\nFollow us on Instagram: {_settings.instagram_url}"
+        )
 
         # Enforce Instagram limits — silently trim if over
         caption, hashtags = enforce_caption_limits(caption, result.hashtags)

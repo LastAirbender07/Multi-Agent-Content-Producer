@@ -74,6 +74,7 @@ class Settings(BaseSettings):
     instagram_url: str = "https://www.instagram.com/theopinionboard/"
     instagram_handle: str = "@TheOpinionBoard"
     medium_url: str = "https://medium.com/@theOpinionBoard"
+    blogger_url: str = "https://theopinionboard07.blogspot.com/"
 
     # Server / API Settings
     backend_base_url: str = "http://localhost:8000"
