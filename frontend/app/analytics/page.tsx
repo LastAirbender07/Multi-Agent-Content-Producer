@@ -52,7 +52,7 @@ export default function AnalyticsPage() {
   );
 
   const {
-    kpis = { total_runs: 0, total_slides: 0, total_cost_usd: 0, total_cost_inr: 0, avg_cost_usd: 0, avg_cost_inr: 0 },
+    kpis = { total_runs: 0, total_slides: 0, total_cost_usd: 0, total_cost_inr: 0, avg_cost_usd: 0, avg_cost_inr: 0, untracked_runs: 0 },
     token_by_stage = {},
     token_series   = [],
     topic_distribution = [],
@@ -93,7 +93,7 @@ export default function AnalyticsPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard icon={BarChart2}   label="Total Runs"      value={kpis.total_runs.toString()}          color="bg-violet-600/10 border-violet-500/20 text-violet-400" />
           <KpiCard icon={Layers}      label="Slides Created"  value={kpis.total_slides.toLocaleString()}  color="bg-blue-600/10 border-blue-500/20 text-blue-400" />
-          <KpiCard icon={DollarSign}  label="Total Spent"     value={`₹${kpis.total_cost_inr.toFixed(2)}`}  sub={`$${kpis.total_cost_usd.toFixed(3)} USD`}  color="bg-emerald-600/10 border-emerald-500/20 text-emerald-400" />
+          <KpiCard icon={DollarSign}  label="Total Spent"     value={`₹${kpis.total_cost_inr.toFixed(2)}`}  sub={`$${kpis.total_cost_usd.toFixed(3)} USD${kpis.untracked_runs > 0 ? ` · ${kpis.untracked_runs} runs estimated` : ""}`}  color="bg-emerald-600/10 border-emerald-500/20 text-emerald-400" />
           <KpiCard icon={TrendingUp}  label="Avg Cost / Run"  value={`₹${kpis.avg_cost_inr.toFixed(2)}`}   sub={`$${kpis.avg_cost_usd.toFixed(4)} USD`}   color="bg-amber-600/10 border-amber-500/20 text-amber-400" />
         </div>
 

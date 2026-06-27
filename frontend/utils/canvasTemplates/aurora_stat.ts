@@ -138,15 +138,16 @@ export async function buildAuroraStat(
     const BODY_LH = 1.6;
 
     // Build the Textbox first, then read Fabric's own measured height.
-    // Character-count heuristics mis-estimate word-wrap; calcTextHeight() is exact.
+    // calcTextHeight() returns values in physical canvas pixels (width × DPR),
+    // so divide by devicePixelRatio to get logical 1080-space pixels.
     const bodyObj = makeText(bodyText, {
       role: "stat_body", fontSize: BODY_FS, fill: "rgba(250,250,250,0.72)",
       lineHeight: BODY_LH, width: BODY_W,
       left: STAT_LEFT + 18, top: curY,
       originX: "left" as const, originY: "top" as const,
     });
-    // calcTextHeight is synchronous — returns accurate height after word-wrap
-    const barH = (bodyObj as fabric.Textbox).calcTextHeight?.() ?? (BODY_FS * BODY_LH * 2);
+    const rawH = (bodyObj as fabric.Textbox).calcTextHeight?.() ?? (BODY_FS * BODY_LH * 2);
+    const barH = rawH;
 
     // Size the accent bar to match the measured text height
     const accentBar = new fabric.Rect({

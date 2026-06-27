@@ -148,6 +148,13 @@ export function FabricCanvas({
       width: CANVAS_SIZE, height: CANVAS_SIZE,
       preserveObjectStacking: true, selection: true,
       backgroundColor: "#111111",
+      // Disable Fabric's retina scaling. With enableRetinaScaling=true (default),
+      // Fabric creates a 2160×2160 backing store on DPR=2 displays and pre-scales
+      // the context by DPR. This causes Chart.js images rendered at logical dimensions
+      // to appear zoomed-in (only top-left quadrant visible at DPR=2).
+      // With enableRetinaScaling=false, the canvas stays 1080×1080 physical pixels
+      // and the browser handles display sharpness via CSS scaling.
+      enableRetinaScaling: false,
     });
     canvasRef.current = c;
 
@@ -413,7 +420,9 @@ export function FabricCanvas({
             left: 0,
           }}
         >
-          <canvas ref={canvasElRef} />
+          {/* Pin CSS size to CANVAS_SIZE so Fabric's DPR-scaled backing store
+              doesn't overflow the container on high-DPI displays. */}
+          <canvas ref={canvasElRef} style={{ width: CANVAS_SIZE, height: CANVAS_SIZE, display: "block" }} />
         </div>
       </div>
     </div>

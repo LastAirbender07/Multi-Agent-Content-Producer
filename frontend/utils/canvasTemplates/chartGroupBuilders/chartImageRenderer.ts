@@ -54,6 +54,13 @@ export async function renderChartToDataURL(
 
   const config = buildConfig(chartType, chartData, palette) as ConstructorParameters<typeof Chart>[1];
 
+  // Force Chart.js to render at 1:1 pixel ratio. Without this, Chart.js reads
+  // window.devicePixelRatio (2 on retina displays) and internally scales the canvas
+  // ctx by DPR via setTransform(2,0,0,2,0,0), causing bars to render 2× wider than
+  // the canvas and only the left half of the chart to be visible.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (config as any).options = { ...(config as any).options, devicePixelRatio: 1 };
+
   if (theme === "lumina") {
     const bgPlugin = {
       id: "chartBg",
@@ -89,8 +96,8 @@ export async function createChartFabricImage(
   const targetH = opts.height ?? defaultH;
 
   // Render Chart.js canvas at the exact target dimensions.
-  // Fabric v7's _renderFill treats img.width/height as a crop window on the source
-  // (not a scale target), so source and target MUST match to avoid clipping.
+  // With enableRetinaScaling=false on the Fabric canvas, there is no DPR scaling
+  // in the rendering context, so source and target sizes match directly.
   const dataUrl = await renderChartToDataURL(chartType, chartData, theme, targetW, targetH);
   const img = await fabric.FabricImage.fromURL(dataUrl, { crossOrigin: "anonymous" });
   img.set({

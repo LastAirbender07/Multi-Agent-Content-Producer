@@ -115,10 +115,25 @@ def get_analytics_summary() -> dict:
     total_slides = sum(r["slide_count"] for r in runs_meta)
     all_token_records = [rec for r in runs_meta for rec in r["token_records"]]
 
-    total_cost_usd = round(sum(rec.get("cost_usd", 0) for rec in all_token_records), 4)
-    total_cost_inr = round(sum(rec.get("cost_inr", 0) for rec in all_token_records), 2)
-    avg_cost_usd = round(total_cost_usd / total_runs, 4) if total_runs else 0.0
-    avg_cost_inr = round(total_cost_inr / total_runs, 2) if total_runs else 0.0
+    # Runs that have token tracking data
+    tracked_runs = [r for r in runs_meta if r["token_records"]]
+    untracked_count = total_runs - len(tracked_runs)
+
+    tracked_cost_usd = sum(rec.get("cost_usd", 0) for rec in all_token_records)
+    tracked_cost_inr = sum(rec.get("cost_inr", 0) for rec in all_token_records)
+
+    # Average cost per tracked run — used to estimate untracked runs
+    avg_tracked_usd = tracked_cost_usd / len(tracked_runs) if tracked_runs else 0.0
+    avg_tracked_inr = tracked_cost_inr / len(tracked_runs) if tracked_runs else 0.0
+
+    # Estimated total includes actual + estimated cost for untracked runs
+    estimated_usd = avg_tracked_usd * untracked_count
+    estimated_inr = avg_tracked_inr * untracked_count
+
+    total_cost_usd = round(tracked_cost_usd + estimated_usd, 4)
+    total_cost_inr = round(tracked_cost_inr + estimated_inr, 2)
+    avg_cost_usd   = round(total_cost_usd / total_runs, 4) if total_runs else 0.0
+    avg_cost_inr   = round(total_cost_inr / total_runs, 2) if total_runs else 0.0
 
     # ── Per-stage token breakdown ─────────────────────────────────────────────
     by_stage: dict[str, dict] = {}
@@ -191,6 +206,7 @@ def get_analytics_summary() -> dict:
             "total_cost_inr": total_cost_inr,
             "avg_cost_usd": avg_cost_usd,
             "avg_cost_inr": avg_cost_inr,
+            "untracked_runs": untracked_count,
         },
         "token_by_stage": by_stage,
         "token_series": token_series,
@@ -199,13 +215,13 @@ def get_analytics_summary() -> dict:
         "model_breakdown": [
             {"model": m, **v} for m, v in sorted(model_stats.items(), key=lambda x: -x[1]["cost_usd"])
         ],
-        "runs_with_token_data": sum(1 for r in runs_meta if r["token_records"]),
+        "runs_with_token_data": len(tracked_runs),
     }
 
 
 def _empty_summary() -> dict:
     return {
-        "kpis": {"total_runs": 0, "total_slides": 0, "total_cost_usd": 0.0, "total_cost_inr": 0.0, "avg_cost_usd": 0.0, "avg_cost_inr": 0.0},
+        "kpis": {"total_runs": 0, "total_slides": 0, "total_cost_usd": 0.0, "total_cost_inr": 0.0, "avg_cost_usd": 0.0, "avg_cost_inr": 0.0, "untracked_runs": 0},
         "token_by_stage": {}, "token_series": [], "topic_distribution": [],
         "activity": [], "model_breakdown": [], "runs_with_token_data": 0,
     }
