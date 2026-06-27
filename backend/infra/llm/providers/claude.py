@@ -101,6 +101,7 @@ class ClaudeLLM(BaseLLM):
                         model=llm_response.model,
                         input_tokens=int(usage.get("input_tokens", 0)),
                         output_tokens=int(usage.get("output_tokens", 0)),
+                        duration_ms=int(elapsed_time * 1000),
                     )
                 except Exception:
                     pass  # never let tracking break generation

@@ -165,6 +165,36 @@ async def save_research_output(
         total_iterations=response_data["total_iterations"],
         best_iteration=response_data["best_iteration"],
     )
+
+    # Write run_metadata.json sidecar and invalidate analytics cache
+    try:
+        from datetime import datetime, timezone as _tz
+        run_metadata_path = manager.stage_dir("research").parent.parent / "run_metadata.json"
+        existing_meta: dict = {}
+        if run_metadata_path.exists():
+            import json as _json
+            existing_meta = _json.loads(run_metadata_path.read_text())
+        existing_meta.update({
+            "research_status":       status,
+            "total_iterations":      response_data.get("total_iterations", 1),
+            "evidence_count":        response_data.get("evidence_count", 0),
+            "selected_tools":        response_data.get("route_plan", {}).get("selected_tools", []),
+            "degraded_flags":        response_data.get("degraded_flags", []),
+            "combined_confidence":   (response_data.get("evaluation") or {}).get("combined_confidence"),
+            "research_completed_at": datetime.now(_tz.utc).isoformat(),
+        })
+        import json as _json2
+        run_metadata_path.write_text(_json2.dumps(existing_meta, indent=2))
+    except Exception as _e:
+        logger.warning("run_metadata_write_failed", error=str(_e))
+
+    # Invalidate analytics cache so the next dashboard load is fresh
+    try:
+        from core.services.analytics_service import analytics_cache
+        analytics_cache.invalidate()
+    except Exception:
+        pass
+
     return output_dir
 
 

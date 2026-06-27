@@ -170,6 +170,7 @@ class TokenRecord:
     cost_usd: float
     cost_inr: float
     timestamp: str
+    duration_ms: int = 0   # wall-clock time for this LLM call in milliseconds
 
 
 def _compute_cost(model: str, input_tokens: int, output_tokens: int) -> tuple[float, float]:
@@ -200,7 +201,8 @@ def _aggregate_records(records: list[dict]) -> tuple[dict[str, dict], float, flo
 # ── Main class ─────────────────────────────────────────────────────────────────
 
 class TokenTracker:
-    def record(self, run_id: str, stage: str, model: str, input_tokens: int, output_tokens: int) -> None:
+    def record(self, run_id: str, stage: str, model: str, input_tokens: int, output_tokens: int,
+               duration_ms: int = 0) -> None:
         if not run_id:
             return
         cost_usd, cost_inr = _compute_cost(model, input_tokens, output_tokens)
@@ -212,6 +214,7 @@ class TokenTracker:
             cost_usd=cost_usd,
             cost_inr=cost_inr,
             timestamp=datetime.now(timezone.utc).isoformat(),
+            duration_ms=duration_ms,
         )
         self._append(run_id, record)
 

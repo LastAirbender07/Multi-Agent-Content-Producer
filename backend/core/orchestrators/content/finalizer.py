@@ -46,6 +46,14 @@ async def finalize_content_node(state: ContentGraphState) -> dict:
 
     output_path = str(manager.stage_dir(stage))
     logger.info("finalize_content_node_complete", run_id=run_id, angle_index=angle_index)
+
+    # Invalidate analytics cache so the next dashboard load reflects the new run
+    try:
+        from core.services.analytics_service import analytics_cache
+        analytics_cache.invalidate()
+    except Exception:
+        pass
+
     return {
         "output_path": output_path,
         "messages": state.get("messages", []) + [f"Content saved to {output_path}"],
