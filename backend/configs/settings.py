@@ -115,6 +115,14 @@ class Settings(BaseSettings):
     # Content slide types that never need an image (rendered as colour cards)
     content_no_image_slide_types: list[str] = ["stat", "cta", "engage"]
 
+    # Google Blogger settings
+    google_blogger_oauth_client_id: Optional[str] = None
+    google_blogger_oauth_client_secret: Optional[str] = None
+    google_blogger_api_key: Optional[str] = None
+    blogger_blog_id: str = "6023278394905228473"
+    blogger_credentials_file: str = "credentials.json"   # OAuth client secret JSON (Desktop app)
+    blogger_token_file: str = "blogger_token.json"       # Auto-generated on first auth — gitignore this
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
