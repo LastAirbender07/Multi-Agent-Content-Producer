@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { FlaskConical, Brain, ChevronDown } from "lucide-react";
+import { FlaskConical, Brain, ChevronDown, BookOpen, Clock, TrendingUp, Quote, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppSelector } from "@/store/hooks";
 import { StageCard, useStageTimer } from "@/components/pipeline/StageCard";
@@ -14,13 +14,49 @@ interface ResearchStageCardProps {
   onToggle: () => void;
 }
 
+// Map claim type (encoded in source_name "llm:TYPE:period") to display config
+const CLAIM_TYPE_META: Record<string, { label: string; icon: React.ElementType; color: string; bg: string }> = {
+  HISTORICAL_FACT:  { label: "Historical Fact",   icon: BookOpen,      color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
+  PUBLISHED_WORK:   { label: "Published Work",    icon: BookOpen,      color: "text-blue-400",    bg: "bg-blue-500/10 border-blue-500/20" },
+  DIRECT_QUOTE:     { label: "Direct Quote",      icon: Quote,         color: "text-violet-400",  bg: "bg-violet-500/10 border-violet-500/20" },
+  RECENT_STATISTIC: { label: "Recent Statistic",  icon: TrendingUp,    color: "text-amber-400",   bg: "bg-amber-500/10 border-amber-500/20" },
+  CAUSAL_INFERENCE: { label: "Causal Inference",  icon: AlertTriangle, color: "text-zinc-400",    bg: "bg-zinc-800/60 border-zinc-700/40" },
+};
+
+function extractClaimType(sourceName: string | undefined): string {
+  if (!sourceName?.startsWith("llm:")) return "HISTORICAL_FACT";
+  const parts = sourceName.split(":");
+  return parts[1]?.toUpperCase() ?? "HISTORICAL_FACT";
+}
+
+function extractTimePeriod(sourceName: string | undefined): string | null {
+  if (!sourceName?.startsWith("llm:")) return null;
+  const parts = sourceName.split(":");
+  return parts[2] ?? null;
+}
+
 export function ResearchStageCard({ open, onToggle }: ResearchStageCardProps) {
   const { stages, researchResult, topic, llmResearchMode, runId } = useAppSelector((s) => s.pipeline);
   const elapsed = useStageTimer(stages.research.status);
   const researchProgress = useResearchProgress();
   const [showLlmKnowledge, setShowLlmKnowledge] = useState(false);
 
-  const llmItem = researchResult?.evidence?.find((e) => e.source_type === "llm_knowledge");
+  // Collect ALL llm_knowledge items (was previously find() → only the first one)
+  const llmItems = researchResult?.evidence?.filter((e) => e.source_type === "llm_knowledge") ?? [];
+
+  // Group by claim type for a structured view
+  const grouped = llmItems.reduce<Record<string, typeof llmItems>>((acc, item) => {
+    const type = extractClaimType(item.source_name);
+    if (!acc[type]) acc[type] = [];
+    acc[type].push(item);
+    return acc;
+  }, {});
+
+  // Ordered display: high-confidence first, low-confidence last
+  const TYPE_ORDER = ["HISTORICAL_FACT", "PUBLISHED_WORK", "DIRECT_QUOTE", "RECENT_STATISTIC", "CAUSAL_INFERENCE"];
+  const groupedEntries = TYPE_ORDER
+    .filter((t) => grouped[t]?.length)
+    .map((t) => [t, grouped[t]] as [string, typeof llmItems]);
 
   return (
     <StageCard
@@ -50,7 +86,8 @@ export function ResearchStageCard({ open, onToggle }: ResearchStageCardProps) {
           </div>
         )}
 
-        {llmItem && (
+        {/* LLM Background Knowledge — consolidated structured view */}
+        {llmItems.length > 0 && (
           <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 overflow-hidden">
             <button
               onClick={() => setShowLlmKnowledge((v) => !v)}
@@ -60,10 +97,14 @@ export function ResearchStageCard({ open, onToggle }: ResearchStageCardProps) {
               <span className="flex-1 text-left text-[11px] font-bold text-zinc-400 uppercase tracking-widest">
                 LLM Background Knowledge
               </span>
+              <span className="text-[10px] text-zinc-600 font-semibold mr-1">
+                {llmItems.length} claim{llmItems.length !== 1 ? "s" : ""}
+              </span>
               <motion.div animate={{ rotate: showLlmKnowledge ? 180 : 0 }} transition={{ duration: 0.2 }}>
                 <ChevronDown size={13} className="text-zinc-600" />
               </motion.div>
             </button>
+
             <AnimatePresence initial={false}>
               {showLlmKnowledge && (
                 <motion.div
@@ -74,8 +115,45 @@ export function ResearchStageCard({ open, onToggle }: ResearchStageCardProps) {
                   transition={{ duration: 0.2 }}
                   className="overflow-hidden"
                 >
-                  <div className="px-4 pb-4 pt-1 border-t border-zinc-800/40">
-                    <p className="text-xs text-zinc-400 leading-relaxed whitespace-pre-wrap">{llmItem.evidence}</p>
+                  <div className="border-t border-zinc-800/40 divide-y divide-zinc-800/40">
+                    {groupedEntries.map(([type, items]) => {
+                      const meta = CLAIM_TYPE_META[type] ?? CLAIM_TYPE_META.HISTORICAL_FACT;
+                      const Icon = meta.icon;
+                      return (
+                        <div key={type} className="px-4 py-3 space-y-2">
+                          {/* Group header */}
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border ${meta.bg} ${meta.color}`}>
+                              <Icon size={9} />
+                              {meta.label}
+                              <span className="opacity-60">×{items.length}</span>
+                            </span>
+                          </div>
+                          {/* Claims in this group */}
+                          <div className="space-y-1.5 pl-1">
+                            {items.map((item, i) => {
+                              const period = extractTimePeriod(item.source_name);
+                              return (
+                                <div key={i} className="flex items-start gap-2">
+                                  <span className="w-1 h-1 rounded-full bg-zinc-700 mt-2 shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-[11px] text-zinc-300 leading-relaxed">
+                                      {item.evidence}
+                                    </p>
+                                    {period && (
+                                      <span className="inline-flex items-center gap-1 text-[9px] text-zinc-600 mt-0.5">
+                                        <Clock size={8} />
+                                        {period}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </motion.div>
               )}

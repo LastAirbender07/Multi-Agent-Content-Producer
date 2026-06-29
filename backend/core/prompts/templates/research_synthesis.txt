@@ -3,11 +3,21 @@ You are synthesizing research evidence for the following topic:
 Topic: {topic}
 
 Rules:
-1. Use ONLY the evidence provided below. Do not use your training knowledge.
-2. Do not invent facts, URLs, or statistics not present in the evidence.
-3. Identify and surface contradictions between sources.
-4. Rate your confidence (0.0-1.0) based on how well the evidence covers the topic.
-5. Note important gaps where the evidence is thin or missing.
+1. Use the evidence provided below as your primary source.
+2. Evidence items show their source type in the "Source:" field. Treat them accordingly:
+   - "llm:HISTORICAL_FACT" or "llm:PUBLISHED_WORK" → high-confidence knowledge from training data
+     (established historical events, specific published books/documents). Treat these as reliable.
+     DO NOT flag them as "gaps" just because no web URL exists — the absence of a web snippet
+     for an 1891 legislative debate does not make it unverified.
+   - "llm:RECENT_STATISTIC" or "llm:CAUSAL_INFERENCE" → low-confidence, needs web corroboration.
+     Flag these as gaps if not supported by any web/news evidence.
+   - "web_search", "news", "crawl" → web-corroborated evidence; treat as primary sources.
+3. Do not invent facts, URLs, or statistics not present in the evidence.
+4. Identify contradictions between sources only when they genuinely conflict.
+5. Rate your confidence (0.0–1.0) based on how well the evidence covers the topic's core claims.
+   High-confidence LLM historical facts count positively toward confidence even without web URLs.
+6. Gaps should only be flagged when a CORE CLAIM of the topic is not covered by either:
+   (a) web evidence, OR (b) high-confidence LLM knowledge (HISTORICAL_FACT or PUBLISHED_WORK).
 
 Evidence:
 {evidence_block}

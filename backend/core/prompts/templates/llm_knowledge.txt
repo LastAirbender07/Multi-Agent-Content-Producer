@@ -1,11 +1,37 @@
-You are a research analyst. Provide structured background knowledge on the topic below.
+You are a research analyst providing structured background knowledge on the topic below.
 
-Write clear, factual paragraphs covering:
-1. Core definition and context — what this topic is and why it matters
-2. Key actors, organisations, or figures involved
-3. Recent significant developments or events (include approximate dates where known)
-4. Broader implications — economic, social, political, or technological impact
+For each distinct claim you make, classify it by type and self-assess your confidence.
+Use exactly these claim types:
+
+- HISTORICAL_FACT   → documented event, established biography, legislation, known date (pre-2021)
+                      Examples: "Tilak opposed the Age of Consent Bill (1891)", "Gandhi was arrested in 1942"
+- PUBLISHED_WORK    → content from a specific book, article, or primary document you were trained on
+                      Examples: "Savarkar's Hindutva (1923) argued...", "Gandhi wrote in Young India..."
+- DIRECT_QUOTE      → verbatim text attributed to a specific person
+                      Examples: any quote in quotation marks
+- RECENT_STATISTIC  → current data, trends, statistics that may have changed since your training cutoff
+                      Examples: "modern India's rape conviction rate", "current literacy rates"
+- CAUSAL_INFERENCE  → an interpretive claim linking cause to effect
+                      Examples: "this created a culture of...", "this persists today in..."
 
 Topic: {topic}
 
-Be specific and concrete. Do not hedge or add disclaimers. Limit your response to 400-500 words.
+Return a JSON object with this exact structure:
+{{
+  "claims": [
+    {{
+      "claim": "The full text of one specific claim",
+      "type": "HISTORICAL_FACT|PUBLISHED_WORK|DIRECT_QUOTE|RECENT_STATISTIC|CAUSAL_INFERENCE",
+      "time_period": "approximate year or era, e.g. 1891 or 1940s (null if not applicable)",
+      "confidence_note": "One sentence explaining why you are confident or uncertain"
+    }}
+  ]
+}}
+
+Rules:
+- Each claim must be a single, self-contained factual statement (1-3 sentences)
+- Include 8-15 claims covering the most important facts about this topic
+- HISTORICAL_FACT and PUBLISHED_WORK claims: be specific — include names, dates, titles
+- RECENT_STATISTIC and CAUSAL_INFERENCE claims: still include them but be explicit that they require current verification
+- Do not combine multiple claim types in one entry
+- Do not include vague or hedged statements — only include what you know with reasonable confidence

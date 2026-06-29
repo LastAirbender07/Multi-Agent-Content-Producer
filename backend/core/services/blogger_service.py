@@ -31,7 +31,31 @@ _CREDENTIALS_FILE = _BACKEND_ROOT / _settings.blogger_credentials_file
 _TOKEN_FILE       = _BACKEND_ROOT / _settings.blogger_token_file
 
 
-# ── Authentication ────────────────────────────────────────────────────────────
+# ── Title extraction ──────────────────────────────────────────────────────────
+
+def extract_blog_title(html: str, fallback: str = "") -> str:
+    """Extract a clean title from blog HTML.
+
+    Priority:
+    1. First <h1> tag content (the crafted blog headline)
+    2. <title> tag in <head>
+    3. fallback (raw topic / run ID)
+    """
+    # First <h1> — strip any inner HTML tags (e.g. <span>, <strong>)
+    h1 = re.search(r"<h1[^>]*>(.*?)</h1>", html, re.IGNORECASE | re.DOTALL)
+    if h1:
+        text = re.sub(r"<[^>]+>", "", h1.group(1)).strip()
+        if text:
+            return text
+
+    # <title> tag fallback
+    title = re.search(r"<title[^>]*>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
+    if title:
+        text = title.group(1).strip()
+        if text:
+            return text
+
+    return fallback
 
 def _get_credentials() -> Credentials:
     """Load credentials from token file. Auto-refresh if expired. Run OAuth flow if absent.

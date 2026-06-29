@@ -1,4 +1,5 @@
 from core.orchestration.contracts import ContentRequest, SlideGenerationOutput
+from core.orchestrators.content.content_evidence_bundle import filtered_research_summary
 from core.orchestrators.content.graph_validator import validate_and_fix_slides
 from core.prompts.prompt_loader import load_prompt
 from core.prompts.system_prompts import get_system_prompt
@@ -14,6 +15,14 @@ async def generate_slides_node(state: ContentGraphState) -> dict:
     angle = state["angle"]
     target_slides = min(request.max_slides, 14)
 
+    # Strip research meta-commentary (gaps, "evidence missing", process notes)
+    # before passing to the slide generator — slides must never discuss the
+    # research pipeline's internal state.
+    clean_summary, clean_key_points = filtered_research_summary(
+        request.research_summary,
+        request.key_points,
+    )
+
     try:
         system_prompt = get_system_prompt("content")
         user_prompt = load_prompt(
@@ -22,8 +31,8 @@ async def generate_slides_node(state: ContentGraphState) -> dict:
             angle_statement=angle["statement"],
             emotional_hook=angle["emotional_hook"],
             supporting_evidence=angle["supporting_evidence"],
-            research_summary=request.research_summary,
-            key_points="\n".join(f"- {point}" for point in request.key_points),
+            research_summary=clean_summary,
+            key_points="\n".join(f"- {point}" for point in clean_key_points),
             target_slides=target_slides
         )
         result = await LLMFactory.get_client_with_retry(

@@ -1,5 +1,6 @@
 from configs.settings import get_settings
 from core.orchestration.contracts import ContentRequest, CaptionOutput
+from core.orchestrators.content.content_evidence_bundle import filtered_research_summary
 from core.prompts.prompt_loader import load_prompt
 from core.prompts.system_prompts import get_system_prompt
 from core.schemas.workflow_state import ContentGraphState
@@ -23,13 +24,21 @@ async def generate_caption_node(state: ContentGraphState) -> dict:
         f"{i+1}. {s['title']}" for i, s in enumerate(slides)
     )
 
+    # Strip meta-commentary from the angle statement before using it in the
+    # caption — the angle may have been generated before the research was fully
+    # validated and could contain references to research gaps.
+    clean_angle_statement, _ = filtered_research_summary(
+        angle.get("statement", ""),
+        [],
+    )
+
     try:
         llm = await LLMFactory.get_client()
         system_prompt = get_system_prompt("content")
         user_prompt = load_prompt(
             "caption_generation",
             topic=request.topic,
-            angle_statement=angle["statement"],
+            angle_statement=clean_angle_statement or angle["statement"],
             emotional_hook=angle["emotional_hook"],
             hook_slide_title=hook_title,
             slide_titles=slide_titles,

@@ -68,6 +68,31 @@ class Evidence(BaseModel):
     credibility_score: float = Field(default=0.0, description="Optional credibility score of the evidence, if available")
     relevance_score: float = Field(default=0.0, description="Optional relevance score of the evidence to the research topic, if available")
 
+
+class LLMKnowledgeClaim(BaseModel):
+    """One structured claim from the LLM background knowledge node."""
+    claim: str = Field(..., description="The full text of a single, self-contained factual statement (1–3 sentences)")
+    type: Literal[
+        "HISTORICAL_FACT",    # documented event, established biography, known date (pre-2021)
+        "PUBLISHED_WORK",     # content from a specific book, article, or primary document
+        "DIRECT_QUOTE",       # verbatim text attributed to a specific person
+        "RECENT_STATISTIC",   # current data, trends, stats — may be stale since training cutoff
+        "CAUSAL_INFERENCE",   # interpretive "X leads to Y" claim — always needs independent verification
+    ] = Field(default="HISTORICAL_FACT", description="Claim confidence category")
+    time_period: Optional[str] = Field(default=None, description="Approximate year or era (e.g. '1891' or '1940s'), null if not applicable")
+    confidence_note: str = Field(default="", description="One sentence explaining confidence or uncertainty")
+
+
+class LLMKnowledgeOutput(BaseModel):
+    """Structured output from the LLM background knowledge prompt."""
+    claims: list[LLMKnowledgeClaim] = Field(
+        default_factory=list,
+        min_length=1,
+        max_length=20,
+        description="List of classified background knowledge claims about the topic",
+    )
+
+
 class ResearchSynthesis(BaseModel):
     summary: str = Field(..., description="A synthesized summary of the research findings")
     key_points: list[str] = Field(default_factory=list, description="List of key points derived from the research findings")

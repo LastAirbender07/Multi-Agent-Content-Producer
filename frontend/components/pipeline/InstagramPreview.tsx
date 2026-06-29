@@ -14,7 +14,8 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { ASSET_BASE as BACKEND } from "@/lib/api/client";
 
-function slideImageUrl(path: string): string {
+function slideImageUrl(path: string | undefined | null): string {
+  if (!path) return "";
   // Handle new format: .../outputs/runs/{run_id}/...
   // Handle old format: .../outputs/{run_id}/... (legacy stored paths)
   const runsMarker = "/outputs/runs/";
@@ -90,7 +91,7 @@ export function InstagramPost({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3 }}
-              src={slideImageUrl(slides[idx])}
+              src={slideImageUrl(slides[idx]) || undefined}
               alt={`Slide ${idx + 1}`}
               className="w-full h-full object-contain"
             />

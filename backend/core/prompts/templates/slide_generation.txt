@@ -72,6 +72,31 @@ STRICT RULES:
 7. All numbers and claims must come from the RESEARCH SUMMARY — do not invent data
 8. Every non-cta, non-engage, non-stat slide needs BOTH image fields. Think like a photo editor assigning shots:
 
+ABSOLUTE PROHIBITIONS — any slide containing these patterns is invalid and will be rejected:
+
+Forbidden phrases (do not use these exact phrases or close variants):
+  "according to research", "research shows", "research reveals", "research found",
+  "studies show", "a study found", "data shows", "data reveals", "evidence suggests",
+  "evidence shows", "the evidence", "our findings", "analysis reveals",
+  "the research", "this research", "in the research",
+  "claims are unverified", "claims remain unverified", "unverified claims",
+  "undocumented claims", "evidence is missing", "no evidence was found",
+  "the original angle", "original claim", "this angle", "the pipeline",
+  "what we found", "what was found", "could not be verified", "could not find"
+
+Forbidden topics for any slide:
+  - What information exists or does not exist about this topic
+  - What evidence was or was not available
+  - Internal process commentary (research gaps, limitations, verification status)
+  - Meta-commentary about the creation of this content
+
+If a claim cannot be stated as a confident fact, OMIT IT ENTIRELY.
+Present only what is known, stated as established truth.
+
+Note: The word "research" may appear in CONTENT when describing historical events
+(e.g. "groundbreaking research by X in 1921" is fine). The prohibition is on
+phrases that reference the PROCESS of researching this carousel, not the word itself in context.
+
    **image_source_preference** — choose the tool FIRST:
    - "ddgs"  → real identifiable subjects: a specific person (politician, CEO, actor), a real place/event, a court case, a protest, a news moment. DDGS finds actual news/web photos.
    - "pexels" → abstract or generic visual: AI, technology, school, office, nature, emotion, concept. Pexels has high-quality stock for these.

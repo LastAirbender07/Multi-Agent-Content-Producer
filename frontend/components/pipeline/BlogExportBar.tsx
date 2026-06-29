@@ -77,13 +77,32 @@ export function BlogExportBar({ runId, topic }: BlogExportBarProps) {
       const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
       const innerHtml = bodyMatch ? bodyMatch[1].trim() : html;
 
+      // Extract the real blog title from the HTML.
+      // Priority 1 — first <h1> (the crafted headline, not the raw user query)
+      // Priority 2 — <title> tag in <head>
+      // Fallback   — raw topic prop
+      const extractTitle = (rawHtml: string): string => {
+        const h1 = rawHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+        if (h1) {
+          const text = h1[1].replace(/<[^>]+>/g, "").trim();
+          if (text) return text;
+        }
+        const titleTag = rawHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+        if (titleTag) {
+          const text = titleTag[1].trim();
+          if (text) return text;
+        }
+        return topic;
+      };
+      const postTitle = extractTitle(html);
+
       // Use hashtags as labels, stripping the # prefix. Blogger allows max 20 labels.
       const labels: string[] = captionData?.hashtags?.length
         ? captionData.hashtags.map((h: string) => h.replace(/^#/, "")).slice(0, 20)
         : [];
 
       const result = await api.publishToBlogger({
-        title: topic,
+        title: postTitle,
         html_content: innerHtml,
         labels,
         is_draft: false,

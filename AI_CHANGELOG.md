@@ -6,7 +6,136 @@
 
 ---
 
-## 2026-06-27 — Blogger Publishing Live + Analytics Fixes + Roadmap Cleanup
+## 2026-06-29 — Research Quality & Slide Content Integrity (RCA + Full Fix Sprint)
+
+### Summary
+
+Root cause analysis of a broken carousel where slides discussed the research pipeline's internal gaps instead of presenting facts, and historically accurate LLM knowledge (Tilak, Savarkar, etc.) was discarded because the evaluator couldn't distinguish it from uncorroborated speculation. Eight fixes shipped across 9 files with 44 unit tests all passing. Frontend updated to show structured LLM knowledge view.
+
+---
+
+### The Core Problem (corrected understanding)
+
+The original characterisation of LLM knowledge as "unverified hallucination" was wrong. Claude is trained on verified historical documents — "Tilak opposed the Age of Consent Bill (1891)" is a documented fact, not a hallucination. The real failure was a **classification and routing failure**:
+
+1. `llm_knowledge_node` assigned every claim a flat `credibility_score=0.5` — historical facts and causal inferences received the same score
+2. The synthesiser treated "no web URL found" = "unverified" even for pre-1900 historical events
+3. This caused the synthesiser to flag valid historical knowledge as "gaps"
+4. The slide generator received those gaps in its input and wrote Slide 9 explaining what the research pipeline couldn't find
+5. The evaluator's source_score was inflated to 1.0 by 21 low-quality snippets, letting the run pass despite synthesis confidence of 0.35
+
+---
+
+### Fix 1 — Claim classification in `llm_knowledge_node` (P1)
+
+**Files:** `core/orchestration/contracts.py`, `core/orchestrators/research/llm_knowledge.py`, `core/prompts/templates/llm_knowledge.txt`
+
+`LLMKnowledgeClaim` and `LLMKnowledgeOutput` Pydantic schemas added to `contracts.py`. The node now uses `generate_structured(output_schema=LLMKnowledgeOutput)` — same pattern as all other pipeline nodes. Invalid claim types are rejected by Pydantic and retried automatically (max 3 attempts).
+
+Each claim is classified as `HISTORICAL_FACT | PUBLISHED_WORK | DIRECT_QUOTE | RECENT_STATISTIC | CAUSAL_INFERENCE` with type-based credibility:
+
+| Type | Score | Meaning |
+|---|---|---|
+| HISTORICAL_FACT | 0.85 | Documented event from training corpus |
+| PUBLISHED_WORK | 0.80 | Specific book/document content |
+| DIRECT_QUOTE | 0.60 | Verbatim — quote text should be confirmed |
+| RECENT_STATISTIC | 0.30 | May be stale since training cutoff |
+| CAUSAL_INFERENCE | 0.25 | Always needs independent verification |
+
+Claim type encoded in `source_name`: `"llm:HISTORICAL_FACT:1891"` — downstream reads it with `_extract_claim_type_from_source_name()`.
+
+Result: single Evidence blob → 12 typed Evidence items per run.
+
+---
+
+### Fix 2 — Synthesiser gap logic (P1)
+
+**File:** `core/prompts/templates/research_synthesis.txt`
+
+Prompt updated to distinguish claim types: `llm:HISTORICAL_FACT` items are high-confidence training knowledge — the synthesiser must NOT flag them as gaps just because no web URL was returned. Only `llm:RECENT_STATISTIC` and `llm:CAUSAL_INFERENCE` require web corroboration.
+
+---
+
+### Fix 3 — `ContentEvidenceBundle` — meta-commentary firewall (P0)
+
+**File:** `core/orchestrators/content/content_evidence_bundle.py` (new)
+
+Centralised filter module. `filtered_research_summary()` strips 17 phrase-level regex patterns from research text before it reaches the slide/caption generators. Patterns are **phrase-level** not word-level — "generation gap", "India lacks infrastructure", "groundbreaking research" all pass; "the research reveals a critical gap" and "claims remain unverified" are stripped.
+
+`_extract_claim_type_from_source_name()` extracts claim type from the `source_name` encoding.
+
+`build_content_evidence_bundle()` classifies evidence by type: HISTORICAL_FACT/PUBLISHED_WORK → `llm_historical_facts`, CAUSAL_INFERENCE/RECENT_STATISTIC → excluded, web evidence → `verified_claims`.
+
+---
+
+### Fix 4 — Slide generator receives filtered input (P0)
+
+**File:** `core/orchestrators/content/slide_generator.py`
+
+Calls `filtered_research_summary()` before building the prompt. The slide LLM never sees gaps, contradictions, or meta-commentary. Also wired into `caption_generator.py` for the angle statement.
+
+---
+
+### Fix 5 — Slide generation prompt anti-patterns (P0)
+
+**File:** `core/prompts/templates/slide_generation.txt`
+
+`ABSOLUTE PROHIBITIONS` block replaced word-bans with curated forbidden phrases: "research shows", "evidence suggests", "the original angle", "claims are unverified", etc. Explicit note: the word "research" is allowed in historical content ("research by Ramanujan in 1913") — only pipeline-process phrases are banned.
+
+---
+
+### Fix 6 — Weighted source score in evaluator (P2)
+
+**File:** `core/orchestrators/research/evaluator.py`
+
+`_compute_source_score()` now uses `avg_credibility × log_volume_factor` instead of `sum / saturation`:
+```
+coverage = avg_credibility × min(1.0, log(n+1) / log(9))
+```
+Result: 21 items × credibility 0.4 = **0.70** (not 1.0). 8 items × credibility 0.9 = **0.95**. High-quality sources beat low-quality volume. LLM items excluded from web coverage; modest bonus (+0.015 per high-confidence item, max +0.12).
+
+---
+
+### Fix 7 — Synthesis confidence floor (P2)
+
+If `synthesis.confidence_score < 0.50`, force another refinement loop regardless of `combined_confidence`. A synthesiser that self-reports low confidence should never auto-pass.
+
+---
+
+### Fix 8 — Critical gap gate (P2)
+
+If `synthesis.gaps[]` contains "COMPLETE ABSENCE", "central to the topic", "core claim", etc., evaluation fails and triggers refinement regardless of numeric score.
+
+---
+
+### Test coverage
+
+44 unit tests added covering all 8 fixes. Key scenarios:
+- Pydantic schema rejects invalid claim types and empty claim lists
+- `_extract_claim_type_from_source_name` round-trip: encode → decode
+- 7 false-positive cases confirmed NOT stripped by regex
+- 8 meta-commentary cases confirmed stripped
+- Evaluator score: 21×0.4 items score 0.70 (not 1.0); 8×0.9 items score 0.95
+- Critical gap detection correct for 3 gap severity levels
+
+---
+
+### Frontend — Structured LLM Knowledge View
+
+**File:** `frontend/components/pipeline/ResearchStageCard.tsx`
+
+`evidence.find()` → `evidence.filter()`. Now collects all LLM knowledge items (was silently showing only the first of 12). Claims rendered grouped by type in display order: Historical Fact → Published Work → Direct Quote → Recent Statistic → Causal Inference. Each group shows a colour-coded badge + claim count. Each item shows the claim text and time period (from `source_name` encoding). Header shows total claim count ("12 claims").
+
+---
+
+### Documentation
+
+- `Docs/rca/RCA_RESEARCH_CONTENT_INTEGRITY.md` — deleted (findings incorporated into this changelog entry)
+- `Docs/rca/` folder retained for future RCAs
+
+---
+
+
 
 ### Summary
 
