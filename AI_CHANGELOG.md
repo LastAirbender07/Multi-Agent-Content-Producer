@@ -6,7 +6,92 @@
 
 ---
 
-## 2026-06-29 — Research Quality & Slide Content Integrity (RCA + Full Fix Sprint)
+## 2026-06-29 — Architecture: Rendering Engine Consolidation + Multi-Format Content Strategy
+
+### Summary
+
+Two major architectural decisions documented this session: (1) a formal ADR for consolidating from two rendering engines (Jinja2 + Fabric.js) into one (Fabric.js only), and (2) a multi-format content strategy plan expanding beyond the current opinion-only carousel format. Also: minor fixes — `frontend/lib/api` unblocked from git (root `.gitignore` was matching it via bare `lib/` pattern), LLM knowledge UI updated to show all 12 structured claims instead of only the first one.
+
+---
+
+### Rendering Engine ADR (Architecture Decision Record)
+
+**Document:** `Docs/content-strategy/RENDERING_ENGINE_ADR.md`
+
+**The problem:** Every slide type requires two independent implementations that must produce identical output — `backend/core/templates/carousel/aurora/*.html.j2` (Jinja2 + CSS + Playwright) and `frontend/utils/canvasTemplates/aurora_*.ts` (Fabric.js). Any visual change or new slide type must be written twice. The GAN validation system exists specifically to manage the drift between them. Multi-format expansion (10 new slide types) would require 20 implementations.
+
+**The decision (Option D+):** One rendering engine. Fabric.js template builders (`canvasTemplates/`) are the single canonical visual implementation. Playwright stops being a layout engine and becomes a deterministic browser runtime that executes the renderer and captures a screenshot. Jinja2 templates are deleted. The `canvas_template` field (already in every `slides.json`) + the REGISTRY (already in `canvasTemplates/index.ts`) form the existing routing contract — no new protocol needed.
+
+**Key architectural insight:** Identified by Claude during codebase audit — `canvas_template: "aurora-content-2"` already exists in every slide. The REGISTRY already maps these IDs to builder functions. The proof-of-concept is: bundle the REGISTRY + builders, load them in a static HTML shell, inject slide JSON, call `window.Renderer.render(slideJson)`, Playwright screenshots the canvas. The routing mechanism already exists.
+
+**The `window.Renderer` contract (permanent API boundary):**
+```typescript
+interface SlideRenderer {
+  render(slideJson: SlideData, options: RenderOptions): Promise<void>;
+}
+// Playwright never knows about Fabric, fonts, or images — renderer internals
+```
+
+**What was deferred:**
+- Scene Graph abstraction (`Slide JSON → Scene → Fabric Runtime`) — Fabric Objects are already a scene graph; defer until a second runtime (SVG/PDF) actually exists
+- `shared/` directory at repo root — mechanical refactor, do after migration is proven
+- Additional export targets (LinkedIn, PDF) — future design problems
+
+**The canonical boundary rule (goes in README):**
+> There must exist exactly one implementation of every visual layout in the repository. If visual layout logic exists outside the renderer, that is a bug in the architecture.
+
+**Migration phases:**
+1. POC — prove with `aurora-hook` (3 days). Success = visual pixel tolerance < 2% vs current Jinja2 PNG
+2. Migrate remaining 5 aurora + 6 lumina types. Delete Jinja2. (3–5 days)
+3. Move to `shared/renderer/`. Update import paths. (2 days)
+4. Formalise `window.Renderer` API. Stop. Ship.
+5. Scene abstraction only when a second runtime exists.
+
+**Discussion context:** This ADR emerged from a three-way architecture discussion between Claude, ChatGPT, and the project owner. Claude contributed the `canvas_template` insight and grounded bundling cost estimates. ChatGPT contributed the "rendering platform" mental model and Scene Graph long-term vision. The Scene Graph was deferred by agreement — Fabric Objects are already a scene graph, no second runtime justifies the abstraction yet.
+
+---
+
+### Multi-Format Content Strategy
+
+**Document:** `Docs/content-strategy/MULTI_FORMAT_CONTENT_PLAN.md`
+
+**The problem:** Every carousel produced is opinion/analysis format with 4 emotional hooks (Anger/Hope/Curiosity/FOMO) and a "what would Naval say?" reference frame. This is one format masquerading as a content strategy.
+
+**10 carousel formats identified:** Opinion (current), Facts/Did-You-Know, Tutorial/Step-by-Step, Review/Rating, Comparison/X-vs-Y, Listicle/Countdown, Explainer/Concept-Breakdown, Trending/News, Story/Narrative, Checklist/Resource.
+
+**Key finding:** The research pipeline (tools, synthesis, evaluation) works for all formats — zero changes needed. The bottleneck is entirely the content layer: angle prompts, slide structure rules, caption hooks.
+
+**Lowest-hanging fruit (Phase A, ~4 hours, prompt changes only):**
+1. Expand emotional hooks — add Surprise, Empowerment, Nostalgia, Trust, Urgency, Pride, Relatability
+2. Add `post_format` field to angle generation — LLM selects the best format per angle
+3. Inject format-specific slide rules into slide generation (FACTS, TUTORIAL, TRENDING use existing slide types with different structure)
+4. Adapt caption hook per format
+
+This expands from 1 format to 5 formats with no infrastructure work.
+
+**Recommended weekly content mix:** Opinion 2×, Facts 2×, Explainer 1×, Trending 1×, Tutorial 1×, Review 1/2×, Story 1/2×.
+
+---
+
+### Frontend: Structured LLM Knowledge View
+
+**File:** `frontend/components/pipeline/ResearchStageCard.tsx`
+
+**Bug fixed:** `evidence.find()` was grabbing only the first LLM knowledge item. With 12 structured claims now generated (after the classification fix), 11 were silently invisible in the UI.
+
+**Fix:** `evidence.filter()` collects all LLM knowledge items. Claims rendered grouped by type (Historical Fact → Published Work → Direct Quote → Recent Statistic → Causal Inference) with colour-coded badges. Each claim shows text + time period from `source_name` encoding. Header shows total claim count ("12 claims").
+
+---
+
+### Git: `frontend/lib/api` untracked — fixed
+
+**Root cause:** The root `.gitignore` contained `lib/` (a Python packaging convention). Since it had no path prefix, git treated it as a global pattern matching `frontend/lib/` too. All 11 modular API files in `frontend/lib/api/` were invisible to git; only the old monolith `frontend/lib/api.ts` escaped because it was committed before the rule.
+
+**Fix:** Changed `lib/` → `backend/lib/` in `.gitignore`. Ran `git rm -r --cached frontend/lib/` + `git add frontend/lib/api/` to stage all 11 files. `frontend/lib/api.ts` (old monolith) correctly removed and replaced by the directory.
+
+---
+
+
 
 ### Summary
 
