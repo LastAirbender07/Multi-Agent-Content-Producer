@@ -1,26 +1,24 @@
 import * as fabric from "fabric";
-import { createBrandBar, createGlowBg, makeText, makeTitleText } from "./shared";
+import { createBrandBar, createGlowBg, makeText, makeTitleText, setData } from "./shared";
+import type { FabricFill } from "./shared/types";
 import { createChartObject } from "./chartRenderer";
 import type { CanvasTokens } from "@/utils/canvasTokens";
-import { LUMINA } from "@/utils/canvasTokens";
+import { isDarkTheme } from "@/utils/canvasTokens";
 import type { SlideData } from "@/lib/api";
 import type { SlideMeta } from "./index";
 import type { ChartType, ChartData } from "@/types/chart";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type FabricFill = string | fabric.Gradient<any, any> | fabric.Pattern;
-
 const CS = 1080;
 
 /**
- * Pick a font size that fits statValStr on ONE line within maxWidth px.
- * Uses Syne Bold average char width ≈ 0.62× fontSize.
+ * Pick the largest font size that fits statValStr on ONE line within maxWidth px.
+ * Uses a temporary Fabric Text object and calcTextWidth() for accurate measurement.
  * Starts at 116px, reduces in steps of 8 down to 52px minimum.
  */
-function statFontSize(statValStr: string, maxWidth: number): number {
+function statFontSize(statValStr: string, maxWidth: number, fontFamily: string): number {
   for (let fs = 116; fs >= 52; fs -= 8) {
-    const estimatedW = statValStr.length * fs * 0.62;
-    if (estimatedW <= maxWidth) return fs;
+    const probe = new fabric.Text(statValStr, { fontSize: fs, fontFamily, fontWeight: "700" });
+    if ((probe.calcTextWidth?.() ?? fs * statValStr.length * 0.62) <= maxWidth) return fs;
   }
   return 52;
 }
@@ -35,15 +33,14 @@ export async function buildAuroraStat(
 
   // Background
   objects.push(new fabric.Rect({
-    left: 0, top: 0, width: CS, height: CS, fill: "#090909",
+    left: 0, top: 0, width: CS, height: CS, fill: t.bg,
     selectable: false, evented: false,
     originX: "left" as const, originY: "top" as const,
   }));
 
   const hasChart = !!(slide.chart_data && slide.chart_type);
-  // With a chart, push stat to 64px top so the large number doesn't bleed off edge.
-  // Without a chart, centre vertically in the content zone.
-  const TOP_Y    = hasChart ? 64 : Math.round(CS * 0.18);
+  // Push stat number close to top so maximum canvas height is available for the chart
+  const TOP_Y    = hasChart ? 40 : Math.round(CS * 0.18);
 
   // ── Layout constants ──────────────────────────────────────────────────────────
   const STAT_LEFT = 64;
@@ -54,60 +51,63 @@ export async function buildAuroraStat(
   const statValStr = slide.stat_value ?? "—";
 
   // Compute font size that fits on ONE line — never wraps
-  const FS = statFontSize(statValStr, MAX_STAT_W);
+  const FS = statFontSize(statValStr, MAX_STAT_W, `${t.fontTitle}, sans-serif`);
+  // 0.88 = empirical Syne Bold cap-height ratio — single line of stat value clears this height
+  const STAT_LINE_H = Math.round(FS * 0.88);
 
-  // Actual single-line height at this font size
-  const STAT_LINE_H = Math.round(FS * 0.88);  // Syne line-height ~0.88
-  // Width the text actually occupies at this font size
-  const STAT_ACT_W  = Math.min(MAX_STAT_W, Math.round(statValStr.length * FS * 0.62));
-
-  const META_LEFT  = STAT_LEFT + STAT_ACT_W + META_GAP;
-  const META_WIDTH = CS - META_LEFT - 64;
-
-  let curY = TOP_Y;
-
-  // ── Big stat number — ALWAYS one line ────────────────────────────────────────
-  objects.push(makeTitleText(statValStr, {
+  // ── Two-pass: create stat object first, read its actual rendered width ───────
+  // Using character-width estimation (0.62×FS) is inaccurate for Unicode chars
+  // like ₹ and mixed-case text. Instead we create the Textbox and read its width
+  // after Fabric computes the layout.
+  const statObj = makeTitleText(statValStr, {
     t, role: "stat_value",
     fontFamily: `${t.fontTitle}, sans-serif`,
     fontSize: FS,
     lineHeight: 0.88,
     fill: new fabric.Gradient({
       type: "linear",
-      coords: { x1: 0, y1: 0, x2: STAT_ACT_W, y2: 0 },
+      coords: { x1: 0, y1: 0, x2: MAX_STAT_W, y2: 0 },
       colorStops: [{ offset: 0, color: t.primary }, { offset: 1, color: t.secondary }],
     }) as FabricFill,
-    width: STAT_ACT_W,
-    left: STAT_LEFT, top: curY,
-  }));
+    width: MAX_STAT_W,
+    left: STAT_LEFT, top: 0,
+  });
+  // Use the actual content width (not container width) so META_LEFT is accurate
+  const STAT_ACT_W = Math.min(MAX_STAT_W, Math.ceil((statObj as fabric.Textbox).calcTextWidth?.() ?? MAX_STAT_W));
+
+  const META_LEFT  = STAT_LEFT + STAT_ACT_W + META_GAP;
+  const META_WIDTH = Math.max(200, CS - META_LEFT - 64);  // guaranteed minimum 200px
+
+  let curY = TOP_Y;
+  statObj.set({ top: curY });
+  objects.push(statObj);
 
   // ── Meta column (label + title) beside the number ────────────────────────────
+  // Two-pass: create text objects, measure with calcTextHeight(), then position
   let metaY = curY + 6;
-  let metaBottom = metaY;  // track how far down the meta column extends
+  let metaBottom = metaY;
 
   if (slide.stat_label) {
-    const labelCharsPerLine = Math.max(1, Math.floor(META_WIDTH / (24 * 0.58)));
-    const labelLines = Math.max(1, Math.ceil(slide.stat_label.length / labelCharsPerLine));
-    objects.push(makeText(slide.stat_label, {
+    const labelObj = makeText(slide.stat_label, {
       role: "stat_label", fontSize: 24, fontWeight: "700", fill: t.text,
       lineHeight: 1.25, width: META_WIDTH,
       left: META_LEFT, top: metaY,
       originX: "left" as const, originY: "top" as const,
-    }));
-    metaY += labelLines * 24 * 1.25 + 8;
+    });
+    objects.push(labelObj);
+    metaY += labelObj.calcTextHeight() + 8;
     metaBottom = metaY;
   }
 
   if (slide.title) {
-    const titleCharsPerLine = Math.max(1, Math.floor(META_WIDTH / (15 * 0.58)));
-    const titleLines = Math.max(1, Math.ceil(slide.title.length / titleCharsPerLine));
-    objects.push(makeText(slide.title, {
+    const titleObj = makeText(slide.title, {
       role: "stat_title", fontSize: 15, fill: t.muted,
       lineHeight: 1.4, width: META_WIDTH,
       left: META_LEFT, top: metaY,
       originX: "left" as const, originY: "top" as const,
-    }));
-    metaBottom = metaY + titleLines * 15 * 1.4;
+    });
+    objects.push(titleObj);
+    metaBottom = metaY + titleObj.calcTextHeight();
   }
 
   // curY must clear BOTH the stat number AND the meta column — whichever is lower
@@ -123,25 +123,18 @@ export async function buildAuroraStat(
     }),
     originX: "left" as const, originY: "top" as const,
   });
-  (divider as fabric.Rect & { data?: unknown }).data = { role: "stat_divider" };
+  setData(divider, { role: "stat_divider" });
   objects.push(divider);
   curY += 22;
 
   // ── Body text ─────────────────────────────────────────────────────────────────
   if (slide.body) {
-    const words    = slide.body.split(" ");
-    const maxWords = hasChart ? 26 : 100;
-    const bodyText = words.slice(0, maxWords).join(" ") + (words.length > maxWords ? "…" : "");
-
     const BODY_FS = 20;
     const BODY_W  = CS - STAT_LEFT - 64 - 20;
     const BODY_LH = 1.6;
 
-    // Build the Textbox first, then read Fabric's own measured height.
-    // calcTextHeight() returns values in physical canvas pixels (width × DPR),
-    // so divide by devicePixelRatio to get logical 1080-space pixels.
-    const bodyObj = makeText(bodyText, {
-      role: "stat_body", fontSize: BODY_FS, fill: "rgba(250,250,250,0.72)",
+    const bodyObj = makeText(slide.body, {
+      role: "stat_body", fontSize: BODY_FS, fill: t.muted,
       lineHeight: BODY_LH, width: BODY_W,
       left: STAT_LEFT + 18, top: curY,
       originX: "left" as const, originY: "top" as const,
@@ -155,11 +148,11 @@ export async function buildAuroraStat(
       width: 3, height: barH, rx: 2,
       fill: new fabric.Gradient({
         type: "linear", coords: { x1: 0, y1: 0, x2: 0, y2: barH },
-        colorStops: [{ offset: 0, color: "rgba(124,110,250,0.55)" }, { offset: 1, color: "rgba(124,110,250,0.15)" }],
+        colorStops: [{ offset: 0, color: t.primary + "8C" }, { offset: 1, color: t.primary + "26" }],
       }),
       originX: "left" as const, originY: "top" as const,
     });
-    (accentBar as fabric.Rect & { data?: unknown }).data = { role: "stat_body_accent" };
+    setData(accentBar, { role: "stat_body_accent" });
     objects.push(accentBar);
     objects.push(bodyObj);
     curY += barH + 22;
@@ -167,12 +160,10 @@ export async function buildAuroraStat(
 
   // ── Chart ─────────────────────────────────────────────────────────────────────
   if (hasChart) {
-    const chartTheme = t.bg === LUMINA.bg ? "lumina" : "aurora";
-    // Available vertical space between curY and the brand bar, minus a small bottom gap.
-    // Clamped: minimum 220px so small charts aren't tiny; maximum 520px so they don't
-    // dominate slides with long body text.
-    const availH = CS - t.brandBarH - curY - 28;
-    const chartH = Math.min(Math.max(220, availH), 520);
+    const chartTheme = isDarkTheme(t) ? "aurora" : "lumina";
+    // Use ALL remaining vertical space — mirrors Jinja2's flex-grow:1 chart container.
+    // 20px bottom padding before the brand bar.
+    const chartH = Math.max(300, CS - t.brandBarH - curY - 20);
     objects.push(await createChartObject(
       slide.chart_type as ChartType,
       slide.chart_data as ChartData,

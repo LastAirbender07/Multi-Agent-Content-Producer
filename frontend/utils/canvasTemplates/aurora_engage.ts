@@ -1,10 +1,13 @@
 import * as fabric from "fabric";
-import { createBrandBar, createGradientBg, createEyebrowPill, createPillButton, makeText, makeTitleText } from "./shared";
+import { createBrandBar, createGradientBg, createEyebrowPill, createPillButton, makeText, makeTitleText, estimatePillWidth } from "./shared";
 import type { CanvasTokens } from "@/utils/canvasTokens";
 import type { SlideData } from "@/lib/api";
 import type { SlideMeta } from "./index";
 
 const CS = 1080;
+
+const EYEBROW_TEXT = "Follow for more insights";
+const PILL_TEXT    = "Hit Follow — it's worth it";
 
 export async function buildAuroraEngage(
   slide: SlideData,
@@ -22,56 +25,57 @@ export async function buildAuroraEngage(
   // 2. Decorative rings — large, dramatic, peek from corners
   const makeRing = (size: number, left: number, top: number, opacity = 1) => {
     const el = new fabric.Circle({
-      radius:size/2, left, top,
-      fill:"transparent", stroke:"rgba(255,255,255,0.14)", strokeWidth:1.5,
-      opacity, selectable:false, evented:false,
-      originX:"left" as const, originY:"top" as const,
+      radius: size / 2, left, top,
+      fill: "transparent", stroke: "rgba(255,255,255,0.14)", strokeWidth: 1.5,
+      opacity, selectable: false, evented: false,
+      originX: "left" as const, originY: "top" as const,
     });
-    (el as fabric.Circle & { data?: unknown }).data = { role:"deco_ring" };
+    (el as fabric.Circle & { data?: unknown }).data = { role: "deco_ring" };
     return el;
   };
-  objects.push(makeRing(720, CS-280, -320));
-  objects.push(makeRing(480, -200, CONTENT_H-260));
-  objects.push(makeRing(240, CS-200, CONTENT_H-240, 0.55));
+  objects.push(makeRing(720, CS - 280, -320));
+  objects.push(makeRing(480, -200, CONTENT_H - 260));
+  objects.push(makeRing(240, CS - 200, CONTENT_H - 240, 0.55));
 
-  // 3. Content — vertically centered
-  const EYEBROW_TEXT  = "Follow for more insights";
-  const eyebrowH      = 36 + 28;
-  const titleLines    = Math.max(1, Math.ceil((slide.title?.length ?? 30) / 28));
-  const titleH        = titleLines * 46 * 1.18 + 28;
-  const bodyLines     = slide.body ? Math.max(1, Math.ceil(slide.body.length / 44)) : 0;
-  const bodyH         = bodyLines * 22 * 1.5 + 28;
-  const PILL_TEXT     = "Hit Follow — it's worth it";
-  const pillH         = 66 + 24;
-  const totalH        = eyebrowH + titleH + bodyH + pillH;
-  let   curY          = Math.max(56, (CONTENT_H - totalH) / 2);
+  // 3. Two-pass layout — create text objects, measure, then position
+  const EYEBROW_H = 36 + 28;  // pill height + gap below
+  const PILL_H    = 66 + 24;  // button height + gap below
 
-  // Eyebrow pill — centered, using reusable component
-  objects.push(createEyebrowPill(EYEBROW_TEXT, t, CS/2, curY));
-  curY += eyebrowH;
+  const titleObj = makeTitleText(slide.title || "Worth following?", {
+    t, role: "engage_title",
+    fontFamily: `${t.fontTitle}, sans-serif`,
+    fontSize: 46, lineHeight: 1.18, textAlign: "center", fill: "#ffffff",
+    width: CS - 160, left: 80, top: 0,
+  });
 
-  // Title
-  objects.push(makeTitleText(slide.title || "Worth following?", {
-    t, role:"engage_title",
-    fontFamily:`${t.fontTitle}, sans-serif`,
-    fontSize:46, lineHeight:1.18, textAlign:"center", fill:"#ffffff",
-    width:CS-160, left:80, top:curY,
-  }));
+  const bodyObj = slide.body
+    ? makeText(slide.body, {
+        role: "engage_body", fontSize: 26, fill: "rgba(255,255,255,0.88)",
+        lineHeight: 1.5, textAlign: "center", width: CS - 240, left: 120, top: 0,
+        originX: "left" as const, originY: "top" as const,
+      })
+    : null;
+
+  const titleH = titleObj.calcTextHeight() + 28;
+  const bodyH  = bodyObj ? bodyObj.calcTextHeight() + 28 : 0;
+  const totalH = EYEBROW_H + titleH + bodyH + PILL_H;
+  let curY     = Math.max(56, (CONTENT_H - totalH) / 2);
+
+  // Eyebrow pill — centered
+  objects.push(createEyebrowPill(EYEBROW_TEXT, t, CS / 2, curY));
+  curY += EYEBROW_H;
+
+  titleObj.set({ top: curY });
+  objects.push(titleObj);
   curY += titleH;
 
-  // Body
-  if (slide.body) {
-    objects.push(makeText(slide.body, {
-      role:"engage_body", fontSize:22, fill:"rgba(255,255,255,0.82)",
-      lineHeight:1.5, textAlign:"center", width:CS-240, left:120, top:curY,
-      originX:"left" as const, originY:"top" as const,
-    }));
+  if (bodyObj) {
+    bodyObj.set({ top: curY });
+    objects.push(bodyObj);
     curY += bodyH;
   }
 
-  // Bottom CTA pill — B2 Ghost style: transparent + white border + white text
-  // Top eyebrow pill — B3 Frosted Glow (handled by createEyebrowPill in shared.ts)
-  const PILL_W = Math.round(PILL_TEXT.length * (20 * 0.52) + 80);
+  const PILL_W = estimatePillWidth(PILL_TEXT, 18);
   const btn = createPillButton(t, {
     label: PILL_TEXT,
     style: "ghost",

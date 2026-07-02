@@ -1,6 +1,7 @@
 import * as fabric from "fabric";
-import { createBrandBar, createBgImage, createOverlay, createInsightItem, makeText } from "./shared";
+import { createBrandBar, createBgImage, createOverlay, createInsightItem, makeText, makeTitleText } from "./shared";
 import type { CanvasTokens } from "@/utils/canvasTokens";
+import { isDarkTheme } from "@/utils/canvasTokens";
 import type { SlideData } from "@/lib/api";
 import type { SlideMeta } from "./index";
 
@@ -14,37 +15,48 @@ export async function buildAuroraQuote(
 ): Promise<fabric.FabricObject[]> {
   const objects: fabric.FabricObject[] = [];
 
-  // 1. Blurred background
-  if (imageUrl) {
+  // Lumina: solid light background so quote text is readable.
+  // Aurora: blurred image texture for atmosphere.
+  if (imageUrl && isDarkTheme(t)) {
     const bg = await createBgImage(imageUrl, "blur-darken");
     if (bg) objects.push(bg);
   } else {
     objects.push(new fabric.Rect({
-      left: 0, top: 0, width: CS, height: CS, fill: "#090909",
+      left: 0, top: 0, width: CS, height: CS, fill: t.bg,
       selectable: false, evented: false,
       originX: "left" as const, originY: "top" as const,
     }));
   }
 
-  // 2. Overlay
+  // 2. Overlay (subtle tint)
   objects.push(createOverlay("quote", t));
 
-  // Inner layout constants
+  // For Lumina: a soft gradient panel behind the quote area adds visual depth
+  // without making it feel heavy. Aurora's blurred image provides this naturally.
   const INNER_X = 72;
-  const INNER_W = CS - 144;   // 936px — wide enough so attribution fits on one line
+  const INNER_W = CS - 144;
 
   const quoteText  = slide.title || "Your quote text here";
   const attrText   = slide.body ? slide.body.replace(/^[-–—]\s*/, "") : "";
   const hasBullets = (slide.bullets?.length ?? 0) > 0;
 
-  // Height estimates
-  const markH      = Math.round(100 * 0.65) + 12;   // decorative quote mark
-  const quoteLines = Math.max(1, Math.ceil(quoteText.length / (INNER_W / (40 * 0.58))));
-  const quoteH     = quoteLines * 40 * 1.42 + 18;
-  const attrH      = attrText ? 28 : 0;
-  const divH       = hasBullets ? 48 : 0;
-  const labelH     = hasBullets ? 36 : 0;
-  const insightH   = hasBullets
+  // Pass 1: create text objects and measure real heights
+  const markH = Math.round(100 * 0.65) + 12;  // decorative quote mark (fixed — single large char)
+
+  const quoteObj = makeText(quoteText, {
+    role: "quote_text",
+    fontSize: 40, fontWeight: "600", fontStyle: "italic",
+    fill: t.text, lineHeight: 1.42,
+    width: INNER_W,
+    left: INNER_X, top: 0,
+    originX: "left" as const, originY: "top" as const,
+  });
+  const quoteH = quoteObj.calcTextHeight() + 18;
+
+  const attrH = attrText ? 28 : 0;
+  const divH  = hasBullets ? 48 : 0;
+  const labelH = hasBullets ? 36 : 0;
+  const insightH = hasBullets
     ? slide.bullets!.reduce((acc, b) => {
         const lines = Math.max(1, Math.ceil(b.length / (INNER_W / (21 * 0.58))));
         return acc + lines * 21 * 1.55 + 10;
@@ -54,6 +66,34 @@ export async function buildAuroraQuote(
 
   const CONTENT_H = CS - t.brandBarH;
   let curY = Math.max(52, (CONTENT_H - totalH) / 2);
+
+  // Lumina: left accent stripe + soft gradient tint panel for visual structure
+  if (!isDarkTheme(t)) {
+    const panelH = markH + quoteH + (attrH ? attrH + 8 : 0);
+    // Soft gradient wash behind quote area
+    objects.push(new fabric.Rect({
+      left: 0, top: curY - 24, width: CS, height: panelH + 48,
+      fill: new fabric.Gradient({
+        type: "linear", coords: { x1: 0, y1: 0, x2: CS, y2: panelH + 48 },
+        colorStops: [
+          { offset: 0,   color: t.primary   + "0D" },  // 5% opacity
+          { offset: 1,   color: t.secondary + "0D" },
+        ],
+      }),
+      selectable: false, evented: false,
+      originX: "left" as const, originY: "top" as const,
+    }));
+    // Bold left accent stripe
+    objects.push(new fabric.Rect({
+      left: 0, top: curY - 24, width: 6, height: panelH + 48,
+      fill: new fabric.Gradient({
+        type: "linear", coords: { x1: 0, y1: 0, x2: 0, y2: panelH + 48 },
+        colorStops: [{ offset: 0, color: t.primary }, { offset: 1, color: t.secondary }],
+      }),
+      selectable: false, evented: false,
+      originX: "left" as const, originY: "top" as const,
+    }));
+  }
 
   // 3. Large decorative quote mark
   objects.push(makeText('"', {
@@ -66,15 +106,9 @@ export async function buildAuroraQuote(
   }));
   curY += markH;
 
-  // 4. Quote text (italic, prominent)
-  objects.push(makeText(quoteText, {
-    role: "quote_text",
-    fontSize: 40, fontWeight: "600", fontStyle: "italic",
-    fill: t.text, lineHeight: 1.42,
-    width: INNER_W,
-    left: INNER_X, top: curY,
-    originX: "left" as const, originY: "top" as const,
-  }));
+  // 4. Quote text (italic, prominent) — already created in pass 1
+  quoteObj.set({ top: curY });
+  objects.push(quoteObj);
   curY += quoteH;
 
   // 5. Attribution — full INNER_W so it stays on one line
@@ -89,33 +123,37 @@ export async function buildAuroraQuote(
     curY += attrH;
   }
 
-  // 6. Key Insights section
+  // 6. Key Insights section — two-pass to avoid overlap
   if (hasBullets) {
-    // Thin divider
+    const INSIGHT_FS = 24;
+    // Pre-create insight objects to measure real heights
+    const insightObjs = slide.bullets!.map(b => createInsightItem(b, t, INNER_X, 0, INNER_W));
+
     curY += 20;
     objects.push(new fabric.Rect({
       left: INNER_X, top: curY, width: INNER_W, height: 1,
-      fill: "rgba(255,255,255,0.10)",
+      fill: isDarkTheme(t) ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)",
       selectable: false, evented: false,
       originX: "left" as const, originY: "top" as const,
     }));
     curY += 20;
 
-    // "KEY INSIGHTS" label — explicit width prevents wrapping, proper gap above first bullet
     objects.push(makeText("KEY INSIGHTS", {
       role: "insights_label",
-      fontSize: 12, fontWeight: "700", fill: t.secondary, charSpacing: 120,
-      width: INNER_W,    // explicit width = stays on one line
+      fontSize: 13, fontWeight: "700", fill: t.secondary, charSpacing: 120,
+      width: INNER_W,
       left: INNER_X, top: curY,
       originX: "left" as const, originY: "top" as const,
     }));
-    curY += 30;   // clear gap before first bullet
+    curY += 28;
 
-    // Insight items — use shared createInsightItem component for consistency
-    slide.bullets!.forEach((b) => {
-      objects.push(createInsightItem(b, t, INNER_X, curY, INNER_W));
-      const bLines = Math.max(1, Math.ceil(b.length / (INNER_W / (21 * 0.58))));
-      curY += bLines * 21 * 1.5 + 10;
+    insightObjs.forEach(g => {
+      g.set({ top: curY });
+      objects.push(g);
+      // Measure the label Textbox inside the group for actual height
+      const label = (g as fabric.Group).getObjects().find(o => o instanceof fabric.Textbox) as fabric.Textbox | undefined;
+      const rowH = (label?.calcTextHeight() ?? INSIGHT_FS * 1.5) + 14;
+      curY += rowH;
     });
   }
 

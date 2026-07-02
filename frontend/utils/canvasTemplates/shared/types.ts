@@ -3,11 +3,14 @@ import * as fabric from "fabric";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type FabricAny = fabric.FabricObject & { data?: any };
 
+// Canonical Fabric fill type — used for gradients, patterns, and solid colors.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type FabricFill = string | fabric.Gradient<any, any> | fabric.Pattern;
+
 export function setData(obj: fabric.FabricObject, data: Record<string, unknown>): fabric.FabricObject {
   (obj as FabricAny).data = data;
   return obj;
 }
-
 // ── ctx.filter support detection ─────────────────────────────────────────────
 
 let _ctxFilterSupported: boolean | null = null;

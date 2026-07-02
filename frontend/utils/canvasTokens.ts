@@ -10,15 +10,15 @@ export interface CanvasTokens {
 export const AURORA: CanvasTokens = {
   bg: "#090909",      surface: "#131313",
   primary: "#7C6EFA", secondary: "#2DD4BF", accent: "#F59E0B",
-  text: "#FAFAFA",    muted: "#71717A",
+  text: "#FAFAFA",    muted: "rgba(250,250,250,0.78)",  // matches Jinja2 CSS: body 0.76, bullets 0.80
   fontTitle: "Syne",  fontBody: "Plus Jakarta Sans",
   brandBarH: 72,      progressH: 2,  canvasSize: 1080,
 };
 
 export const LUMINA: CanvasTokens = {
-  bg: "#F8F8F6",      surface: "#FFFFFF",
-  primary: "#7C6EFA", secondary: "#2DD4BF", accent: "#F59E0B",
-  text: "#0A0A0A",    muted: "#71717A",
+  bg: "#FAFAF8",      surface: "#FFFFFF",
+  primary: "#1E40AF", secondary: "#0D9488", accent: "#D97706",
+  text: "#111827",    muted: "#6B7280",
   fontTitle: "Syne",  fontBody: "Plus Jakarta Sans",
   brandBarH: 72,      progressH: 2,  canvasSize: 1080,
 };
@@ -26,7 +26,7 @@ export const LUMINA: CanvasTokens = {
 // Chart palettes — match Jinja2 template colors exactly
 export const CHART_COLORS = {
   aurora: ["#7C6EFA","#2DD4BF","#F59E0B","#EF4444","#8B5CF6","#06B6D4","#10B981","#F97316"],
-  lumina: ["#7C6EFA","#0D9488","#D97706","#DC2626","#7C3AED","#0284C7","#059669","#EA580C"],
+  lumina: ["#1E40AF","#0D9488","#D97706","#DC2626","#7C3AED","#0284C7","#059669","#EA580C"],
 };
 
 export interface ChartPalette {
@@ -53,6 +53,10 @@ export const CHART_PALETTE: Record<"aurora" | "lumina", ChartPalette> = {
     BG:     "#FFFFFF",
   },
 };
+
+export function isDarkTheme(t: CanvasTokens): boolean {
+  return t.bg.startsWith("#0") || t.bg.startsWith("#1");
+}
 
 export function getTokens(templateId: string): CanvasTokens {
   return templateId.startsWith("lumina") ? LUMINA : AURORA;

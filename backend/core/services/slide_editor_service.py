@@ -19,9 +19,9 @@ from apps.api.v1.schemas import SlideEditRequest, SlideEditResponse
 from configs.settings import get_settings
 from core.orchestration.contracts import Slide, SlideType
 from core.orchestrators.content.carousel_generator import (
-    render_and_screenshot_single_slide,
     _TEMPLATES_ROOT,
 )
+from core.orchestrators.content.renderer import render_slide_fabric
 from core.orchestrators.content.image_fetcher import fetch_and_download_single_image
 from core.persistence.run_repository import read_topic, static_image_url
 from core.persistence.slide_repository import (
@@ -113,18 +113,23 @@ async def _render_and_save_png(
     slide: Slide, slide_data: dict, slides_raw: list[dict],
     angle_dir: Path, image_path: str, has_image: bool,
 ) -> str:
-    """Re-render HTML for a slide, write it to disk, screenshot to PNG. Returns png_url."""
-    html = _render_slide_html(slide, slide_data, slides_raw, angle_dir, slide_number, image_path, has_image)
-
-    html_path = angle_dir / "slides" / f"slide_{slide_number:02d}.html"
-    html_path.parent.mkdir(parents=True, exist_ok=True)
-    html_path.write_text(html, encoding="utf-8")
-
-    png_dir = angle_dir / "png"
+    """Re-render a slide via Fabric.js and save to PNG. Returns the png_url."""
+    png_dir  = angle_dir / "png"
     png_dir.mkdir(parents=True, exist_ok=True)
     png_path = png_dir / f"slide_{slide_number:02d}.png"
-    await render_and_screenshot_single_slide(str(html_path), str(png_path), _BACKEND_ROOT)
 
+    # image_path from _resolve_image is a static URL (/outputs/runs/...).
+    # Strip the leading slash and make it relative to _BACKEND_ROOT for the renderer.
+    fabric_image_url: str | None = None
+    if has_image and image_path:
+        fabric_image_url = image_path if image_path.startswith("/") else f"/{image_path}"
+
+    await render_slide_fabric(
+        slide_data=slide_data,
+        image_url=fabric_image_url,
+        output_path=png_path,
+        total_slides=len(slides_raw),
+    )
     return f"/outputs/runs/{run_id}/content/angle_{angle_index}/png/{png_path.name}"
 
 

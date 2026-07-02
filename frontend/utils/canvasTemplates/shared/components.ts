@@ -1,5 +1,6 @@
 import * as fabric from "fabric";
 import type { CanvasTokens } from "@/utils/canvasTokens";
+import { isDarkTheme } from "@/utils/canvasTokens";
 import { setData, supportsCtxFilter } from "./types";
 import { createBlurredRegion } from "./backgrounds";
 
@@ -24,7 +25,9 @@ export function createAccentLine(t: CanvasTokens, width = 52, left = 0, top = 0)
 }
 
 // ── COMPONENT: Glass card (hook + quote) ─────────────────────────────────────
-// rx:32 for extra smoothness
+// Uses t.surface for fill: Aurora (#131313) gets a dark frosted card,
+// Lumina (#FFFFFF) gets a light frosted card. Opacity is higher when there
+// is no image (no blurred region to provide depth).
 
 export async function createGlassCard(
   region: { left: number; top: number; width: number; height: number },
@@ -38,7 +41,6 @@ export async function createGlassCard(
   if (imageUrl) {
     try {
       const blurred = await createBlurredRegion(imageUrl, region, blurRadius);
-      // Round the blurred region with a clip path matching rx
       const blurClip = new fabric.Rect({
         left: region.left, top: region.top, width: region.width, height: region.height, rx,
         absolutePositioned: true, originX: "left" as const, originY: "top" as const,
@@ -49,31 +51,58 @@ export async function createGlassCard(
     } catch { /* fallthrough */ }
   }
 
-  // Dark overlay
+  // Card fill with clip path to ensure rounded corners are clean — no edge bleed
+  const cardClip = new fabric.Rect({
+    left: region.left, top: region.top, width: region.width, height: region.height, rx,
+    absolutePositioned: true, originX: "left" as const, originY: "top" as const,
+  });
   const overlay = new fabric.Rect({
     left: region.left, top: region.top, width: region.width, height: region.height,
-    fill: "#0d0d0d",
-    opacity: imageUrl && supportsCtxFilter() ? 0.82 : 0.96,
+    fill: t.surface,
+    opacity: imageUrl && supportsCtxFilter() ? 0.88 : 0.96,
     rx, selectable: false, evented: false,
     originX: "left" as const, originY: "top" as const,
+    clipPath: cardClip,
   });
   setData(overlay, { role: "glass_overlay" });
   objects.push(overlay);
 
-  // Inner top highlight
-  const highlightH = Math.round(region.height * 0.08);
-  const highlight = new fabric.Rect({
-    left: region.left + 1, top: region.top + 1,
-    width: region.width - 2, height: highlightH, rx,
-    fill: new fabric.Gradient({
-      type: "linear", coords: { x1: 0, y1: 0, x2: 0, y2: highlightH },
-      colorStops: [{ offset: 0, color: "rgba(255,255,255,0.07)" }, { offset: 1, color: "rgba(255,255,255,0)" }],
-    }),
-    selectable: false, evented: false,
-    originX: "left" as const, originY: "top" as const,
-  });
-  setData(highlight, { role: "card_highlight" });
-  objects.push(highlight);
+  // Lumina: subtle primary→secondary diagonal tint + hairline border for a modern card feel
+  // Aurora: no extra decoration — the dark surface + blurred image provide depth
+  if (!isDarkTheme(t)) {
+    // Diagonal gradient wash (5% opacity) — makes the white card feel alive
+    const tintClip = new fabric.Rect({
+      left: region.left, top: region.top, width: region.width, height: region.height, rx,
+      absolutePositioned: true, originX: "left" as const, originY: "top" as const,
+    });
+    const tint = new fabric.Rect({
+      left: region.left, top: region.top, width: region.width, height: region.height,
+      fill: new fabric.Gradient({
+        type: "linear",
+        coords: { x1: 0, y1: 0, x2: region.width, y2: region.height },
+        colorStops: [{ offset: 0, color: t.primary + "0D" }, { offset: 1, color: t.secondary + "08" }],
+      }),
+      rx, selectable: false, evented: false,
+      originX: "left" as const, originY: "top" as const,
+      clipPath: tintClip,
+    });
+    setData(tint, { role: "card_tint" });
+    objects.push(tint);
+
+    // Hairline border using primary color at low opacity
+    const border = new fabric.Rect({
+      left: region.left, top: region.top, width: region.width, height: region.height,
+      fill: "transparent",
+      stroke: t.primary + "33",  // 20% opacity
+      strokeWidth: 1.5,
+      rx, selectable: false, evented: false,
+      originX: "left" as const, originY: "top" as const,
+    });
+    setData(border, { role: "card_border" });
+    objects.push(border);
+  }
+
+  // Removed the inner top highlight — it caused a visible white tinge at 2x scale
 
   return objects;
 }
@@ -104,8 +133,8 @@ export function createBulletItem(
   });
   const label = new fabric.Textbox(text, {
     left: C + 12, top: 0, width: width - C - 12,
-    fontSize, fontWeight: "400", fill: "rgba(250,250,250,0.82)",
-    fontFamily: t.fontBody, lineHeight: 1.45,
+    fontSize, fontWeight: "400", fill: t.muted,
+    fontFamily: t.fontBody, lineHeight: 1.55,  // matches Jinja2 .bullet-text { line-height: 1.55 }
     originX: "left" as const, originY: "top" as const,
   });
   const g = new fabric.Group([circle, num, label], {
@@ -115,16 +144,26 @@ export function createBulletItem(
   return g;
 }
 
+/**
+ * Measures the rendered height of a bullet group created by createBulletItem.
+ * Reads the inner Textbox height via calcTextHeight() — avoids duplicating this
+ * traversal across every layout file that uses bullets.
+ */
+export function measureBulletHeight(g: fabric.Group, fallbackFontSize: number, gap: number): number {
+  const label = g.getObjects().find(o => o instanceof fabric.Textbox) as fabric.Textbox | undefined;
+  return (label?.calcTextHeight() ?? fallbackFontSize * 1.5) + gap;
+}
+
 // ── COMPONENT: Insight item (quote slide) ────────────────────────────────────
 
 export function createInsightItem(text: string, t: CanvasTokens, left = 0, top = 0, width = 930): fabric.Group {
   const dot = new fabric.Circle({
-    radius: 5, left: 0, top: 9, fill: t.primary,
+    radius: 5, left: 0, top: 11, fill: t.primary,
     originX: "left" as const, originY: "top" as const,
   });
   const label = new fabric.Textbox(text, {
     left: 22, top: 0, width: width - 22,
-    fontSize: 21, fontWeight: "400", fill: "rgba(250,250,250,0.80)",
+    fontSize: 24, fontWeight: "400", fill: t.muted,
     fontFamily: t.fontBody, lineHeight: 1.5,
     originX: "left" as const, originY: "top" as const,
   });

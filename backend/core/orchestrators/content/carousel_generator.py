@@ -230,3 +230,70 @@ async def screenshot_slides_node(state: ContentGraphState) -> dict:
         "slide_png_paths": png_paths,
         "messages": state.get("messages", []) + [f"Screenshotted {len(png_paths)} slides"],
     }
+
+
+async def screenshot_slides_fabric_node(state: ContentGraphState) -> dict:
+    """
+    Render all slides to PNG via Fabric.js + Playwright.
+    Drop-in replacement for render_slides_node + screenshot_slides_node.
+
+    Reads canvas_template from each slide (set by _canvas_template_id during
+    slide generation) so the correct Fabric builder is selected for every type.
+    """
+    from core.orchestrators.content.renderer import SlideRenderTask, render_slides_fabric
+
+    run_id      = state.get("run_id")
+    angle_index = state.get("angle_index", 0)
+    slides_raw  = state.get("slides", [])
+    image_assets = {a["slide_number"]: a for a in state.get("image_assets", [])}
+
+    output_dir = (
+        _BACKEND_ROOT / _settings.content_output_dir
+        / run_id / "content" / f"angle_{angle_index}" / "png"
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    tasks: list[SlideRenderTask] = []
+    landscape_counter = [0]
+    angle_obj  = state.get("angle", {})
+    theme      = _get_template_name(angle_obj.get("emotional_hook", ""))
+
+    for i, slide_dict in enumerate(slides_raw):
+        slide_num  = slide_dict.get("slide_number", i + 1)
+        slide_type = slide_dict.get("type", "hook")
+        asset      = image_assets.get(slide_num, {})
+        local_path = asset.get("processed_path") or ""
+        has_image  = bool(local_path) and asset.get("source") != "colour"
+
+        if has_image:
+            image_url  = "/" + str(Path(local_path).relative_to(_BACKEND_ROOT)).replace("\\", "/")
+            if slide_type == "content":
+                layout_variant = _layout_variant_for_image(local_path, landscape_counter)
+            else:
+                layout_variant = 0
+        else:
+            image_url      = None
+            layout_variant = 0
+
+        # Compute canvas_template if not already stored on the slide dict.
+        # This mirrors the logic previously in render_slides_node so the correct
+        # content variant (aurora-content-0/1/2/text) is selected.
+        if not slide_dict.get("canvas_template"):
+            slide_dict = {**slide_dict, "canvas_template": _canvas_template_id(slide_type, theme, layout_variant, has_image)}
+        # Inject _theme so inferTemplate() in the renderer picks the right token set
+        slide_dict = {**slide_dict, "_theme": theme}
+
+        content_progress.update(run_id, i + 1, len(slides_raw))
+        tasks.append(SlideRenderTask(
+            slide_data=slide_dict,
+            image_url=image_url,
+            output_path=output_dir / f"slide_{slide_num:02d}.png",
+        ))
+
+    png_paths = await render_slides_fabric(tasks)
+
+    content_progress.clear(run_id)
+    return {
+        "slide_png_paths": png_paths,
+        "messages": state.get("messages", []) + [f"Rendered {len(png_paths)} slides via Fabric.js"],
+    }

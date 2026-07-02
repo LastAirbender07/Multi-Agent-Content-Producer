@@ -7,9 +7,7 @@
 
 import * as fabric from "fabric";
 import type { CanvasTokens } from "@/utils/canvasTokens";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type FabricFill = string | fabric.Gradient<any, any> | fabric.Pattern;
+import type { FabricFill } from "../types";
 
 export function createShimmer(W: number, H: number, R: number, heightRatio: number, topAlpha: number): fabric.Rect {
   const shimmerH = H * heightRatio;
@@ -81,10 +79,9 @@ export function buildSolidWhiteStyle(t: CanvasTokens, W: number, H: number, R: n
 
 // ── Dark pill — semi-opaque dark fill, white border + shimmer ─────────────────
 export function buildDarkPillStyle(t: CanvasTokens, W: number, H: number, R: number, FS: number, label: string): fabric.FabricObject[] {
-  void t;
   return [
     new fabric.Rect({ left: 0, top: 0, width: W, height: H, rx: R,
-      fill: "rgba(9,9,9,0.55)", stroke: "rgba(255,255,255,0.70)", strokeWidth: 1.5,
+      fill: t.bg + "8C", stroke: "rgba(255,255,255,0.70)", strokeWidth: 1.5,
       originX: "left" as const, originY: "top" as const }),
     createShimmer(W, H, R, 0.30, 0.10),
     new fabric.Text(label, { left: W / 2, top: H / 2, fontSize: FS, fontWeight: "700", fill: "#ffffff",
@@ -93,14 +90,14 @@ export function buildDarkPillStyle(t: CanvasTokens, W: number, H: number, R: num
   ];
 }
 
-// ── Dark + gradient text — solid dark fill, lighter gradient text ─────────────
+// ── Dark + gradient text — solid dark fill, theme gradient text ───────────────
 export function buildDarkGradientStyle(t: CanvasTokens, W: number, H: number, R: number, FS: number, label: string): fabric.FabricObject[] {
   return [
     new fabric.Rect({ left: 0, top: 0, width: W, height: H, rx: R, fill: "rgba(9,9,9,0.70)",
       originX: "left" as const, originY: "top" as const }),
     new fabric.Text(label, { left: W / 2, top: H / 2, fontSize: FS, fontWeight: "700",
       fill: new fabric.Gradient({ type: "linear", coords: { x1: 0, y1: 0, x2: W * 0.85, y2: 0 },
-        colorStops: [{ offset: 0, color: "#A78BFA" }, { offset: 1, color: "#5EEAD4" }] }) as FabricFill,
+        colorStops: [{ offset: 0, color: t.primary }, { offset: 1, color: t.secondary }] }) as FabricFill,
       fontFamily: `${t.fontTitle}, sans-serif`, charSpacing: 40,
       originX: "center" as const, originY: "center" as const }),
   ];

@@ -18,9 +18,9 @@ import {
 } from "./pillButtons/styleBuilders";
 
 export function createPillButton(t: CanvasTokens, opts: PillButtonOptions): fabric.Group {
-  const H     = opts.height   ?? 66;
-  const FS    = opts.fontSize  ?? 20;
-  const W     = opts.width    ?? Math.round(opts.label.length * (FS * 0.52) + 80);
+  const H     = opts.height  ?? 66;
+  const FS    = opts.fontSize ?? 20;
+  const W     = opts.width   ?? estimatePillWidth(opts.label, FS, 80);
   const R     = H / 2;
   // "glass" is a legacy alias for "frosted-glow"
   const style = opts.style === "glass" ? "frosted-glow" : opts.style;
@@ -50,11 +50,11 @@ export function createPillButton(t: CanvasTokens, opts: PillButtonOptions): fabr
 // ── Eyebrow pill (B3 frosted-glow, used above headings) ───────────────────────
 
 export function createEyebrowPill(text: string, t: CanvasTokens, left: number, top: number): fabric.Group {
-  const FS  = 13;
-  const PH  = 34;
-  const PW  = Math.round(text.length * (FS * 0.52) + 48);
-  const PX  = left - PW / 2;
-  const PR  = PH / 2;
+  const FS = 13;
+  const PH = 34;
+  const PW = estimatePillWidth(text, FS, 48);
+  const PX = left - PW / 2;
+  const PR = PH / 2;
 
   const bg = new fabric.Rect({
     left: 0, top: 0, width: PW, height: PH, rx: PR,
@@ -78,9 +78,16 @@ export function createEyebrowPill(text: string, t: CanvasTokens, left: number, t
     originX: "center" as const, originY: "center" as const,
   });
   const g = new fabric.Group([bg, shimmer, label], {
-    left: Math.max(0, PX), top,
+    left: PX, top,
     originX: "left" as const, originY: "top" as const,
   });
   setData(g, { role: "eyebrow_pill" });
   return g;
+}
+
+// ── Shared helper ──────────────────────────────────────────────────────────────
+
+/** Character-width estimate for pill button auto-sizing. Inaccurate for non-Latin text. */
+export function estimatePillWidth(label: string, fontSize: number, padding = 80): number {
+  return Math.round(label.length * (fontSize * 0.52) + padding);
 }

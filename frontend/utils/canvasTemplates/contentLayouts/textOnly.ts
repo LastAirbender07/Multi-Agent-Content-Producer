@@ -1,8 +1,7 @@
 import * as fabric from "fabric";
-import { createAccentLine, createBulletItem, makeText, makeTitleText } from "../shared";
+import { createAccentLine, createBulletItem, measureBulletHeight, makeText, makeTitleText } from "../shared";
 import type { CanvasTokens } from "@/utils/canvasTokens";
 import type { SlideData } from "@/lib/api";
-import { estimateLines } from "@/utils/canvasTextHelpers";
 
 const CS = 1080;
 
@@ -16,28 +15,45 @@ export async function buildLayoutTextOnly(
 ): Promise<void> {
   const CONTENT_H = CS - t.brandBarH;
   const TX = 60, TW = 960;
-  const titleLines = estimateLines(slide.title ?? "", TW, 48);
-  const titleH     = titleLines * 48 * 1.15;
-  const bodyLines  = slide.body ? estimateLines(slide.body, TW, 23) : 0;
-  const bodyH      = bodyLines * 23 * 1.5;   // 1.5 line-height (tighter than 1.65)
-  const bulletH    = slide.bullets?.reduce((acc, b) => {
-    return acc + estimateLines(b, TW - 42, 20) * 20 * 1.5 + 14;
-  }, 0) ?? 0;
-  const totalH = 20 + titleH + 20 + (bodyH ? bodyH + 16 : 0) + bulletH;
+  const BULLET_FS = 20;
+  const BULLET_GAP = 12;
+
+  // ── Two-pass layout ───────────────────────────────────────────────────────
+  const titleObj = makeTitleText(slide.title || "", {
+    t, role: "slide_title", fontSize: 48, lineHeight: 1.15, width: TW, left: 0, top: 0,
+  });
+  const bodyObj = slide.body
+    ? makeText(slide.body, { role: "slide_body", fontSize: 23, fill: t.muted, lineHeight: 1.65, width: TW, left: 0, top: 0, originX: "left" as const, originY: "top" as const })
+    : null;
+
+  const bulletObjs = (slide.bullets ?? []).map((b, i) =>
+    createBulletItem(b, i, t, BULLET_FS, 0, 0, TW),
+  );
+
+  const titleH  = titleObj.calcTextHeight() + 8;
+  const bodyH   = bodyObj ? bodyObj.calcTextHeight() + 16 : 0;
+  const accentH = 20;
+  const bulletHeights = bulletObjs.map(g => measureBulletHeight(g, BULLET_FS, BULLET_GAP));
+  const bulletH = bulletHeights.reduce((s, h) => s + h, 0);
+  const totalH  = accentH + titleH + 20 + bodyH + bulletH;
   let curY = Math.max(44, (CONTENT_H - totalH) / 2);
 
   objects.push(createAccentLine(t, 52, TX, curY));
-  curY += 20;
+  curY += accentH;
 
-  objects.push(makeTitleText(slide.title || "", { t, role: "slide_title", fontSize: 48, lineHeight: 1.15, width: TW, left: TX, top: curY }));
+  titleObj.set({ left: TX, top: curY });
+  objects.push(titleObj);
   curY += titleH + 20;
 
-  if (slide.body) {
-    objects.push(makeText(slide.body, { role: "slide_body", fontSize: 23, fill: "rgba(250,250,250,0.76)", lineHeight: 1.5, width: TW, left: TX, top: curY, originX: "left" as const, originY: "top" as const }));
-    curY += bodyH + 16;
+  if (bodyObj) {
+    bodyObj.set({ left: TX, top: curY });
+    objects.push(bodyObj);
+    curY += bodyH;
   }
-  slide.bullets?.forEach((b, i) => {
-    objects.push(createBulletItem(b, i, t, 20, TX, curY, TW));
-    curY += estimateLines(b, TW - 42, 20) * 20 * 1.5 + 14;
+
+  bulletObjs.forEach((g, i) => {
+    g.set({ left: TX, top: curY });
+    objects.push(g);
+    curY += bulletHeights[i];
   });
 }

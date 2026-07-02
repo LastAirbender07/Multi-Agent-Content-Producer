@@ -46,5 +46,5 @@ export async function loadPanelImage(
     img.clipPath = clip;
     (img as fabric.FabricImage & { data?: unknown }).data = { role: "image_card" };
     return img;
-  } catch { return null; }
+  } catch (e) { console.warn("[panel] loadPanelImage failed:", e instanceof Error ? e.message : e); return null; }
 }
