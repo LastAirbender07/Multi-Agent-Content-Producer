@@ -2,26 +2,23 @@
 Slide editor service — business logic for the /editor page.
 
 Handles slide preview, editing, AI rewriting, image swap, and new-slide creation.
-All Jinja2 rendering and Playwright screenshotting is centralised here.
+All rendering goes through the Fabric.js renderer
 """
 from __future__ import annotations
 
 import io
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
 from fastapi import HTTPException
-from jinja2 import Environment, FileSystemLoader
 from PIL import Image as PilImage
 
 from apps.api.v1.schemas import SlideEditRequest, SlideEditResponse
 from configs.settings import get_settings
 from core.orchestration.contracts import Slide, SlideType
-from core.orchestrators.content.carousel_generator import (
-    render_and_screenshot_single_slide,
-    _TEMPLATES_ROOT,
-)
+from core.orchestrators.content.renderer import render_slide_fabric
 from core.orchestrators.content.image_fetcher import fetch_and_download_single_image
 from core.persistence.run_repository import read_topic, static_image_url
 from core.persistence.slide_repository import (
@@ -35,42 +32,6 @@ _settings = get_settings()
 _BACKEND_ROOT = Path(__file__).parents[2]
 _OUTPUTS_ROOT = _BACKEND_ROOT / _settings.content_output_dir
 
-# One Jinja2 Environment per theme — loaded once, reused for all requests
-_ENVS: dict[str, Environment] = {}
-
-# Click-detection script embedded into every slide preview HTML.
-# Sends postMessage to parent window when user clicks a text or image element.
-_CLICK_LISTENER_SCRIPT = """
-<script>
-window.addEventListener('DOMContentLoaded', function() {
-  var TARGETS = [
-    {sel: '.hook-headline,.slide-title', field: 'title'},
-    {sel: '.hook-sub,.slide-body', field: 'body'},
-    {sel: '.bullet-text', field: 'bullet'},
-    {sel: '.bg-image,.image-card,.image-panel img', field: 'image'},
-  ];
-  TARGETS.forEach(function(t) {
-    document.querySelectorAll(t.sel).forEach(function(el) {
-      el.style.cursor = 'pointer';
-      el.addEventListener('click', function(ev) {
-        ev.stopPropagation();
-        window.parent.postMessage({type: 'SLIDE_ELEMENT_CLICK', field: t.field}, '*');
-      });
-    });
-  });
-});
-</script>
-"""
-
-
-def _jinja_env(theme: str) -> Environment:
-    """Return (and cache) a Jinja2 Environment for the given carousel theme."""
-    if theme not in _ENVS:
-        _ENVS[theme] = Environment(
-            loader=FileSystemLoader(str(_TEMPLATES_ROOT / theme))
-        )
-    return _ENVS[theme]
-
 
 def _resolve_image(angle_dir: Path, slide_number: int) -> tuple[str, bool]:
     """Return (image_path_url, has_image) for a slide, using the stored asset."""
@@ -81,31 +42,33 @@ def _resolve_image(angle_dir: Path, slide_number: int) -> tuple[str, bool]:
     return "", False
 
 
-def _render_slide_html(
-    slide: Slide,
-    slide_data: dict,
-    slides_raw: list[dict],
-    angle_dir: Path,
-    slide_number: int,
-    image_path: str = "",
-    has_image: bool = False,
-) -> str:
-    """Render one slide to HTML using the correct Jinja2 template."""
-    theme = slide_data.get("_theme", "aurora")
-    template_name = theme if theme in ("aurora", "lumina") else "aurora"
-    tpl = _jinja_env(template_name).get_template(f"{slide.type.value}.html.j2")
-    return tpl.render(
-        slide=slide,
-        image_path=image_path,
-        has_image=has_image,
-        slide_number=slide_number,
-        total_slides=len(slides_raw),
-        template=template_name,
-        brand_name=_settings.brand_name,
-        logo_path=f"/{_settings.brand_logo_path}",
-        assets_root="/assets",
-        layout_variant=0,
-    )
+def _fabric_preview_html(slide_data: dict, image_url: str | None) -> str:
+    """
+    Return a self-contained HTML page that renders the slide via the Fabric renderer.
+    """
+    slide_json = json.dumps({**slide_data, "image_url": image_url})
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>* {{ margin: 0; padding: 0; }} body {{ width: 1080px; height: 1080px; overflow: hidden; }}</style>
+</head>
+<body>
+  <canvas id="slide" width="1080" height="1080"></canvas>
+  <script src="/renderer/fabric.min.js"></script>
+  <script src="/renderer/renderer.bundle.js"></script>
+  <script>
+    (async () => {{
+      try {{
+        const slide = {slide_json};
+        await window.Renderer.render(slide, {{ imageBaseUrl: '' }});
+      }} catch(e) {{
+        console.error('Preview render failed:', e);
+      }}
+    }})();
+  </script>
+</body>
+</html>"""
 
 
 async def _render_and_save_png(
@@ -113,39 +76,40 @@ async def _render_and_save_png(
     slide: Slide, slide_data: dict, slides_raw: list[dict],
     angle_dir: Path, image_path: str, has_image: bool,
 ) -> str:
-    """Re-render HTML for a slide, write it to disk, screenshot to PNG. Returns png_url."""
-    html = _render_slide_html(slide, slide_data, slides_raw, angle_dir, slide_number, image_path, has_image)
-
-    html_path = angle_dir / "slides" / f"slide_{slide_number:02d}.html"
-    html_path.parent.mkdir(parents=True, exist_ok=True)
-    html_path.write_text(html, encoding="utf-8")
-
-    png_dir = angle_dir / "png"
+    """Re-render a slide via Fabric.js and save to PNG. Returns the png_url."""
+    png_dir  = angle_dir / "png"
     png_dir.mkdir(parents=True, exist_ok=True)
     png_path = png_dir / f"slide_{slide_number:02d}.png"
-    await render_and_screenshot_single_slide(str(html_path), str(png_path), _BACKEND_ROOT)
 
+    fabric_image_url: str | None = None
+    if has_image and image_path:
+        fabric_image_url = image_path if image_path.startswith("/") else f"/{image_path}"
+
+    await render_slide_fabric(
+        slide_data=slide_data,
+        image_url=fabric_image_url,
+        output_path=png_path,
+        total_slides=len(slides_raw),
+    )
     return f"/outputs/runs/{run_id}/content/angle_{angle_index}/png/{png_path.name}"
 
 
 # ── Public service functions ──────────────────────────────────────────────────
 
 def get_slide_html_preview(run_id: str, angle_index: int, slide_number: int) -> str:
-    """Render one slide to HTML for the editor live preview iframe.
-    The returned HTML includes a postMessage click-detection script so the parent
-    page knows which element the user clicked on."""
+    """Return an HTML page rendering the slide via the Fabric renderer.
+    The editor embeds this in an iframe — same renderer as PNG export, so
+    live preview matches the final output exactly."""
     path = slides_json_path(run_id, angle_index)
     slides_raw = read_slides(path)
     slide_data = next((s for s in slides_raw if s["slide_number"] == slide_number), None)
     if slide_data is None:
         raise HTTPException(status_code=404, detail=f"Slide {slide_number} not found")
 
-    slide = Slide.model_validate(slide_data)
     angle_dir = _OUTPUTS_ROOT / run_id / "content" / f"angle_{angle_index}"
     image_path, has_image = _resolve_image(angle_dir, slide_number)
-    html = _render_slide_html(slide, slide_data, slides_raw, angle_dir, slide_number, image_path, has_image)
-    # Inject the click-detection script before </body>
-    return html.replace("</body>", _CLICK_LISTENER_SCRIPT + "</body>")
+    image_url = image_path if has_image else None
+    return _fabric_preview_html(slide_data, image_url)
 
 
 async def edit_slide(

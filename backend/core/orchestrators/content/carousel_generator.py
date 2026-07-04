@@ -1,6 +1,5 @@
 from pathlib import Path
 
-from jinja2 import Environment, FileSystemLoader
 from PIL import Image
 from playwright.async_api import async_playwright
 
@@ -15,7 +14,6 @@ logger = get_logger(__name__)
 _settings = get_settings()
 
 _BACKEND_ROOT = Path(__file__).parents[3]
-_TEMPLATES_ROOT = _BACKEND_ROOT / "core" / "templates" / "carousel"
 
 _TEMPLATE_MAP = {
     "Anger": "aurora", "Fear": "aurora", "Urgency": "aurora",
@@ -35,14 +33,24 @@ def _canvas_template_id(slide_type: str, theme: str, layout_variant: int, has_im
     return f"{theme}-{slide_type}"
 
 
-def _layout_variant_for_image(image_path: str, landscape_counter: list) -> int:
+class _Counter:
+    """Simple mutable counter — cleaner than the mutable-list [int] idiom."""
+    def __init__(self) -> None:
+        self.value = 0
+
+    def next(self) -> int:
+        v = self.value
+        self.value += 1
+        return v
+
+
+def _layout_variant_for_image(image_path: str, landscape_counter: _Counter) -> int:
     """
     Choose layout variant from the actual downloaded image's aspect ratio.
     - Portrait  (ratio < 0.95)  → 0  (left-text / right-portrait-card)
     - Square    (0.95–1.4)      → 0  (portrait card still fits fine)
-    - Landscape (ratio > 1.4)   → alternate 1 / 2 for visual variety
-    Returns the variant int.  landscape_counter is a mutable [int] so we can
-    increment it across calls without passing state explicitly.
+    - Landscape (ratio > 1.4)   → cycles 1 → 2 → 3 → 1 … for visual variety
+    Returns the variant int.
     """
     if not image_path:
         return 0
@@ -54,179 +62,78 @@ def _layout_variant_for_image(image_path: str, landscape_counter: list) -> int:
         return 0
 
     if ratio > 1.4:
-        variant = (landscape_counter[0] % 3) + 1  # cycles 1 → 2 → 3 → 1 ...
-        landscape_counter[0] += 1
+        variant = (landscape_counter.next() % 3) + 1  # cycles 1 → 2 → 3 → 1 …
         return variant
     return 0
 
 
-async def render_slides_node(state: ContentGraphState) -> dict:
-    """Render HTML for each slide using Jinja2 templates."""
-    request = ContentRequest.model_validate(state["request"])
-    angle = state["angle"]
-    slides = [Slide.model_validate(s) for s in state.get("slides", [])]
+async def screenshot_slides_fabric_node(state: ContentGraphState) -> dict:
+    """
+    Render all slides to PNG via Fabric.js + Playwright.
+    Single rendering node — replaces the old Jinja2 render_slides_node +
+    screenshot_slides_node pair that was deleted in Phase 3.
+
+    Reads canvas_template from each slide (set by _canvas_template_id during
+    slide generation) so the correct Fabric builder is selected for every type.
+    """
+    from core.orchestrators.content.renderer import SlideRenderTask, render_slides_fabric
+
+    run_id      = state.get("run_id")
+    angle_index = state.get("angle_index", 0)
+    slides_raw  = state.get("slides", [])
     image_assets = {a["slide_number"]: a for a in state.get("image_assets", [])}
-    run_id = state.get("run_id")
-    angle_index = state.get("angle_index", 0)
-
-    template_name = _get_template_name(angle.get("emotional_hook", ""))
-    env = Environment(loader=FileSystemLoader(str(_TEMPLATES_ROOT / template_name)))
-
-    slides_dir = (
-        _BACKEND_ROOT / _settings.content_output_dir
-        / run_id / "content" / f"angle_{angle_index}" / "slides"
-    )
-    slides_dir.mkdir(parents=True, exist_ok=True)
-
-    total = len(slides)
-    html_paths: list[str] = []
-    landscape_counter = [0]  # mutable counter shared across landscape slides
-
-    for slide in slides:
-        asset = image_assets.get(slide.slide_number, {})
-        image_path = asset.get("processed_path") or ""
-        has_image = bool(image_path) and asset.get("source") != "colour"
-
-        if image_path:
-            local_path = image_path  # absolute path for dimension reading
-            image_path = "/" + str(
-                Path(image_path).relative_to(_BACKEND_ROOT)
-            ).replace("\\", "/")
-        else:
-            local_path = ""
-
-        if slide.type.value == "content":
-            layout_variant = _layout_variant_for_image(local_path, landscape_counter) if has_image else 0
-        else:
-            layout_variant = 0
-
-        # Store canvas template ID on the slide dict for the editor
-        slide_dict = slide.model_dump()
-        slide_dict["canvas_template"] = _canvas_template_id(
-            slide.type.value, template_name, layout_variant, has_image
-        )
-        # Mutate the Slide object so it propagates to state["slides"]
-        slide.canvas_template = slide_dict["canvas_template"]
-
-        template = env.get_template(f"{slide.type.value}.html.j2")
-        html = template.render(
-            slide=slide,
-            image_path=image_path,
-            has_image=has_image,
-            slide_number=slide.slide_number,
-            total_slides=total,
-            template=template_name,
-            brand_name=_settings.brand_name,
-            logo_path=f"/{_settings.brand_logo_path}",
-            assets_root="/assets",
-            layout_variant=layout_variant,
-        )
-
-        out_path = slides_dir / f"slide_{slide.slide_number:02d}.html"
-        out_path.write_text(html, encoding="utf-8")
-        html_paths.append(str(out_path))
-
-    logger.info("render_slides_node_complete", count=len(html_paths))
-    return {
-        "slide_html_paths": html_paths,
-        # Return updated slides so canvas_template is persisted by finalizer
-        "slides": [s.model_dump() for s in slides],
-        "messages": state.get("messages", []) + [f"Rendered {len(html_paths)} HTML slides"],
-    }
-
-
-async def render_and_screenshot_single_slide(
-    html_path: str,
-    output_path: str,
-    serve_root: Path,
-) -> str:
-    """
-    Render one HTML slide file to a final PNG.
-    Used both by the batch screenshot node and by the editor's per-slide re-render.
-    Returns the output_path as a string.
-    """
-    html_path = str(html_path)
-    output_path = str(output_path)
-
-    async with serve_directory(serve_root) as base_url:
-        async with async_playwright() as pw:
-            browser = await pw.chromium.launch(headless=True)
-            context = await browser.new_context(
-                viewport={"width": _settings.carousel_viewport_size, "height": _settings.carousel_viewport_size},
-                device_scale_factor=_settings.carousel_scale_factor,
-            )
-            page = await context.new_page()
-
-            rel = Path(html_path).relative_to(serve_root)
-            url = f"{base_url}/{str(rel).replace('\\', '/')}"
-
-            await page.goto(url, wait_until="networkidle")
-            await page.evaluate("document.fonts.ready")
-            await page.wait_for_timeout(_settings.carousel_chart_render_wait_ms)
-
-            raw_path = Path(output_path).with_suffix("._raw.png")
-            await page.screenshot(path=str(raw_path), full_page=False)
-
-            img = Image.open(raw_path)
-            img = img.resize((_settings.carousel_viewport_size, _settings.carousel_viewport_size), Image.LANCZOS)
-            img.save(output_path, "PNG", optimize=True)
-            raw_path.unlink(missing_ok=True)
-
-            await browser.close()
-
-    return output_path
-
-
-async def screenshot_slides_node(state: ContentGraphState) -> dict:
-    """Screenshot each HTML slide via Playwright; downscale 2160→1080."""
-    run_id = state.get("run_id")
-    angle_index = state.get("angle_index", 0)
-    html_paths = state.get("slide_html_paths", [])
 
     output_dir = (
         _BACKEND_ROOT / _settings.content_output_dir
         / run_id / "content" / f"angle_{angle_index}" / "png"
     )
     output_dir.mkdir(parents=True, exist_ok=True)
-    serve_root = _BACKEND_ROOT
-    png_paths: list[str] = []
 
-    async with serve_directory(serve_root) as base_url:
-        async with async_playwright() as pw:
-            browser = await pw.chromium.launch(headless=True)
-            context = await browser.new_context(
-                viewport={"width": _settings.carousel_viewport_size, "height": _settings.carousel_viewport_size},
-                device_scale_factor=_settings.carousel_scale_factor,
-            )
-            page = await context.new_page()
+    tasks: list[SlideRenderTask] = []
+    landscape_counter = _Counter()
+    angle_obj  = state.get("angle", {})
+    theme      = _get_template_name(angle_obj.get("emotional_hook", ""))
 
-            for i, html_path in enumerate(html_paths):
-                slide_num = i + 1
-                content_progress.update(run_id, slide_num, len(html_paths))
+    for i, slide_dict in enumerate(slides_raw):
+        slide_num  = slide_dict.get("slide_number", i + 1)
+        slide_type = str(slide_dict.get("type", "hook")).split(".")[-1]  # handle both str and SlideType enum
+        asset      = image_assets.get(slide_num, {})
+        local_path = asset.get("processed_path") or ""
+        has_image  = bool(local_path) and asset.get("source") != "colour"
 
-                rel = Path(html_path).relative_to(_BACKEND_ROOT)
-                url = f"{base_url}/{str(rel).replace('\\', '/')}"
+        if has_image:
+            image_url      = "/" + str(Path(local_path).relative_to(_BACKEND_ROOT)).replace("\\", "/")
+            layout_variant = _layout_variant_for_image(local_path, landscape_counter) if slide_type == "content" else 0
+        else:
+            image_url      = None
+            layout_variant = 0
 
-                await page.goto(url, wait_until="networkidle")
-                await page.evaluate("document.fonts.ready")
-                await page.wait_for_timeout(_settings.carousel_chart_render_wait_ms)
+        # Compute canvas_template if not already stored, then build enriched dict
+        # with canvas_template + _theme so inferTemplate() picks the right builder.
+        canvas_template = slide_dict.get("canvas_template") or _canvas_template_id(slide_type, theme, layout_variant, has_image)
+        slide_dict = {**slide_dict, "canvas_template": canvas_template, "_theme": theme}
+        content_progress.update(run_id, i + 1, len(slides_raw))
+        tasks.append(SlideRenderTask(
+            slide_data=slide_dict,
+            image_url=image_url,
+            output_path=output_dir / f"slide_{slide_num:02d}.png",
+        ))
 
-                raw_path = output_dir / (Path(html_path).stem + "_raw.png")
-                await page.screenshot(path=str(raw_path), full_page=False)
+    # Rebuild slides list with canvas_template + _theme persisted so finalize
+    # writes these fields to slides.json — without mutating LangGraph state in place.
+    enriched_slides = [
+        {**t.slide_data}
+        for t in tasks
+    ]
 
-                final_path = output_dir / (Path(html_path).stem.replace("_raw", "") + ".png")
-                img = Image.open(raw_path)
-                img = img.resize((_settings.carousel_viewport_size, _settings.carousel_viewport_size), Image.LANCZOS)
-                img.save(str(final_path), "PNG", optimize=True)
-                raw_path.unlink(missing_ok=True)
+    png_paths = await render_slides_fabric(tasks)
 
-                png_paths.append(str(final_path))
-                logger.info("slide_screenshotted", path=str(final_path))
-
-            await browser.close()
+    # Remove the non-fatal writeback attempt — slides are now returned
+    # via the state dict so finalize_content_node writes them correctly.
 
     content_progress.clear(run_id)
     return {
         "slide_png_paths": png_paths,
-        "messages": state.get("messages", []) + [f"Screenshotted {len(png_paths)} slides"],
+        "slides": enriched_slides,  # canvas_template + _theme persisted for finalize
+        "messages": state.get("messages", []) + [f"Rendered {len(png_paths)} slides via Fabric.js"],
     }

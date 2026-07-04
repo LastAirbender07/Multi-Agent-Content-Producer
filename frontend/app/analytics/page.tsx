@@ -27,7 +27,7 @@ export default function AnalyticsPage() {
     try {
       if (invalidate) {
         // Tell the backend to drop its cache before fetching fresh data
-        await fetch(`${process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000"}/api/v1/analytics/invalidate-cache`, {
+        await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000"}/api/v1/analytics/invalidate-cache`, {
           method: "POST",
         }).catch(() => {}); // non-fatal if endpoint absent
       }
@@ -76,7 +76,7 @@ export default function AnalyticsPage() {
     model_breakdown      = [],
     runs_with_token_data = 0,
     stage_latency        = {},
-    research_quality     = { avg_confidence: null, quality_gate_rate: null, quality_gate_passed: 0, runs_with_quality_data: 0, distribution: [], run_status_counts: {}, avg_evidence_count: 0, avg_key_points: 0, avg_gaps_found: 0, avg_iterations: 0 },
+    research_quality     = { avg_confidence: null, quality_gate_rate: null, quality_gate_passed: 0, runs_with_quality_data: 0, first_pass_runs: 0, distribution: [], run_status_counts: {}, avg_evidence_count: 0, avg_key_points: 0, avg_gaps_found: 0 },
     hook_distribution         = [],
     slide_type_distribution   = [],
     image_source_distribution = [],
@@ -169,7 +169,7 @@ export default function AnalyticsPage() {
                 ? `${(research_quality.quality_gate_rate * 100).toFixed(0)}%`
                 : "—"}
               sub={research_quality.quality_gate_rate != null
-                ? `${research_quality.quality_gate_passed} of ${research_quality.runs_with_quality_data} passed iteration 1`
+                ? `${research_quality.quality_gate_passed} of ${research_quality.first_pass_runs} passed iteration 1`
                 : "No quality data yet"}
               color="bg-sky-600/10 border-sky-500/20 text-sky-400" />
             <KpiCard icon={Target} label="Avg Research Confidence"

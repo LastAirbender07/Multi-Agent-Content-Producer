@@ -6,6 +6,7 @@ The API endpoint calls get_analytics_summary() (sync) or get_analytics_summary_a
 """
 
 import asyncio
+import re
 from pathlib import Path
 
 from configs.settings import get_settings
@@ -20,6 +21,9 @@ _settings  = get_settings()
 _OUTPUTS   = Path(__file__).parents[3] / _settings.content_output_dir  # analytics→services→core→backend
 
 
+_UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+
 def _scan_and_compute() -> dict:
     if not _OUTPUTS.exists():
         return _empty()
@@ -27,6 +31,10 @@ def _scan_and_compute() -> dict:
     runs_meta = []
     for run_dir in _OUTPUTS.iterdir():
         if not run_dir.is_dir():
+            continue
+        # Skip test/scratch directories — only process UUID-named pipeline runs
+        if not _UUID_RE.match(run_dir.name):
+            logger.debug("analytics_skip_non_run_dir", name=run_dir.name)
             continue
         try:
             runs_meta.append(load_run(run_dir))
@@ -59,22 +67,26 @@ def get_analytics_summary() -> dict:
 
 
 async def get_analytics_summary_async() -> dict:
-    """Async version: returns cached immediately, spawns background refresh on cold miss."""
+    """Async version: returns cached immediately, spawns background refresh when stale.
+    On a cold miss, computes synchronously and caches — no double scan."""
     cached = analytics_cache.get()
     if cached is not None:
+        # Cache is warm — return stale result immediately and refresh in background
+        loop = asyncio.get_running_loop()
+
+        async def _bg_refresh() -> None:
+            try:
+                fresh = await loop.run_in_executor(None, _scan_and_compute)
+                analytics_cache.set(fresh)
+                logger.info("analytics_bg_refresh_complete")
+            except Exception as e:
+                logger.warning("analytics_bg_refresh_failed", error=str(e))
+
+        asyncio.create_task(_bg_refresh())
         return cached
 
-    loop   = asyncio.get_event_loop()
+    # Cold miss — compute once, cache, return. No background refresh needed.
+    loop   = asyncio.get_running_loop()
     result = await loop.run_in_executor(None, _scan_and_compute)
     analytics_cache.set(result)
-
-    async def _bg_refresh() -> None:
-        try:
-            fresh = await loop.run_in_executor(None, _scan_and_compute)
-            analytics_cache.set(fresh)
-            logger.info("analytics_bg_refresh_complete")
-        except Exception as e:
-            logger.warning("analytics_bg_refresh_failed", error=str(e))
-
-    asyncio.create_task(_bg_refresh())
     return result

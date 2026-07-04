@@ -6,70 +6,51 @@ no computation beyond what's needed to read the files.
 """
 
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 
 from infra.logging import get_logger
+from core.orchestration.contracts import ContentCategory, EmotionalHook
 
 logger = get_logger(__name__)
 
-_CATEGORY_RULES: list[tuple[str, list[str]]] = [
-    ("AI & Technology",     ["ai", "gpt", "llm", "machine learning", "neural", "chatgpt", "openai", "anthropic", "claude", "tech", "software", "algorithm", "automation", "robot", "model"]),
-    ("Business & Startups", ["startup", "acquisition", "valuation", "funding", "vc", "venture", "saas", "revenue", "business", "enterprise", "salesforce", "microsoft", "google", "apple", "amazon", "company", "ceo", "market"]),
-    ("Finance",             ["stock", "market cap", "investment", "crypto", "bitcoin", "eth", "defi", "finance", "economy", "gdp", "inflation", "interest rate", "ipo"]),
-    ("Education & Career",  ["mba", "college", "university", "skill", "career", "job", "hire", "interview", "salary", "degree", "course", "learning", "education"]),
-    ("Politics & Society",  ["election", "government", "policy", "law", "social", "culture", "india", "usa", "china", "geopolitics", "war", "protest", "rights"]),
-    ("Health & Science",    ["health", "medical", "drug", "vaccine", "research", "climate", "space", "nasa", "science", "biology", "cancer", "diet"]),
-    ("Content & Media",     ["instagram", "youtube", "podcast", "content", "creator", "influencer", "social media", "viral", "tiktok", "newsletter"]),
-]
-
-
-def _classify(topic: str) -> str:
-    lower = topic.lower()
-    for category, keywords in _CATEGORY_RULES:
-        if any(kw in lower for kw in keywords):
-            return category
-    return "Other"
+# Derived directly from the enums — stays in sync automatically when new values are added.
+_VALID_CATEGORIES = {c.value for c in ContentCategory}
+_VALID_HOOKS      = {h.value for h in EmotionalHook}
 
 
 def _read_json(path: Path) -> object:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-# The four canonical hooks the LLM is prompted to use.
-_CANONICAL_HOOKS = {"Anger", "Hope", "Curiosity", "FOMO"}
-
 def _normalise_hook(raw: str) -> str:
-    """Map verbose LLM hook strings back to one of the 4 canonical values.
+    """Normalise a hook string to a canonical EmotionalHook value.
 
-    LLM sometimes returns 'Anger - exposing systemic exploitation' instead of
-    just 'Anger'. Strip the descriptor and normalise to the canonical word.
+    New runs: Pydantic enforces the enum, so raw is already an exact value.
+    The prefix/substring fallback paths exist purely as a safety net.
     """
     if not raw:
-        return "Unknown"
-    for canonical in _CANONICAL_HOOKS:
-        # Match if the raw string starts with or contains the canonical word
-        # followed by whitespace, dash, em-dash, comma, or end-of-string.
-        import re
-        if re.match(rf"^{canonical}(\s|[-—,]|$)", raw, re.IGNORECASE):
-            return canonical
-    # Multi-hook strings like "Anger and FOMO" → pick the first match
-    for canonical in _CANONICAL_HOOKS:
-        if canonical.lower() in raw.lower():
-            return canonical
+        return "Other"
+    # Exact match first (new runs with enum enforcement)
+    if raw in _VALID_HOOKS:
+        return raw
+    # Prefix match for old verbose strings (e.g. 'Anger - ...')
+    for hook in _VALID_HOOKS:
+        if re.match(rf"^{hook}(\s|[-—,]|$)", raw, re.IGNORECASE):
+            return hook
+    # Substring match as last resort
+    for hook in _VALID_HOOKS:
+        if hook.lower() in raw.lower():
+            return hook
     return "Other"
 
 
 def _first_pass_passed(data: dict) -> bool | None:
     """Return whether the research quality gate passed on the FIRST iteration.
 
-    The graph always forces at least 2 iterations (loop_count == 0 unconditionally
-    refines). iterations[0] records the result of iteration #1 — the first real
-    evaluation. If it passed, no refinement was needed; the second loop was forced
-    but redundant. If it didn't pass, refinement was genuinely required.
-
     - iterations[0].evaluation.passed → definitive first-iteration result
-    - No iterations list (manual/partial run) → None
+    - No iterations list (older schema) → None (unknown, excluded from gate rate)
     """
     status = data.get("status", "")
     if status in ("manual", "unknown", ""):
@@ -80,9 +61,10 @@ def _first_pass_passed(data: dict) -> bool | None:
         first_eval = (iters[0] or {}).get("evaluation") or {}
         return first_eval.get("passed")  # True / False / None
 
-    # No iteration history stored (single-pass run that skipped snapshot)
-    # Fall back to final result
-    return (data.get("evaluation") or {}).get("passed")
+    # No iteration history stored — we cannot determine first-pass result.
+    # Returning None excludes this run from the quality_gate_rate denominator,
+    # which is correct: we don't know if it passed on first try.
+    return None
 
 
 def load_run(run_dir: Path) -> dict:
@@ -96,12 +78,18 @@ def load_run(run_dir: Path) -> dict:
 
     # ── Research quality ──────────────────────────────────────────────────────
     research_quality: dict = {}
+    categories: list[str] = []
     if research_path.exists():
         try:
             data       = _read_json(research_path)
             topic      = data.get("topic", "")
             evaluation = data.get("evaluation") or {}
             synthesis  = data.get("synthesis")  or {}
+
+            # LLM-assigned categories from synthesis (all runs backfilled via backfill_categories.py)
+            raw_cats = synthesis.get("categories") or []
+            categories = [c for c in raw_cats if c in _VALID_CATEGORIES] or ["Other"]
+
             research_quality = {
                 "combined_confidence":    evaluation.get("combined_confidence"),
                 "llm_content_score":      evaluation.get("llm_content_score"),
@@ -112,12 +100,8 @@ def load_run(run_dir: Path) -> dict:
                 "key_points_count":       len(synthesis.get("key_points", [])),
                 "gaps_count":             len(synthesis.get("gaps", [])),
                 "contradictions_count":   len(synthesis.get("contradictions", [])),
-                "evidence_count":         data.get("evidence_count", 0),
+                "evidence_count":         data.get("evidence_count") or len(data.get("evidence", [])),
                 "total_iterations":       data.get("total_iterations", 1),
-                # First-pass: did the research gate pass on the very first evaluation?
-                # Iterations list records each refinement loop. If the list is empty
-                # and total_iterations == 1, it passed first try. If iterations exist,
-                # the first entry's evaluation.passed tells us whether it passed then.
                 "first_pass": _first_pass_passed(data),
             }
         except (json.JSONDecodeError, OSError, AttributeError):
@@ -203,7 +187,7 @@ def load_run(run_dir: Path) -> dict:
     return {
         "run_id":              run_dir.name,
         "topic":               topic,
-        "category":            _classify(topic) if topic else "Other",
+        "categories":          categories or ["Other"],
         "created_at":          created_at,
         "slide_count":         slide_count,
         "angle_count":         angle_count,

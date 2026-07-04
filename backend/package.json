@@ -1,0 +1,15 @@
+{
+  "name": "renderer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "esbuild config for bundling Fabric.js canvas templates into the standalone renderer",
+  "type": "module",
+  "scripts": {
+    "build": "node renderer/build.mjs",
+    "build:watch": "node renderer/build.mjs --watch"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.0"
+  }
+}

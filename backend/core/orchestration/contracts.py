@@ -93,6 +93,30 @@ class LLMKnowledgeOutput(BaseModel):
     )
 
 
+class ContentCategory(str, Enum):
+    ai_technology    = "AI & Technology"
+    business         = "Business & Startups"
+    finance          = "Finance"
+    education        = "Education & Career"
+    politics_society = "Politics & Society"
+    health_science   = "Health & Science"
+    content_media    = "Content & Media"
+    sports           = "Sports"
+    entertainment    = "Entertainment"
+    other            = "Other"
+
+
+class EmotionalHook(str, Enum):
+    anger       = "Anger"
+    hope        = "Hope"
+    curiosity   = "Curiosity"
+    fomo        = "FOMO"
+    surprise    = "Surprise"
+    fear        = "Fear"
+    urgency     = "Urgency"
+    inspiration = "Inspiration"
+
+
 class ResearchSynthesis(BaseModel):
     summary: str = Field(..., description="A synthesized summary of the research findings")
     key_points: list[str] = Field(default_factory=list, description="List of key points derived from the research findings")
@@ -100,6 +124,14 @@ class ResearchSynthesis(BaseModel):
     implications: list[str] = Field(default_factory=list, description="List of implications derived from the research findings")
     confidence_score: float = Field(default=0.0, description="Overall confidence score of the research synthesis, if available")
     gaps: list[str] = Field(default_factory=list, description="List of any gaps identified in the research findings")
+    categories: list[ContentCategory] = Field(
+        default_factory=list,
+        description=(
+            "1–3 content categories that best describe this topic. "
+            "Choose from the allowed values. A topic may span multiple categories "
+            "(e.g. a cricket selection story is both Sports and Politics & Society)."
+        ),
+    )
 
 class LLMEvaluationOutput(BaseModel):
     factual_grounding: float = Field(default=0.0, description="0-1: Are claims traceable to the provided evidence snippets?")
@@ -139,9 +171,9 @@ class ResearchResponse(BaseModel):
 # ─── Angle Orchestrator Contracts ────────────────────────────────────────────
 
 class Angle(BaseModel):
-    statement: str = Field(..., description="The angle thesis in 1-2 sentences — the core idea")
-    emotional_hook: str = Field(..., description="The emotion targeted: curiosity / anger / hope / FOMO")
-    supporting_evidence: str = Field(..., description="Key data point from research that backs this angle")
+    statement:          str          = Field(..., description="The angle thesis in 1-2 sentences — the core idea")
+    emotional_hook:     EmotionalHook = Field(..., description="The primary emotion this angle targets")
+    supporting_evidence: str         = Field(..., description="Key data point from research that backs this angle")
 
 class AngleGenerationOutput(BaseModel):
     angles: list[Angle] = Field(..., description="Generated content angles")
@@ -204,7 +236,7 @@ class SlideGenerationOutput(BaseModel):
 class CarouselContent(BaseModel):
     angle_index: int = Field(..., description="The index of the angle this content is based on")
     angle_statement: str = Field(..., description="The statement of the angle this content is based on")
-    emotional_hook: str = Field(..., description="The emotional hook this content is targeting")
+    emotional_hook: EmotionalHook = Field(..., description="The emotional hook this content is targeting")
     hook: str = Field(..., description="The hook text for the content")
     slides: list[Slide] = Field(..., description="The list of slides that make up the carousel content")
     caption: str = Field(..., description="The caption text for the carousel")

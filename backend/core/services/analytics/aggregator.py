@@ -45,21 +45,25 @@ def compute(runs_meta: list[dict]) -> dict:
         by_stage[s]["cost_inr"]      += rec.get("cost_inr", 0)
         by_stage[s]["calls"]         += 1
 
-    # ── Stage latency from token timestamps ───────────────────────────────────
+    # ── Stage latency from per-call duration_ms ──────────────────────────────
+    # Each token record stores duration_ms = actual LLM call wall time.
+    # Per run: sum all duration_ms values for a stage → true LLM processing time.
+    # This is correct for all stages:
+    #   - research/angles (1 call/run): sum = that single call's duration
+    #   - carousel (1 call per angle × N angles): sum = total LLM time across all angles
+    # Timestamp-span was wrong: excluded single-call stages entirely, conflated
+    # pipeline overhead (image fetching, rendering) with LLM time, and produced
+    # misleading values when a stage was re-triggered across separate sessions.
     stage_dur: dict[str, list[float]] = defaultdict(list)
     for r in runs_meta:
-        per: dict[str, list[float]] = defaultdict(list)
+        per: dict[str, float] = defaultdict(float)
         for rec in r["token_records"]:
-            ts    = rec.get("timestamp")
-            stage = rec.get("stage")
-            if ts and stage:
-                try:
-                    per[stage].append(datetime.fromisoformat(ts).timestamp())
-                except ValueError:
-                    pass
-        for stage, ts_list in per.items():
-            if len(ts_list) >= 2:
-                stage_dur[stage].append(max(ts_list) - min(ts_list))
+            dur_ms = rec.get("duration_ms")
+            stage  = rec.get("stage")
+            if dur_ms and stage:
+                per[stage] += dur_ms
+        for stage, total_ms in per.items():
+            stage_dur[stage].append(total_ms / 1000.0)  # convert to seconds
 
     stage_latency = {
         s: {"avg_s": round(sum(d) / len(d), 1), "min_s": round(min(d), 1), "max_s": round(max(d), 1), "samples": len(d)}
@@ -69,22 +73,27 @@ def compute(runs_meta: list[dict]) -> dict:
     # ── Research quality ──────────────────────────────────────────────────────
     q_runs = [r for r in runs_meta if r.get("research_quality", {}).get("combined_confidence") is not None]
 
-    avg_conf     = round(sum(r["research_quality"]["combined_confidence"] for r in q_runs) / len(q_runs), 4) if q_runs else None
-    # Quality gate rate = fraction that PASSED ON THE FIRST ATTEMPT (no refinement needed)
+    avg_conf = round(sum(r["research_quality"]["combined_confidence"] for r in q_runs) / len(q_runs), 4) if q_runs else None
+
+    # Quality gate rate: fraction of runs that passed on the FIRST evaluation attempt.
+    # Runs without iteration history (first_pass=None) are excluded from both
+    # numerator and denominator — we genuinely don't know their first-pass result.
     first_pass_runs = [r for r in q_runs if r["research_quality"].get("first_pass") is not None]
-    gate_passed  = sum(1 for r in first_pass_runs if r["research_quality"]["first_pass"] is True)
-    gate_rate    = round(gate_passed / len(first_pass_runs), 4) if first_pass_runs else None
+    gate_passed     = sum(1 for r in first_pass_runs if r["research_quality"]["first_pass"] is True)
+    gate_rate       = round(gate_passed / len(first_pass_runs), 4) if first_pass_runs else None
 
     status_counts: dict[str, int] = {"success": 0, "partial_success": 0, "failed": 0, "unknown": 0}
     for r in runs_meta:
         s = r.get("research_quality", {}).get("status") or "unknown"
         status_counts[s] = status_counts.get(s, 0) + 1
 
-    depth = [r for r in q_runs if r["research_quality"].get("evidence_count", 0) > 0]
-    avg_ev  = round(sum(r["research_quality"]["evidence_count"]  for r in depth) / len(depth), 1) if depth else 0.0
-    avg_kp  = round(sum(r["research_quality"]["key_points_count"] for r in depth) / len(depth), 1) if depth else 0.0
-    avg_gp  = round(sum(r["research_quality"]["gaps_count"]        for r in depth) / len(depth), 1) if depth else 0.0
-    avg_it  = round(sum(r["research_quality"]["total_iterations"]  for r in depth) / len(depth), 2) if depth else 0.0
+    # Use q_runs (not `depth`) for key_points/gaps so older runs with evidence_count>0
+    # (now correctly read via len(evidence[])) are not excluded from these averages.
+    # evidence_count is only used to filter runs with no evidence data at all.
+    depth   = [r for r in q_runs if r["research_quality"].get("evidence_count", 0) > 0]
+    avg_ev  = round(sum(r["research_quality"]["evidence_count"]  for r in depth)   / len(depth), 1) if depth else 0.0
+    avg_kp  = round(sum(r["research_quality"]["key_points_count"] for r in q_runs) / len(q_runs), 1) if q_runs else 0.0
+    avg_gp  = round(sum(r["research_quality"]["gaps_count"]        for r in q_runs) / len(q_runs), 1) if q_runs else 0.0
 
     confidence_dist = sorted([
         {
@@ -100,11 +109,13 @@ def compute(runs_meta: list[dict]) -> dict:
     ], key=lambda x: x["confidence"], reverse=True)
 
     # ── Category × confidence ─────────────────────────────────────────────────
+    # A run can belong to multiple categories — fan out across all of them.
     cat_qual: dict[str, list[float]] = {}
     for r in runs_meta:
         c = r.get("research_quality", {}).get("combined_confidence")
         if c is not None:
-            cat_qual.setdefault(r["category"], []).append(c)
+            for cat in r.get("categories", ["Other"]):
+                cat_qual.setdefault(cat, []).append(c)
 
     category_confidence = sorted([
         {"category": cat, "avg_confidence": round(sum(v) / len(v), 3), "run_count": len(v)}
@@ -163,10 +174,11 @@ def compute(runs_meta: list[dict]) -> dict:
             "by_stage":     by_s,
         })
 
-    # ── Topic distribution ────────────────────────────────────────────────────
+    # ── Topic distribution — count each category a run belongs to ────────────
     cat_counts: dict[str, int] = {}
     for r in runs_meta:
-        cat_counts[r["category"]] = cat_counts.get(r["category"], 0) + 1
+        for cat in r.get("categories", ["Other"]):
+            cat_counts[cat] = cat_counts.get(cat, 0) + 1
     topic_dist = sorted([{"category": k, "count": v} for k, v in cat_counts.items()], key=lambda x: -x["count"])
 
     # ── Activity (last 90 days) ───────────────────────────────────────────────
@@ -206,9 +218,10 @@ def compute(runs_meta: list[dict]) -> dict:
         "research_quality": {
             "avg_confidence": avg_conf, "quality_gate_rate": gate_rate,
             "quality_gate_passed": gate_passed, "runs_with_quality_data": len(q_runs),
+            "first_pass_runs": len(first_pass_runs),
             "distribution": confidence_dist, "run_status_counts": status_counts,
             "avg_evidence_count": avg_ev, "avg_key_points": avg_kp,
-            "avg_gaps_found": avg_gp, "avg_iterations": avg_it,
+            "avg_gaps_found": avg_gp,
         },
         "hook_distribution":         _sort(hooks,  "hook",   cap=5),
         "slide_type_distribution":   _sort(stypes, "type"),
@@ -230,8 +243,9 @@ def _empty() -> dict:
         "stage_latency": {},
         "research_quality": {
             "avg_confidence": None, "quality_gate_rate": None, "quality_gate_passed": 0,
-            "runs_with_quality_data": 0, "distribution": [], "run_status_counts": {},
-            "avg_evidence_count": 0.0, "avg_key_points": 0.0, "avg_gaps_found": 0.0, "avg_iterations": 0.0,
+            "runs_with_quality_data": 0, "first_pass_runs": 0,
+            "distribution": [], "run_status_counts": {},
+            "avg_evidence_count": 0.0, "avg_key_points": 0.0, "avg_gaps_found": 0.0,
         },
         "hook_distribution": [], "slide_type_distribution": [],
         "image_source_distribution": [], "category_confidence": [], "run_readiness": [],

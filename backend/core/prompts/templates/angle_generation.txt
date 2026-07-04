@@ -10,16 +10,20 @@ Generate 5 unique content angles/perspectives.
 Each angle must:
 1. Take a STRONG stance (not neutral)
 2. Be specific and defensible
-3. Appeal to a target emotion:
-   - Curiosity ("The hidden truth...")
-   - Anger ("Why this is actually harmful...")
-   - Hope ("The opportunity nobody sees...")
-   - FOMO ("What early adopters understand...")
+3. Target exactly ONE emotional hook. Choose from these values only:
+   - Anger      — exposes injustice, hypocrisy, or systemic failure
+   - Hope       — reveals an opportunity or positive trajectory
+   - Curiosity  — surfaces a hidden truth or counterintuitive insight
+   - FOMO       — what early adopters / insiders already understand
+   - Surprise   — a fact or outcome nobody expected
+   - Fear       — a risk or threat most people are ignoring
+   - Urgency    — a window closing, a deadline, a tipping point
+   - Inspiration — a story of achievement that reframes what's possible
 4. Be shareable (make people tag friends)
 
 Format each angle as:
 - Angle statement (1-2 sentences)
-- Why it works (emotional hook)
+- emotional_hook (one value from the list above — exact spelling)
 - Supporting evidence from research
 
 Think: What would Naval/Balaji/Patrick Collison say about this?

@@ -35,26 +35,23 @@ export interface StageLatency {
 }
 
 export interface ResearchQualityEntry {
-  run_id: string;
-  topic: string;
+  run_id:     string;
+  topic:      string;
   confidence: number;
-  passed: boolean;
-  evidence: number;
-  cost_usd: number;
-  slides: number;
+  passed:     boolean;
 }
 
 export interface ResearchQuality {
-  avg_confidence: number | null;
-  quality_gate_rate: number | null;
-  quality_gate_passed: number;
+  avg_confidence:       number | null;
+  quality_gate_rate:    number | null;
+  quality_gate_passed:  number;
   runs_with_quality_data: number;
-  distribution: ResearchQualityEntry[];
-  run_status_counts: Record<string, number>;
-  avg_evidence_count: number;
-  avg_key_points: number;
-  avg_gaps_found: number;
-  avg_iterations: number;
+  first_pass_runs:      number;   // runs that have reliable first-pass data
+  distribution:         ResearchQualityEntry[];
+  run_status_counts:    Record<string, number>;
+  avg_evidence_count:   number;
+  avg_key_points:       number;
+  avg_gaps_found:       number;
 }
 
 export interface RunReadiness {
