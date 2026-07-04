@@ -45,21 +45,27 @@ def compute(runs_meta: list[dict]) -> dict:
         by_stage[s]["cost_inr"]      += rec.get("cost_inr", 0)
         by_stage[s]["calls"]         += 1
 
-    # ── Stage latency from token timestamps ───────────────────────────────────
+    # ── Stage latency from per-call duration_ms ──────────────────────────────
+    # Each token record stores duration_ms = actual LLM call wall time.
+    # Per run: sum all duration_ms values for a stage → true LLM processing time.
+    # This is correct for all stages:
+    #   - research/angles (1 call/run): sum = that single call's duration
+    #   - carousel (1 call per angle × N angles): sum = total LLM time across all angles
+    # Timestamp-span was wrong: excluded single-call stages entirely, conflated
+    # pipeline overhead (image fetching, rendering) with LLM time, and produced
+    # misleading values when a stage was re-triggered across separate sessions.
     stage_dur: dict[str, list[float]] = defaultdict(list)
     for r in runs_meta:
-        per: dict[str, list[float]] = defaultdict(list)
+        per: dict[str, float] = defaultdict(float)
+        per_count: dict[str, int] = defaultdict(int)
         for rec in r["token_records"]:
-            ts    = rec.get("timestamp")
-            stage = rec.get("stage")
-            if ts and stage:
-                try:
-                    per[stage].append(datetime.fromisoformat(ts).timestamp())
-                except ValueError:
-                    pass
-        for stage, ts_list in per.items():
-            if len(ts_list) >= 2:
-                stage_dur[stage].append(max(ts_list) - min(ts_list))
+            dur_ms = rec.get("duration_ms")
+            stage  = rec.get("stage")
+            if dur_ms and stage:
+                per[stage]       += dur_ms
+                per_count[stage] += 1
+        for stage, total_ms in per.items():
+            stage_dur[stage].append(total_ms / 1000.0)  # convert to seconds
 
     stage_latency = {
         s: {"avg_s": round(sum(d) / len(d), 1), "min_s": round(min(d), 1), "max_s": round(max(d), 1), "samples": len(d)}

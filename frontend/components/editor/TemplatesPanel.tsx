@@ -42,8 +42,9 @@ export function TemplatesPanel({ runId, angleIndex, onSlideCreated, onInsertChar
       const { slide } = await api.newSlide(targetRunId, targetAngle, slideType, "aurora");
       const slideNum = (slide as { slide_number?: number }).slide_number ?? 1;
 
-      // Seed with meaningful placeholder content + canvas_template
-      const starter = STARTER_CONTENT[slideType] ?? { title: "New Slide", body: "" };
+      // Prefer template-specific starter content (e.g. "aurora-stat"),
+      // fall back to slide-type starter (e.g. "stat"), then a blank default
+      const starter = STARTER_CONTENT[canvasTemplate ?? ""] ?? STARTER_CONTENT[slideType] ?? { title: "New Slide", body: "" };
       await api.editSlide(targetRunId, targetAngle, slideNum, {
         title:           starter.title,
         body:            starter.body,

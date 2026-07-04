@@ -166,6 +166,12 @@ cp .env.example .env   # fill in your API keys
 # ── Frontend ─────────────────────────────────────────────────────────
 cd ../frontend
 pnpm install
+
+# ── Shared renderer (creates symlinks + builds bundle) ────────────────
+cd ..
+ln -sf frontend/node_modules shared/node_modules  # TypeScript resolution for shared/
+ln -sf ../shared/renderer frontend/renderer        # Next.js path alias resolution
+node backend/renderer/build.mjs                   # rebuilds renderer.bundle.js
 ```
 
 ### Running the Full Stack

@@ -1,0 +1,12 @@
+{
+  "extends": "../frontend/tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["../frontend/*"],
+      "@/renderer/*": ["./*"]
+    },
+    "typeRoots": ["../frontend/node_modules/@types"]
+  },
+  "include": ["**/*.ts", "**/*.tsx"]
+}

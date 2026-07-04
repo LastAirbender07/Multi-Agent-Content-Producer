@@ -12,8 +12,10 @@
 import * as fabric from "fabric";
 import { Chart, registerables } from "chart.js";
 import { REGISTRY, inferTemplate } from "../../frontend/utils/canvasTemplates/index";
+import type { SlideMeta } from "../../frontend/utils/canvasTemplates/index";
 import { getTokens, applyOverrides } from "../../frontend/utils/canvasTokens";
 import type { SlideData } from "../../frontend/lib/api/types";
+import type { RendererAPI, RenderOptions, SlideInput } from "./renderer_contract";
 
 // Register all Chart.js components (scales, elements, plugins).
 // In Next.js these are auto-registered; in the standalone renderer we must do it explicitly.
@@ -25,7 +27,6 @@ Chart.register(...registerables);
 // on every theme). This avoids duplicating the constant here.
 const CANVAS_BG_COLOR   = "#090909";
 const DEFAULT_LOGO_PATH = "/assets/brand/logo.png";
-const DEFAULT_BRAND     = "THEOPINIONBOARD";
 
 const FONT_DEFS = [
   { family: "Syne",              weight: "700", path: "/assets/fonts/Syne-Bold.woff2" },
@@ -58,18 +59,12 @@ async function loadFonts(baseUrl: string): Promise<void> {
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-
-interface RenderOptions {
-  imageBaseUrl: string;
-  totalSlides?: number;
-  brandName?:   string;   // defaults to DEFAULT_BRAND
-}
-
-interface RendererAPI {
-  render(
-    slideJson: SlideData & { canvas_template?: string; image_url?: string; _theme?: string },
-    options: RenderOptions,
-  ): Promise<void>;
+// RenderOptions, SlideInput, and RendererAPI are the canonical contract — see renderer_contract.ts.
+// Internally we work with SlideData (the full typed shape) — the contract accepts SlideInput
+// (loose) so Playwright callers don't need to import frontend types. The cast below is safe
+// because every caller is expected to pass a valid slide JSON object.
+function asSlide(input: SlideInput): SlideData & { canvas_template?: string } {
+  return input as unknown as SlideData & { canvas_template?: string };
 }
 
 // ── Canvas instance registry ─────────────────────────────────────────────────
@@ -79,6 +74,7 @@ const _canvasInstances = new WeakMap<HTMLCanvasElement, fabric.Canvas>();
 // ── Public API ────────────────────────────────────────────────────────────────
 
 (window as Window & { Renderer?: RendererAPI }).Renderer = {
+  loadFonts,
   async render(slideJson, options) {
     await loadFonts(options.imageBaseUrl);
 
@@ -92,10 +88,13 @@ const _canvasInstances = new WeakMap<HTMLCanvasElement, fabric.Canvas>();
       _canvasInstances.delete(canvasEl);
     }
 
-    const templateId = inferTemplate(slideJson);
+    // Cast at the boundary — SlideInput is the loose public type, SlideData is the typed internal shape
+    const slide = asSlide(slideJson);
+
+    const templateId = inferTemplate(slide);
     const tokens     = applyOverrides(
       getTokens(templateId),
-      (slideJson.slide_overrides as Record<string, string>) ?? {},
+      slide.slide_overrides ?? {},
     );
 
     const canvas = new fabric.Canvas(canvasEl, {
@@ -106,21 +105,21 @@ const _canvasInstances = new WeakMap<HTMLCanvasElement, fabric.Canvas>();
     });
     _canvasInstances.set(canvasEl, canvas);
 
-    const imageUrl = slideJson.image_url
-      ? (slideJson.image_url.startsWith("http")
-          ? slideJson.image_url
-          : `${options.imageBaseUrl}${slideJson.image_url}`)
+    const imageUrl = slide.image_url
+      ? (slide.image_url.startsWith("http")
+          ? slide.image_url
+          : `${options.imageBaseUrl}${slide.image_url}`)
       : null;
 
-    const meta = {
-      slideNum:    slideJson.slide_number ?? 1,
+    const meta: SlideMeta = {
+      slideNum:    slide.slide_number ?? 1,
       totalSlides: options.totalSlides ?? 10,
       logoUrl:     `${options.imageBaseUrl}${DEFAULT_LOGO_PATH}`,
-      brandName:   options.brandName ?? DEFAULT_BRAND,
+      brandName:   options.brandName ?? "",
     };
 
     const builder = REGISTRY[templateId] ?? REGISTRY["aurora-hook"];
-    const objects = await builder(slideJson, imageUrl, tokens, meta);
+    const objects = await builder(slide, imageUrl, tokens, meta);
     objects.forEach(obj => {
       canvas.add(obj);
       obj.setCoords();

@@ -1,6 +1,7 @@
 import * as fabric from "fabric";
 import { loadCanvasFonts } from "@/utils/canvasFonts";
 import { getTokens, applyOverrides, LUMINA } from "@/utils/canvasTokens";
+import type { CanvasTokens } from "@/utils/canvasTokens";
 import type { SlideData } from "@/lib/api";
 import { buildAuroraHook }    from "./aurora_hook";
 import { buildAuroraContent } from "./aurora_content";
@@ -16,10 +17,10 @@ export interface SlideMeta {
   brandName:   string;
 }
 
-type TemplateBuilder = (
+export type TemplateBuilder = (
   slide:    SlideData & { canvas_template?: string },
   imageUrl: string | null,
-  tokens:   ReturnType<typeof getTokens>,
+  tokens:   CanvasTokens,
   meta:     SlideMeta,
 ) => Promise<fabric.FabricObject[]>;
 
@@ -53,23 +54,17 @@ export const REGISTRY: Record<string, TemplateBuilder> = {
 };
 
 export function inferTemplate(slide: SlideData & { canvas_template?: string }): string {
+  // Python pipeline always sets canvas_template before rendering — use it directly.
+  // This fallback is only exercised by the editor (no pre-assigned template) or tests.
   if (slide.canvas_template) return slide.canvas_template;
   const theme = ((slide as { _theme?: string })._theme ?? "aurora").toLowerCase();
 
   if (slide.type === "content") {
-    const hasImage   = !!slide.image_query;
-    const hasBullets = (slide.bullets?.length ?? 0) > 0;
-    const bodyLen    = slide.body?.length ?? 0;
-
-    if (!hasImage) return `${theme}-content-text`;          // no image → text only
-
-    // Prefer layout based on content density:
-    // Many bullets (≥3) → layout-0: left text / right image (fits most content)
-    // Short body + bullets → layout-2: top image / bottom text (image-first impact)
-    // Long body only → layout-1: top text / bottom image
-    if (hasBullets && (slide.bullets?.length ?? 0) >= 3) return `${theme}-content-0`;
-    if (hasBullets || bodyLen < 120) return `${theme}-content-2`;
-    return `${theme}-content-1`;
+    // Mirror Python's _canvas_template_id: text-only when no image, otherwise layout-0 default.
+    // The Python side picks layout-0/1/2 based on image aspect ratio — that context is not
+    // available here in the fallback path, so we default to layout-0 (left-text/right-image).
+    const hasImage = !!slide.image_query;
+    return hasImage ? `${theme}-content-0` : `${theme}-content-text`;
   }
 
   return `${theme}-${slide.type}`;

@@ -6,7 +6,141 @@
 
 ---
 
-## 2026-06-29 — Architecture: Rendering Engine Consolidation + Multi-Format Content Strategy
+## 2026-07-01 to 2026-07-04 — Rendering Engine Migration: Phases 2–4 + Architecture Cleanup
+
+### Summary
+
+Completed the full rendering engine consolidation: all 6 slide types × 2 themes migrated to Fabric.js (Jinja2 deleted), renderer moved to `shared/`, TypeScript contract formalised, `brandName` wired end-to-end, architectural review applied across 20+ files, REGISTRY auto-wired to editor template picker, and full documentation suite written. Pipeline runs end-to-end validated with Avatar S2 test query.
+
+---
+
+### Phase 2 — All 6 Slide Types Migrated
+
+**GAN validation result (iteration 26):** 86/89 slides pass. The 3 hook/lumina failures are intentional design divergence — our modern aesthetic (sharp image + glass card) preferred over the Jinja2 reference.
+
+| Type | Aurora | Lumina |
+|------|--------|--------|
+| Hook | ✅ 10/10 avg 7.2% | 🎨 intentional divergence |
+| Content | ✅ 10/10 avg 8.5% | ✅ 10/10 avg 7.2% |
+| Stat | ✅ 10/10 avg 3.1% | ✅ 7/7 avg 4.2% |
+| Engage | ✅ 10/10 avg 5.1% | ✅ 3/3 avg 6.0% |
+| Quote | ✅ 10/10 avg 7.9% | ✅ 3/3 avg 7.4% |
+| CTA | ✅ 10/10 avg 5.4% | ✅ 3/3 avg 6.9% |
+
+**Key bugs fixed during Phase 2:**
+- `createGlowBg`: `"transparent"` → `g.color.slice(0,7) + "00"` (invalid Fabric color)
+- `hexToRgb`: added shorthand hex support
+- `createGradientBg`: gradient direction was inverted (315deg vs 135deg)
+- LUMINA tokens were using Aurora values — corrected to match Jinja2 CSS
+- `aurora_engage.ts`: char-count height estimation → two-pass `calcTextHeight()`
+- `aurora_quote.ts`: same fix, plus insight pre-pass now uses `calcTextHeight()`
+- `statFontSize()`: char-width estimation → `calcTextWidth()` with probe Textbox
+- All hardcoded Aurora colours in shared components → theme tokens
+
+**CTA Aurora spotlight fix (iterated 10+ times):** Final config — two `rx=ry=900` ellipses at CSS-equivalent positions `(864,216)` and `(216,864)`, opacity 0.28 (teal) and 0.40 (purple). Centers inside canvas at low opacity = diffuse corner wash, not visible hotspot.
+
+**Lumina content background:** `createLuminaBg()` factory added to `overlays.ts` — diagonal `#E0E7FF → #F4F7FF → #CCFBF1` gradient + corner glows at 0.22/0.26 opacity. Used by `aurora_content.ts` and `aurora_cta.ts` Lumina branches.
+
+**Architectural improvements:**
+- `buildSideBySideLayout` extracted — eliminates 50-line duplication between imgRight/imgLeft
+- `measureBulletHeight` extracted to `shared/components.ts` — removes 5× inline traversal
+- `FabricFill` centralised in `shared/types.ts`
+- `estimatePillWidth` exported from `shared/buttons.ts`
+- `setData()` used consistently everywhere (replaced direct `.data =` casts)
+- `createLuminaBg()` shared factory — Lumina bg no longer duplicated across templates
+
+---
+
+### Phase 3 — Renderer Moved to shared/ (with Turbopack caveat)
+
+**What was attempted:** Move `frontend/utils/canvasTemplates/` → `shared/renderer/templates/` and add tsconfig path alias `@/renderer/*` → `../shared/renderer/*`.
+
+**What failed:** Next.js Turbopack (v16.2.6) **cannot follow tsconfig paths that point outside the project root**. This is a security restriction. Symlinks also fail. `turbopack.resolveAlias` crashed the server silently.
+
+**Final resolution:**
+- **Canonical source stays in `frontend/utils/canvasTemplates/`** — this is where Turbopack can reach it natively
+- `shared/renderer/templates/` contains one `index.ts` re-exporting from `frontend/utils/canvasTemplates/`
+- `backend/renderer/renderer_entry.ts` imports directly from `frontend/utils/canvasTemplates/`
+- `shared/node_modules` symlink → `frontend/node_modules` (TypeScript resolution only)
+- **Key lesson:** `rm -rf frontend/.next` required after any tsconfig change — stale cache causes silent Turbopack hang
+
+---
+
+### Phase 4 — Renderer API Formalised
+
+- `backend/renderer/renderer_contract.ts` — `RendererAPI`, `RenderOptions`, `SlideInput` interfaces
+- `loadFonts(baseUrl)` exposed as explicit public method on `window.Renderer`
+- `renderer_entry.ts` imports types from contract; `asSlide()` boundary cast closes `SlideInput`/`SlideData` type gap
+
+---
+
+### Architectural Review Fixes (20 files)
+
+**Critical:**
+- `createGlowBg`: `"transparent"` → zero-alpha hex (Fabric rejects CSS `transparent`)
+- `hexToRgb`: shorthand hex support
+
+**High:**
+- `TemplateBuilder` type: `ReturnType<typeof getTokens>` → `CanvasTokens` (exported)
+- `SlideInput` vs `SlideData` gap: `asSlide()` cast at renderer entry boundary
+- `inferTemplate()` aligned to Python's `_canvas_template_id` logic (removed diverging density-based branching)
+- `brandName` wired end-to-end: `settings.brand_name` → `SlideRenderTask.brand_name` → Playwright options → `meta.brandName` in builder
+- `createLuminaBg()` shared factory: Lumina background no longer duplicated across 3 templates
+
+**Medium:**
+- `aurora_cta.ts`: dead `createAccentLine` import removed
+- `aurora_stat.ts`: `barH = rawH` dead alias removed
+- `aurora_hook.ts`: swipe-hint pill now theme-aware (dark/light colours)
+- `aurora_content.ts`: stale `export { loadPanelImage }` removed; switch dispatch replaces if/else chain
+- `carousel_generator.py`: `landscape_counter = [0]` → `_Counter` class; `slide_type` enum coercion via `.split(".")[-1]`
+- `sideBySide.ts`: `imageUrl: string | null` → `imageUrl: string` (caller guarantees); unnecessary type cast removed
+- `build.mjs`: dead `NEXT_PUBLIC_API_BASE_URL` define removed; `minify` driven by `NODE_ENV`
+- `brand.ts`: `t.text === "#FAFAFA"` magic-string check → `isDarkTheme(t)`
+- `aurora_quote.ts`: insight pre-pass uses `calcTextHeight()` (was char-width estimate)
+
+---
+
+### Pipeline Bug: canvas_template + _theme Not Persisted
+
+**Bug:** `slides.json` had `canvas_template: null` and `_theme` missing for all slides. Templates were computed at render time but never written back.
+
+**Root cause:** `screenshot_slides_fabric_node` injected `_theme` and computed `canvas_template` on the fly but returned them only to Playwright, not back to LangGraph state for `finalize_content_node` to persist.
+
+**Fix:** Build `enriched_slides` list with both fields set, return as `{"slides": enriched_slides}` in node return dict. `finalize_content_node` picks it up and writes `slides.json`.
+
+**Also fixed:** `slide_type = slide_dict.get("type")` was returning `SlideType.stat` enum object, not `"stat"` string → `.split(".")[-1]` coercion added.
+
+---
+
+### Editor Template Picker Auto-Wired to REGISTRY
+
+**Before:** `SLIDE_TYPES` in `frontend/constants/slideTemplates.ts` was a hardcoded list of 10 entries. Adding a new template required manually adding a tile entry.
+
+**After:** `SLIDE_TYPES` derives from `Object.keys(REGISTRY).filter(k => k.startsWith("aurora-"))`. Any new `aurora-*` REGISTRY entry appears in the editor's "Slides" tab automatically.
+
+**`TEMPLATE_METADATA` map** provides label/emoji/colour per template. New types without a metadata entry get neutral defaults but still appear. `STARTER_CONTENT` also derived from the same map.
+
+**`TemplatesPanel.tsx`** updated: starter content lookup prefers template-specific key (`"aurora-stat"`) over generic type key (`"stat"`).
+
+---
+
+### Jinja2 Deleted
+
+- Deleted: `backend/core/templates/carousel/aurora/` and `lumina/` (16 `.html.j2` files + CSS)
+- Deleted from `carousel_generator.py`: `render_slides_node`, `render_and_screenshot_single_slide`, `screenshot_slides_node`, `jinja2` import, `_TEMPLATES_ROOT`
+- `slide_editor_service.py`: Jinja2 preview replaced with `_fabric_preview_html()` — renders slide via `window.Renderer` in an iframe
+
+---
+
+### Documentation
+
+- `Docs/renderer/RENDERING_ENGINE_ADR.md` — updated: Phases 1–4 complete, results tables, bugs fixed
+- `Docs/renderer/RENDERING_ENGINE_OVERVIEW.md` — complete rewrite: problem, decision, architecture in plain language, interview Q&A, codebase map, developer setup, Turbopack caveat, known limitations
+- `Docs/renderer/RENDERER_CODEBASE_GUIDE.md` — NEW: folder map, shared component library, theme token system, data flow diagram, two-pass layout pattern, debugging patterns
+- `Docs/renderer/ADDING_A_SLIDE_TYPE.md` — NEW: end-to-end worked example (checklist type), 6 touch points, summary table, pointer to Template Studio plan
+- `Docs/pending-works/TEMPLATE_STUDIO_PLAN.md` — NEW: no-code template creation vision (design → LLM evaluate → register → validate), technical prerequisites
+
+---
 
 ### Summary
 

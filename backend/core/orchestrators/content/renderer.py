@@ -3,19 +3,20 @@ Fabric.js-based slide renderer — renders slides to PNG via a static HTML shell
 Replaces the Jinja2+CSS+Playwright pipeline from carousel_generator.py.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from PIL import Image
 from playwright.async_api import Page, async_playwright
 
+from configs.settings import get_settings
 from core.orchestrators.content.render_server import serve_directory
 from infra.logging import get_logger
 
-logger = get_logger(__name__)
+logger   = get_logger(__name__)
+_settings = get_settings()
 
 _BACKEND_ROOT  = Path(__file__).parents[3]
-_RENDERER_ROOT = _BACKEND_ROOT / "backend" / "renderer"
 _CANVAS_SIZE   = 1080
 
 
@@ -25,6 +26,7 @@ class SlideRenderTask:
     slide_data:  dict
     image_url:   str | None
     output_path: Path
+    brand_name:  str = field(default_factory=lambda: _settings.brand_name)
 
 
 async def _render_one(page: Page, task: SlideRenderTask, asset_base_url: str, total_slides: int) -> None:
@@ -40,6 +42,7 @@ async def _render_one(page: Page, task: SlideRenderTask, asset_base_url: str, to
             "options": {
                 "imageBaseUrl": asset_base_url,
                 "totalSlides":  total_slides,
+                "brandName":    task.brand_name,
             },
         },
     )
@@ -76,7 +79,7 @@ async def render_slides_fabric(tasks: list[SlideRenderTask]) -> list[str]:
         async with async_playwright() as pw:
             browser = await pw.chromium.launch(headless=True)
             # device_scale_factor=2 renders at 2160×2160 physical pixels for 2x supersampling.
-            # The screenshot is downscaled to 1080×1080 via Pillow — same quality as Jinja2 path.
+            # The screenshot is downscaled to 1080×1080 via Pillow.
             page    = await browser.new_page(
                 viewport={"width": _CANVAS_SIZE, "height": _CANVAS_SIZE},
                 device_scale_factor=2,
@@ -86,8 +89,9 @@ async def render_slides_fabric(tasks: list[SlideRenderTask]) -> list[str]:
             page.on("console",   lambda m: js_errors.append(m.text()[:120]) if m.type == "error" else None)
             page.on("pageerror", lambda e: js_errors.append(str(e)[:120]))
 
-            # Load the shell once — Renderer.render() reuses it for every slide
-            renderer_url = f"{asset_base_url}/backend/renderer/slide_render.html"
+            # Load the shell once — Renderer.render() reuses it for every slide.
+            # serve_directory serves _BACKEND_ROOT, so the shell is at /renderer/slide_render.html
+            renderer_url = f"{asset_base_url}/renderer/slide_render.html"
             await page.goto(renderer_url, wait_until="networkidle")
 
             for i, task in enumerate(tasks):

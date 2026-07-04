@@ -24,6 +24,8 @@ await esbuild.build({
     // @/ → frontend/ root
     "@/utils":       join(ROOT, "frontend/utils"),
     "@/types":       join(ROOT, "frontend/types"),
+    // @/renderer → shared/renderer/ (canonical renderer location post Phase 3)
+    "@/renderer":    join(ROOT, "shared/renderer"),
     // Stub out Next.js-specific API modules
     "@/lib/api/client": join(__dirname, "client_stub.ts"),
     "@/lib/api":        join(__dirname, "api_stub.ts"),
@@ -47,9 +49,9 @@ await esbuild.build({
     },
   }],
   define: {
-    "process.env.NODE_ENV":                '"production"',
-    "process.env.NEXT_PUBLIC_API_BASE_URL": '"http://localhost:8000"',
+    "process.env.NODE_ENV": '"production"',
+    // NEXT_PUBLIC_API_BASE_URL is not referenced in the bundled templates — omitted intentionally.
   },
   logLevel: "info",
-  minify: false,  // Keep readable for debugging — minify once stable
+  minify: process.env.NODE_ENV === "production",  // minify in CI/prod; keep readable in dev
 });
