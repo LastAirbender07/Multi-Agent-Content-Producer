@@ -72,9 +72,10 @@ async def get_analytics_summary_async() -> dict:
     cached = analytics_cache.get()
     if cached is not None:
         # Cache is warm — return stale result immediately and refresh in background
+        loop = asyncio.get_running_loop()
+
         async def _bg_refresh() -> None:
             try:
-                loop  = asyncio.get_event_loop()
                 fresh = await loop.run_in_executor(None, _scan_and_compute)
                 analytics_cache.set(fresh)
                 logger.info("analytics_bg_refresh_complete")
@@ -85,7 +86,7 @@ async def get_analytics_summary_async() -> dict:
         return cached
 
     # Cold miss — compute once, cache, return. No background refresh needed.
-    loop   = asyncio.get_event_loop()
+    loop   = asyncio.get_running_loop()
     result = await loop.run_in_executor(None, _scan_and_compute)
     analytics_cache.set(result)
     return result

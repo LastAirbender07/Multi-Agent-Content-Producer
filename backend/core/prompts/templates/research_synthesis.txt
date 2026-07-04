@@ -18,8 +18,14 @@ Rules:
    High-confidence LLM historical facts count positively toward confidence even without web URLs.
 6. Gaps should only be flagged when a CORE CLAIM of the topic is not covered by either:
    (a) web evidence, OR (b) high-confidence LLM knowledge (HISTORICAL_FACT or PUBLISHED_WORK).
+7. Classify the topic into 1–3 content categories from this exact list (pick the most relevant):
+   "AI & Technology", "Business & Startups", "Finance", "Education & Career",
+   "Politics & Society", "Health & Science", "Content & Media", "Sports",
+   "Entertainment", "Other"
+   A topic can legitimately span multiple categories — e.g. a cricket selection story is both
+   "Sports" AND "Politics & Society". Use your understanding of the topic, not keyword matching.
 
 Evidence:
 {evidence_block}
 
-Return a structured synthesis with: summary, key_points, contradictions, implications, confidence_score, gaps.
+Return a structured synthesis with: summary, key_points, contradictions, implications, confidence_score, gaps, categories.

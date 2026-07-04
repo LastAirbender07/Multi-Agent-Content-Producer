@@ -57,13 +57,11 @@ def compute(runs_meta: list[dict]) -> dict:
     stage_dur: dict[str, list[float]] = defaultdict(list)
     for r in runs_meta:
         per: dict[str, float] = defaultdict(float)
-        per_count: dict[str, int] = defaultdict(int)
         for rec in r["token_records"]:
             dur_ms = rec.get("duration_ms")
             stage  = rec.get("stage")
             if dur_ms and stage:
-                per[stage]       += dur_ms
-                per_count[stage] += 1
+                per[stage] += dur_ms
         for stage, total_ms in per.items():
             stage_dur[stage].append(total_ms / 1000.0)  # convert to seconds
 
@@ -111,11 +109,13 @@ def compute(runs_meta: list[dict]) -> dict:
     ], key=lambda x: x["confidence"], reverse=True)
 
     # ── Category × confidence ─────────────────────────────────────────────────
+    # A run can belong to multiple categories — fan out across all of them.
     cat_qual: dict[str, list[float]] = {}
     for r in runs_meta:
         c = r.get("research_quality", {}).get("combined_confidence")
         if c is not None:
-            cat_qual.setdefault(r["category"], []).append(c)
+            for cat in r.get("categories", ["Other"]):
+                cat_qual.setdefault(cat, []).append(c)
 
     category_confidence = sorted([
         {"category": cat, "avg_confidence": round(sum(v) / len(v), 3), "run_count": len(v)}
@@ -174,10 +174,11 @@ def compute(runs_meta: list[dict]) -> dict:
             "by_stage":     by_s,
         })
 
-    # ── Topic distribution ────────────────────────────────────────────────────
+    # ── Topic distribution — count each category a run belongs to ────────────
     cat_counts: dict[str, int] = {}
     for r in runs_meta:
-        cat_counts[r["category"]] = cat_counts.get(r["category"], 0) + 1
+        for cat in r.get("categories", ["Other"]):
+            cat_counts[cat] = cat_counts.get(cat, 0) + 1
     topic_dist = sorted([{"category": k, "count": v} for k, v in cat_counts.items()], key=lambda x: -x["count"])
 
     # ── Activity (last 90 days) ───────────────────────────────────────────────
