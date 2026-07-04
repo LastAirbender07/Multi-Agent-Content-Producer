@@ -6,6 +6,7 @@ no computation beyond what's needed to read the files.
 """
 
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -13,10 +14,19 @@ from infra.logging import get_logger
 
 logger = get_logger(__name__)
 
+# Keywords that are short or ambiguous get whole-word matching via \b.
+# Multi-word phrases (e.g. "machine learning") are matched as substrings since
+# they can't accidentally appear inside a single word.
+_WORD_BOUNDARY_KEYWORDS = {
+    "ai", "vc", "eth", "law", "usa", "mba", "gdp", "ipo",
+    "tech", "job", "war",
+}
+
 _CATEGORY_RULES: list[tuple[str, list[str]]] = [
-    ("AI & Technology",     ["ai", "gpt", "llm", "machine learning", "neural", "chatgpt", "openai", "anthropic", "claude", "tech", "software", "algorithm", "automation", "robot", "model"]),
-    ("Business & Startups", ["startup", "acquisition", "valuation", "funding", "vc", "venture", "saas", "revenue", "business", "enterprise", "salesforce", "microsoft", "google", "apple", "amazon", "company", "ceo", "market"]),
+    # Finance before Business so "market cap" matches Finance, not the bare "market" in Business
     ("Finance",             ["stock", "market cap", "investment", "crypto", "bitcoin", "eth", "defi", "finance", "economy", "gdp", "inflation", "interest rate", "ipo"]),
+    ("AI & Technology",     ["ai", "gpt", "llm", "machine learning", "neural", "chatgpt", "openai", "anthropic", "claude", "tech", "software", "algorithm", "automation", "robot"]),
+    ("Business & Startups", ["startup", "acquisition", "valuation", "funding", "vc", "venture", "saas", "revenue", "business", "enterprise", "salesforce", "microsoft", "google", "apple", "amazon", "company", "ceo", "market"]),
     ("Education & Career",  ["mba", "college", "university", "skill", "career", "job", "hire", "interview", "salary", "degree", "course", "learning", "education"]),
     ("Politics & Society",  ["election", "government", "policy", "law", "social", "culture", "india", "usa", "china", "geopolitics", "war", "protest", "rights"]),
     ("Health & Science",    ["health", "medical", "drug", "vaccine", "research", "climate", "space", "nasa", "science", "biology", "cancer", "diet"]),
@@ -24,10 +34,18 @@ _CATEGORY_RULES: list[tuple[str, list[str]]] = [
 ]
 
 
+def _kw_matches(kw: str, text: str) -> bool:
+    """Match keyword against lowercased text. Short/ambiguous keywords use word-boundary
+    regex to avoid false positives (e.g. 'ai' inside 'captain', 'brain', 'airbender')."""
+    if kw in _WORD_BOUNDARY_KEYWORDS:
+        return bool(re.search(rf"\b{re.escape(kw)}\b", text))
+    return kw in text
+
+
 def _classify(topic: str) -> str:
     lower = topic.lower()
     for category, keywords in _CATEGORY_RULES:
-        if any(kw in lower for kw in keywords):
+        if any(_kw_matches(kw, lower) for kw in keywords):
             return category
     return "Other"
 
@@ -50,7 +68,6 @@ def _normalise_hook(raw: str) -> str:
     for canonical in _CANONICAL_HOOKS:
         # Match if the raw string starts with or contains the canonical word
         # followed by whitespace, dash, em-dash, comma, or end-of-string.
-        import re
         if re.match(rf"^{canonical}(\s|[-—,]|$)", raw, re.IGNORECASE):
             return canonical
     # Multi-hook strings like "Anger and FOMO" → pick the first match
@@ -63,13 +80,8 @@ def _normalise_hook(raw: str) -> str:
 def _first_pass_passed(data: dict) -> bool | None:
     """Return whether the research quality gate passed on the FIRST iteration.
 
-    The graph always forces at least 2 iterations (loop_count == 0 unconditionally
-    refines). iterations[0] records the result of iteration #1 — the first real
-    evaluation. If it passed, no refinement was needed; the second loop was forced
-    but redundant. If it didn't pass, refinement was genuinely required.
-
     - iterations[0].evaluation.passed → definitive first-iteration result
-    - No iterations list (manual/partial run) → None
+    - No iterations list (older schema) → None (unknown, excluded from gate rate)
     """
     status = data.get("status", "")
     if status in ("manual", "unknown", ""):
@@ -80,9 +92,10 @@ def _first_pass_passed(data: dict) -> bool | None:
         first_eval = (iters[0] or {}).get("evaluation") or {}
         return first_eval.get("passed")  # True / False / None
 
-    # No iteration history stored (single-pass run that skipped snapshot)
-    # Fall back to final result
-    return (data.get("evaluation") or {}).get("passed")
+    # No iteration history stored — we cannot determine first-pass result.
+    # Returning None excludes this run from the quality_gate_rate denominator,
+    # which is correct: we don't know if it passed on first try.
+    return None
 
 
 def load_run(run_dir: Path) -> dict:
@@ -112,7 +125,7 @@ def load_run(run_dir: Path) -> dict:
                 "key_points_count":       len(synthesis.get("key_points", [])),
                 "gaps_count":             len(synthesis.get("gaps", [])),
                 "contradictions_count":   len(synthesis.get("contradictions", [])),
-                "evidence_count":         data.get("evidence_count", 0),
+                "evidence_count":         data.get("evidence_count") or len(data.get("evidence", [])),
                 "total_iterations":       data.get("total_iterations", 1),
                 # First-pass: did the research gate pass on the very first evaluation?
                 # Iterations list records each refinement loop. If the list is empty
