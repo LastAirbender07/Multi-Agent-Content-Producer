@@ -69,7 +69,7 @@ export function usePipelineOrchestration() {
 
     if (llmResearchMode) {
       try {
-        const res = await api.llmDraftResearch({ topic });
+        const res = await api.llmDraftResearch({ topic, run_id: pendingRunId });
         dispatch(setResearchResult(res));
         dispatch(setStageStatus({ stage: "research", status: "done" }));
       } catch (e: any) {
