@@ -6,7 +6,97 @@
 
 ---
 
-## 2026-07-01 to 2026-07-04 — Rendering Engine Migration: Phases 2–4 + Architecture Cleanup
+## 2026-07-04 to 2026-07-05 — Analytics, Content Strategy, LLM Mode Bug Fix
+
+### Summary
+
+Analytics system deep audit and 10 bug fixes (stage latency, category classification, quality gate rate, cost extrapolation). LLM-assigned categories + EmotionalHook enum shipped and backfilled across all runs. Content strategy V2 document written covering format diversity + compact template family design. LLM mode run_id mismatch bug found and fixed (tested).
+
+---
+
+### Analytics — 10 Bugs Fixed
+
+**Stage latency algorithm replaced:**  
+Old: `max(timestamps) - min(timestamps)` per stage per run — excluded single-call stages (research/angles always 0), conflated pipeline overhead with LLM time, produced 1181s "angles" value from a re-trigger artifact.  
+New: `sum(duration_ms)` per stage per run — uses the actual per-call LLM wall time already stored in `token_usage.json`. All 4 stages now appear correctly.
+
+**Other fixes:**
+- `"ai"` keyword matched `"captain"`, `"brain"`, `"Airbender"` — fixed with `\b` word-boundary regex for 11 ambiguous keywords
+- `evidence_count` fallback returned `0` for 9 older runs → fixed to `len(evidence[])` 
+- Non-UUID directories (e.g. `test-run-concurrent`) polluted `total_runs` and cost averages → UUID regex guard in `summary.py`
+- Older runs used `evaluation.passed` (final) as `first_pass` → now returns `None` (excluded from gate rate)
+- `avg_key_points` / `avg_gaps_found` used `depth` filter (evidence_count > 0) — excluded 9 older runs → fixed to use `q_runs`
+- `avg_iterations` always ~2.0, never displayed → removed from backend + frontend interface
+- Cold-miss `async` summary path ran `_scan_and_compute()` twice → background refresh only on warm-cache returns
+- Wrong env var `NEXT_PUBLIC_API_BASE` in analytics page → fixed to `NEXT_PUBLIC_API_BASE_URL`
+- Dead fields in `ResearchQualityEntry` TS interface (`evidence`, `cost_usd`, `slides`) removed; `first_pass_runs` added
+- `_VALID_CATEGORIES` / `_VALID_HOOKS` were hardcoded sets → now derived from `ContentCategory` and `EmotionalHook` enums (auto-sync)
+- `per_count` dead variable in `aggregator.py` removed
+- `asyncio.get_event_loop()` deprecated → replaced with `asyncio.get_running_loop()`
+
+---
+
+### LLM-Assigned Categories + EmotionalHook Enum
+
+**`ContentCategory` enum** (10 values) added to `contracts.py`. `ResearchSynthesis.categories: list[ContentCategory]` field added. `research_synthesis.txt` prompt updated with rule 7 to classify 1–3 categories. LLM is now the source of truth — no more keyword heuristics.
+
+**`EmotionalHook` enum** (8 values: Anger/Hope/Curiosity/FOMO/Surprise/Fear/Urgency/Inspiration) enforced via Pydantic on `Angle.emotional_hook` and `CarouselContent.emotional_hook`. `angle_generation.txt` prompt updated with all 8 values and guidance per hook.
+
+**`backfill_categories.py`** — one-time script run against all 35 existing runs. Called LLM to classify `synthesis.categories` and normalised verbose hook strings (e.g. `"Anger - exposing systemic exploitation"` → `"Anger"`). 35 runs updated, 38 hooks normalised.
+
+`run_loader.py` now reads `synthesis.categories` directly from `research_result.json`. `_classify_legacy()` and all keyword matcher code deleted. `_VALID_CATEGORIES` / `_VALID_HOOKS` derive from enums.
+
+**Analytics impact:** `topic_distribution` and `category_confidence` fan out across all categories a run belongs to (multi-category runs counted in each applicable category).
+
+---
+
+### Content Strategy V2 Document
+
+`Docs/pending-works/CONTENT_STRATEGY_V2.md` created — supersedes `MULTI_FORMAT_CONTENT_PLAN.md`.
+
+**Two interconnected problems treated as one:**
+1. We only produce one format (opinion/analysis) — no facts, tutorials, comparisons, reviews, etc.
+2. Our slides are too dense — 40–70 words per content slide vs 10–20 word industry standard
+
+**Key decisions:**
+- Current templates retained as `extended` family (relabelled, not modified). New `compact` family to be built: smaller word count, bigger fonts (52–64px headline, 26–30px body), one idea per slide.
+- Format selection step added to pipeline between research and angles — LLM reads synthesis and recommends format. Auto mode picks top recommendation.
+- One prompt file per concern, `{format_block}` injection — no file proliferation.
+- 10 formats mapped to extended/compact families. OPINION/EXPLAINER/TRENDING stay extended; FACTS/TUTORIAL/LISTICLE/REVIEW/COMPARISON/CHECKLIST use compact.
+- Schema: `PostFormat` enum, `TemplateFamily` enum, `FormatSelectionOutput` model, `Angle.post_format` field.
+- `aurora-extended-*` IDs registered alongside old IDs (backward compat). Old IDs still work.
+
+**Weekly content mix recommended:** OPINION 2×, FACTS 2×, EXPLAINER 1×, TRENDING 1×, TUTORIAL 1× per week.
+
+---
+
+### LLM Mode Bug Fix
+
+**Bug:** In LLM research mode, `handleRun` generated a local `pendingRunId` and dispatched it to Redux, but called `api.llmDraftResearch({ topic })` without passing the ID. The server created a different UUID. When "Generate Angles →" was clicked, `runAngleAndContent` used the server UUID correctly, but Redux and the UI tracked the local UUID — causing content to save to an unreachable directory.
+
+**Fix:** One line in `usePipelineOrchestration.ts`:
+```ts
+// Before:
+const res = await api.llmDraftResearch({ topic });
+// After:
+const res = await api.llmDraftResearch({ topic, run_id: pendingRunId });
+```
+
+**Tested:** Draft → angles flow confirmed end-to-end. Server returned matching `run_id`, `research/` and `angles/` directories both written under the same UUID. Test run cleaned up.
+
+---
+
+### Web Search API Endpoint Added
+
+`backend/apps/api/v1/tools_search.py` created — exposes `POST /api/v1/tools/web-search` backed by the existing `DDGSSearch` tool. Used during this session for Instagram carousel design research.
+
+---
+
+### Git Author Fixed
+
+Repo-local git config set to `LastAirbender07 / jayarajviswanathan@gmail.com`. Previous commits used SAP work account `I750332` due to global git config. Future commits in this repo will be attributed correctly.
+
+---
 
 ### Summary
 
