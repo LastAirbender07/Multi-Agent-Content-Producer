@@ -10,7 +10,6 @@ from apps.api.v1.schemas import (
     ImageDeleteRequest, CanvasSaveRequest,
 )
 from core.orchestration.contracts import ContentRequest, ContentResponse
-from core.orchestrators.content.blog_post_generator import _markdown_to_html
 from core.orchestrators.content.orchestrator import ContentOrchestrator
 from core.persistence.run_repository import read_topic, static_image_url
 from core.persistence.slide_repository import read_slides, slides_json_path
@@ -52,10 +51,18 @@ async def run_content(request: ContentRequest) -> ContentResponse:
 
 
 # ── Blog post ──────────────────────────────────────────────────────────────────
+# All blog files live under runs/{run_id}/blog/ after the one-time migration.
+
+_BLOG_SUBDIR = "blog"
+
+
+def _blog_dir(run_id: str) -> Path:
+    return _OUTPUTS_ROOT / run_id / _BLOG_SUBDIR
+
 
 @router.get("/{run_id}/blog-post", response_class=PlainTextResponse)
 async def get_blog_post_markdown(run_id: str) -> str:
-    path = _OUTPUTS_ROOT / run_id / "blog_post.md"
+    path = _blog_dir(run_id) / "blog_post.md"
     if not path.exists():
         raise HTTPException(status_code=404, detail="Blog post not found")
     return path.read_text(encoding="utf-8")
@@ -63,7 +70,7 @@ async def get_blog_post_markdown(run_id: str) -> str:
 
 @router.get("/{run_id}/blog-post.html", response_class=HTMLResponse)
 async def get_blog_post_html(run_id: str) -> str:
-    path = _OUTPUTS_ROOT / run_id / "blog_post.html"
+    path = _blog_dir(run_id) / "blog_post.html"
     if not path.exists():
         raise HTTPException(status_code=404, detail="Blog post HTML not found")
     return path.read_text(encoding="utf-8")
@@ -71,15 +78,51 @@ async def get_blog_post_html(run_id: str) -> str:
 
 @router.put("/{run_id}/blog-post")
 async def update_blog_post(run_id: str, request: BlogPostUpdateRequest) -> dict:
+    """Save edited markdown and re-render HTML.
+
+    Option D editor contract:
+    - Markdown is the edit surface for now; JSON is frozen as generation record.
+    - Title is preserved from blog_post.json so it doesn't revert to raw topic.
+    - Sets _user_edited: true on the JSON so pipeline re-runs skip regeneration.
+    """
     run_dir = _OUTPUTS_ROOT / run_id
     if not run_dir.exists():
         raise HTTPException(status_code=404, detail="Run not found")
-    md_path = run_dir / "blog_post.md"
-    html_path = run_dir / "blog_post.html"
-    md_path.write_text(request.markdown, encoding="utf-8")
-    topic = read_topic(run_id)
-    html_path.write_text(_markdown_to_html(request.markdown, topic, []), encoding="utf-8")
-    return {"status": "saved", "md_chars": len(request.markdown)}
+
+    blog_dir = _blog_dir(run_id)
+    blog_dir.mkdir(exist_ok=True)
+
+    # 1. Save the edited markdown
+    (blog_dir / "blog_post.md").write_text(request.markdown, encoding="utf-8")
+
+    # 2. Re-render HTML — use the LLM-crafted title from JSON, fall back to topic
+    json_path  = blog_dir / "blog_post.json"
+    title      = read_topic(run_id)
+    doc_data: dict = {}
+    if json_path.exists():
+        try:
+            doc_data = _json.loads(json_path.read_text())
+            title    = doc_data.get("title") or title
+        except Exception:
+            pass
+
+    import markdown as _md_lib
+    from jinja2 import Environment, FileSystemLoader
+    _BLOG_TMPL_DIR = Path(__file__).parents[3] / "core" / "templates" / "blog"
+    _tmpl_env      = Environment(loader=FileSystemLoader(str(_BLOG_TMPL_DIR)), autoescape=False)
+    body_html      = _md_lib.markdown(request.markdown, extensions=["extra", "tables", "toc"])
+    html           = _tmpl_env.get_template("blog_post.html.j2").render(title=title, body_html=body_html)
+    (blog_dir / "blog_post.html").write_text(html, encoding="utf-8")
+
+    # 3. Mark JSON as user-edited — orchestrator will skip regeneration on next pipeline run
+    if doc_data:
+        doc_data["_user_edited"] = True
+        try:
+            json_path.write_text(_json.dumps(doc_data, indent=2, ensure_ascii=False), encoding="utf-8")
+        except Exception:
+            pass
+
+    return {"status": "saved", "md_chars": len(request.markdown), "title": title}
 
 
 # ── Run browser ────────────────────────────────────────────────────────────────

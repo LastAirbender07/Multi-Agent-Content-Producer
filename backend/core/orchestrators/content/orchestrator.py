@@ -22,15 +22,30 @@ async def _run_blog_post_generation(
     angles_processed: list,
     all_slides_per_angle: list,
     all_image_assets_per_angle: list,
-) -> tuple[str, str]:
+) -> tuple[str, str, str, str]:
     """
-    Generate blog post markdown + HTML from research + carousel data.
-    Non-fatal — returns empty strings if anything fails.
+    Generate blog post from research + carousel data.
+    Returns (title, json_path, md_path, html_path). Non-fatal — returns empty strings on failure.
     """
     if not request.research_summary or not angles_processed:
-        return "", ""
+        return "", "", "", ""
+
+    # Skip regeneration if the user has already edited this blog post manually.
+    # blog_post.json carries _user_edited: true after the first PUT /blog-post save.
+    json_check = _OUTPUTS_ROOT / run_id / "blog" / "blog_post.json"
+    if json_check.exists():
+        try:
+            existing = _json.loads(json_check.read_text())
+            if existing.get("_user_edited"):
+                logger.info("blog_post_skipped_user_edited", run_id=run_id)
+                md_path   = _OUTPUTS_ROOT / run_id / "blog" / "blog_post.md"
+                html_path = _OUTPUTS_ROOT / run_id / "blog" / "blog_post.html"
+                return existing.get("title", ""), str(json_check), str(md_path), str(html_path)
+        except Exception:
+            pass
     try:
         from core.orchestrators.content.blog_post_generator import generate_blog_post, BlogAssets
+        from core.services.blog_post_renderer import to_markdown, to_html
 
         research_result_path = _OUTPUTS_ROOT / run_id / "research" / "research_result.json"
         evidence: list[dict] = []
@@ -52,34 +67,41 @@ async def _run_blog_post_generation(
 
         angle_slide_bundles = [
             {
-                "angle": request.selected_angles[idx],
-                "angle_index": idx,
-                "slides": all_slides_per_angle[idx],
+                "angle":        request.selected_angles[idx],
+                "angle_index":  idx,
+                "slides":       all_slides_per_angle[idx],
                 "image_assets": all_image_assets_per_angle[idx],
             }
             for idx in angles_processed
         ]
 
         assets = BlogAssets(
-            topic=request.topic,
-            synthesis=synthesis,
-            evidence=evidence,
-            all_angle_slides=angle_slide_bundles,
-            run_id=run_id,
-            outputs_root=_OUTPUTS_ROOT,
-            is_llm_only=is_llm_only,
+            topic            = request.topic,
+            synthesis        = synthesis,
+            evidence         = evidence,
+            all_angle_slides = angle_slide_bundles,
+            run_id           = run_id,
+            outputs_root     = _OUTPUTS_ROOT,
+            is_llm_only      = is_llm_only,
         )
 
-        md_str, html_str = await generate_blog_post(assets)
-        manager = RunOutputManager(run_id=run_id, outputs_root=_OUTPUTS_ROOT)
-        md_path = manager.save_markdown(".", "blog_post.md", md_str)
-        html_path = manager.save_text(".", "blog_post.html", html_str)
-        logger.info("blog_post_generated", run_id=run_id, md_chars=len(md_str), html_chars=len(html_str))
-        return str(md_path), str(html_path)
+        # generate_blog_post now returns a validated BlogPostDocument
+        doc      = await generate_blog_post(assets)
+        md_str   = to_markdown(doc)
+        html_str = to_html(doc)
+
+        manager   = RunOutputManager(run_id=run_id, outputs_root=_OUTPUTS_ROOT)
+        json_path = manager.save_json("blog", "blog_post.json", doc.model_dump())
+        md_path   = manager.save_markdown("blog", "blog_post.md", md_str)
+        html_path = manager.save_text("blog", "blog_post.html", html_str)
+
+        logger.info("blog_post_generated", run_id=run_id, title=doc.title,
+                    sections=len(doc.sections), md_chars=len(md_str))
+        return doc.title, str(json_path), str(md_path), str(html_path)
 
     except Exception as e:
         logger.error("blog_post_generation_failed", run_id=run_id, error=str(e))
-        return "", ""
+        return "", "", "", ""
 
 
 class ContentOrchestrator:
@@ -149,7 +171,7 @@ class ContentOrchestrator:
                 all_image_assets_per_angle.append([])
 
         # ── Blog post generation (non-fatal) ──────────────────────────────────
-        blog_post_path, blog_post_html_path = await _run_blog_post_generation(
+        blog_title, blog_json_path, blog_post_path, blog_post_html_path = await _run_blog_post_generation(
             run_id=run_id,
             request=request,
             angles_processed=angles_processed,
@@ -170,6 +192,8 @@ class ContentOrchestrator:
             captions=captions,
             hashtags_per_angle=hashtags_per_angle,
             errors=all_errors,
+            blog_post_title=blog_title,
+            blog_post_json_path=blog_json_path,
             blog_post_path=blog_post_path,
             blog_post_html_path=blog_post_html_path,
         )

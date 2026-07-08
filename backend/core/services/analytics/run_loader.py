@@ -181,7 +181,7 @@ def load_run(run_dir: Path) -> dict:
             "has_slides":   any(list((a / "png").glob("slide_*.png")) for a in angles),
             "has_images":   any((a / "image_assets.json").exists() for a in angles),
             "has_captions": any((a / "carousel.json").exists() for a in angles),
-            "has_blog":     (run_dir / "blog_post.md").exists(),
+            "has_blog":     (run_dir / "blog" / "blog_post.md").exists(),
         }
 
     return {

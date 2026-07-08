@@ -63,7 +63,7 @@ export function ContentStageCard({ open, onToggle }: ContentStageCardProps) {
               <TokenChip runId={runId} stage="caption" />
               <TokenChip runId={runId} showTotal />
             </div>
-            <BlogExportBar runId={runId} topic={topic} />
+            <BlogExportBar runId={runId} topic={topic} blogPostTitle={contentResult.blog_post_title || undefined} />
             <button
               onClick={() => router.push(`/editor?run=${runId}&view=slide&angle=0&slide=1`)}
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-violet-500/40 bg-violet-500/5 text-violet-400 text-sm font-bold hover:bg-violet-500/10 transition-all"

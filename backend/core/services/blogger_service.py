@@ -36,19 +36,20 @@ _TOKEN_FILE       = _BACKEND_ROOT / _settings.blogger_token_file
 def extract_blog_title(html: str, fallback: str = "") -> str:
     """Extract a clean title from blog HTML.
 
+    Used by bulk_publish_blogger.py for older runs saved before the BlogPostDocument
+    schema was introduced. New runs have blog_post_title in ContentResponse directly.
+
     Priority:
-    1. First <h1> tag content (the crafted blog headline)
+    1. First <h1> tag
     2. <title> tag in <head>
     3. fallback (raw topic / run ID)
     """
-    # First <h1> — strip any inner HTML tags (e.g. <span>, <strong>)
     h1 = re.search(r"<h1[^>]*>(.*?)</h1>", html, re.IGNORECASE | re.DOTALL)
     if h1:
         text = re.sub(r"<[^>]+>", "", h1.group(1)).strip()
         if text:
             return text
 
-    # <title> tag fallback
     title = re.search(r"<title[^>]*>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
     if title:
         text = title.group(1).strip()

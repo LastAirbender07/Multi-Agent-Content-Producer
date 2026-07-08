@@ -140,16 +140,18 @@ export interface ContentRequestBody {
 }
 
 export interface ContentResponse {
-  run_id: string;
-  status: string;
-  angles_processed: number[];
-  output_paths: string[];
-  carousel_paths: string[][];
-  captions: string[];
-  hashtags_per_angle: string[][];
-  errors: string[];
-  blog_post_path: string;
-  blog_post_html_path: string;
+  run_id:                string;
+  status:                string;
+  angles_processed:      number[];
+  output_paths:          string[];
+  carousel_paths:        string[][];
+  captions:              string[];
+  hashtags_per_angle:    string[][];
+  errors:                string[];
+  blog_post_title:       string;   // LLM-crafted SEO title from BlogPostDocument
+  blog_post_json_path:   string;   // path to blog_post.json on disk
+  blog_post_path:        string;
+  blog_post_html_path:   string;
 }
 
 // ── Editor ────────────────────────────────────────────────────────────────────

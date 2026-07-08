@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 
 interface BlogExportBarProps {
-  runId: string;
-  topic: string;
+  runId:          string;
+  topic:          string;
+  blogPostTitle?: string;   // from ContentResponse.blog_post_title (new runs); undefined for older runs
 }
 
 type PublishState =
@@ -37,7 +38,7 @@ function friendlyError(raw: string): string {
   return raw.length > 180 ? raw.slice(0, 180) + "…" : raw;
 }
 
-export function BlogExportBar({ runId, topic }: BlogExportBarProps) {
+export function BlogExportBar({ runId, topic, blogPostTitle }: BlogExportBarProps) {
   const router = useRouter();
   const [publishState, setPublishState] = useState<PublishState>({ status: "idle" });
 
@@ -69,7 +70,6 @@ export function BlogExportBar({ runId, topic }: BlogExportBarProps) {
         api.getBlogPostHtml(runId).catch(() => {
           throw new Error("blog post HTML not found for this run");
         }),
-        // Angle 0 hashtags used as labels — silently falls back to [] if unavailable
         api.getCaption(runId, 0).catch(() => null),
       ]);
 
@@ -77,24 +77,19 @@ export function BlogExportBar({ runId, topic }: BlogExportBarProps) {
       const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
       const innerHtml = bodyMatch ? bodyMatch[1].trim() : html;
 
-      // Extract the real blog title from the HTML.
-      // Priority 1 — first <h1> (the crafted headline, not the raw user query)
-      // Priority 2 — <title> tag in <head>
-      // Fallback   — raw topic prop
-      const extractTitle = (rawHtml: string): string => {
-        const h1 = rawHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
-        if (h1) {
-          const text = h1[1].replace(/<[^>]+>/g, "").trim();
-          if (text) return text;
-        }
-        const titleTag = rawHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+      // Title priority:
+      // 1. blogPostTitle from ContentResponse (new runs — already the LLM-crafted SEO title)
+      // 2. <title> tag from the HTML (older runs where blog_post_title is not in state)
+      // 3. raw topic prop (last resort)
+      const postTitle = (() => {
+        if (blogPostTitle) return blogPostTitle;
+        const titleTag = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
         if (titleTag) {
           const text = titleTag[1].trim();
           if (text) return text;
         }
         return topic;
-      };
-      const postTitle = extractTitle(html);
+      })();
 
       // Use hashtags as labels, stripping the # prefix. Blogger allows max 20 labels.
       const labels: string[] = captionData?.hashtags?.length

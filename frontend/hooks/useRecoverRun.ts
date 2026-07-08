@@ -62,7 +62,9 @@ export function useRecoverRun() {
             captions: carousels.map(c => c.data.caption ?? ""),
             hashtags_per_angle: carousels.map(c => c.data.hashtags ?? []),
             errors: [],
-            blog_post_path: "",
+            blog_post_title:     "",
+            blog_post_json_path: "",
+            blog_post_path:      "",
             blog_post_html_path: "",
           };
         }
