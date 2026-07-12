@@ -20,7 +20,7 @@ export function fetchWithTimeout(input: RequestInfo, init?: RequestInit, timeout
 
 export async function post<T>(path: string, body: unknown): Promise<T> {
   // Pipeline run endpoints can take many minutes — use long timeout
-  const isLongRunning = path.includes("/run") || path.includes("/pipeline") || path.includes("/regenerate");
+  const isLongRunning = path.includes("/run") || path.includes("/pipeline") || path.includes("/regenerate") || path.includes("llm-draft") || path.includes("llm-refine");
   const res = await fetchWithTimeout(
     `${BASE}${path}`,
     {

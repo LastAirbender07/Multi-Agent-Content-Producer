@@ -94,7 +94,7 @@ def main() -> None:
 
     published_log = _load_published()
     candidates    = [d for d in sorted(_OUTPUTS_ROOT.iterdir())
-                     if d.is_dir() and (d / "blog_post.html").exists()]
+                     if d.is_dir() and (d / "blog" / "blog_post.html").exists()]
 
     to_skip_manual  = [d for d in candidates if _should_skip(d.name)]
     to_skip_already = [d for d in candidates if not _should_skip(d.name) and d.name in published_log]
@@ -115,7 +115,7 @@ def main() -> None:
     ok = failed = 0
 
     for i, run_dir in enumerate(to_publish, 1):
-        html_raw  = (run_dir / "blog_post.html").read_text(encoding="utf-8")
+        html_raw  = (run_dir / "blog" / "blog_post.html").read_text(encoding="utf-8")
         body_html = (lambda m: m.group(1).strip() if m else html_raw)(
             __import__("re").search(r"<body[^>]*>([\s\S]*?)</body>", html_raw, 8)
         )

@@ -18,7 +18,8 @@ export default function PipelinePage() {
   const dispatch = useAppDispatch();
   const { stages, researchResult, angleResult, contentResult, errors, angleMode, runId, topic, mode, freshness } =
     useAppSelector((state) => state.pipeline);
-  const { runs } = useAppSelector((state) => state.history);
+  const { runs, slimRuns } = useAppSelector((state) => state.history);
+  const hasHistory = runs.length > 0 || slimRuns.length > 0;
 
   const { expanded: openSections, toggle, add: addSection, clear: clearSections, setExpanded: setOpenSections } = useExpandedSet<"research" | "angle" | "content">();
   const [showAngleModal, setShowAngleModal] = useState(false);
@@ -136,13 +137,13 @@ export default function PipelinePage() {
                 <AngleStageCard open={openSections.has("angle")} onToggle={() => toggle("angle")} onOpenSelector={() => setShowAngleModal(true)} />
                 <ContentStageCard open={openSections.has("content")} onToggle={() => toggle("content")} />
 
-                {mounted && runs.length > 0 && <PipelineRecentRuns runs={runs} onLoad={handleLoadRun} />}
+                {mounted && hasHistory && <PipelineRecentRuns runs={runs} onLoad={handleLoadRun} />}
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Recent runs — idle state */}
-          {!hasAnyResult && !isAnyRunning && mounted && runs.length > 0 && (
+          {/* Recent runs + folder picker — always shown when idle, even with empty history */}
+          {!hasAnyResult && !isAnyRunning && mounted && (
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
               <PipelineRecentRuns runs={runs} onLoad={handleLoadRun} />
             </motion.div>

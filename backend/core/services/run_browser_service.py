@@ -84,7 +84,7 @@ def list_runs(search: str | None = None, starred: bool | None = None) -> dict:
             "topic":      topic,
             "created_at": mtime,
             "has_content": content_dir.exists() and any(content_dir.iterdir()),
-            "has_blog":   (run_dir / "blog_post.md").exists(),
+            "has_blog":   (run_dir / "blog" / "blog_post.md").exists(),
             "starred":    run_starred,
             "tags":       meta.get("tags", []),
         })
@@ -146,7 +146,7 @@ def get_run_manifest(run_id: str) -> dict:
         "run_id": run_id,
         "topic": topic,
         "angles": angles,
-        "has_blog": (run_dir / "blog_post.md").exists(),
+        "has_blog": (run_dir / "blog" / "blog_post.md").exists(),
     }
 
 

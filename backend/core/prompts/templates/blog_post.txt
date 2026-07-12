@@ -1,6 +1,4 @@
-You are a senior journalist and content strategist. Write a complete, engaging blog article.
-The article will be published on Medium, Substack, and Blogger with real images already embedded.
-Your output is ONLY the prose body sections — image placement markers and citation blocks are injected by code, not you.
+You are a senior journalist and content strategist writing a long-form blog article for Medium, Substack, and Blogger.
 
 TOPIC: {topic}
 DATE: {current_date}
@@ -9,7 +7,7 @@ EMOTIONAL TONE: {primary_emotional_hook}
 RESEARCH SUMMARY:
 {research_summary}
 
-KEY POINTS (expand each into a rich paragraph):
+KEY POINTS (expand each into a full section):
 {key_points_block}
 
 CONTRADICTIONS / NUANCE:
@@ -29,52 +27,33 @@ IMPLICATIONS:
 
 ---
 
-Write these sections and NOTHING else. Return valid Markdown. No preamble, no "here is the article".
+Return a single valid JSON object matching this schema. No preamble, no markdown fences, no explanation — JSON only.
 
-## [TITLE]
-(One punchy, SEO-optimised title for the topic. 8-12 words.)
-
-## [SUBTITLE]
-(One sentence that creates urgency or curiosity. No full stop.)
-
-## [INTRO]
-(2-3 sentences: the hook. Why this matters right now. Do not repeat the title.)
-
-## [BACKGROUND]
-(2-3 paragraphs: context, history, what most people get wrong.)
-
-## [FINDING: {key_point_1_short}]
-(1-2 paragraphs expanding key point 1 with specific claims.)
-
-## [FINDING: {key_point_2_short}]
-(1-2 paragraphs expanding key point 2.)
-
-## [FINDING: {key_point_3_short}]
-(1-2 paragraphs expanding key point 3.)
-
-## [ANGLE: {angle_1_heading}]
-(2-3 paragraphs exploring angle 1. Use the slide content as your evidence base.)
-
-## [ANGLE: {angle_2_heading}]
-(2-3 paragraphs exploring angle 2.)
-
-## [ANGLE: {angle_3_heading}]
-(2-3 paragraphs exploring angle 3.)
-
-## [IMPLICATIONS]
-(2 paragraphs: so what? What should the reader do or think differently? Be direct.)
-
-## [CONCLUSION]
-(2-3 sentences: memorable close. Reinforce the main thesis. End with a question or call to action.)
+{{
+  "title":    "(SEO-optimised headline, 6-12 words, no punctuation at end)",
+  "subtitle": "(One sentence that creates urgency or curiosity — or null)",
+  "intro":    "(Opening hook paragraph, 100-200 words. Why this matters right now.)",
+  "sections": [
+    {{
+      "heading":    "(Section heading, 3-8 words)",
+      "paragraphs": ["(paragraph 1)", "(paragraph 2)", "(paragraph 3)"],
+      "pull_quote": "(Most striking single sentence from this section, ≤25 words — or null)",
+      "image":      {{"alt": "(descriptive alt text)", "caption": "(caption text — or null)", "url": null}}
+    }}
+  ],
+  "key_findings": ["(takeaway 1)", "(takeaway 2)", "(takeaway 3)"],
+  "cta_text":     "(Single call-to-action sentence encouraging follow/engagement)",
+  "tags":         ["tag1", "tag2", "tag3", "tag4", "tag5"]
+}}
 
 RULES:
-- 1100-1600 words total
-- Tone must match: {primary_emotional_hook}
-- No bullet lists in prose sections — paragraphs only
-- Do NOT mention carousel, slides, or Instagram
-- Bold key facts and statistics inline where appropriate
-- Where a visual would naturally reinforce the point you just made, write the exact
-  token [IMAGE_HERE] on its own line (no other text on that line). Aim for 5-7 placements.
-  Good placements: after a strong claim or statistic, after an opening paragraph of a
-  new section, at a vivid scene-setting moment. Never in the intro paragraph or
-  conclusion. Never two [IMAGE_HERE] tokens consecutively.
+- sections: 5-8 sections covering background, 3 key findings, 2-3 angle perspectives, implications, conclusion
+- paragraphs: 2-4 per section, each 60-120 words, no bullet lists
+- pull_quote: include on sections with a memorable claim — skip on intro/conclusion sections
+- image: include an image slot on 4-6 sections where a visual would reinforce the point. Leave url as null — it is filled in by the pipeline.
+- key_findings: 3-5 concrete takeaways the reader should remember
+- tags: 5-8 tags without the # prefix (e.g. "IndianPassport" not "#IndianPassport")
+- tone must match: {primary_emotional_hook}
+- total prose: 1100-1600 words across intro + all section paragraphs combined
+- do NOT mention carousel, slides, or Instagram in the prose
+- no markdown syntax inside string values — plain text only

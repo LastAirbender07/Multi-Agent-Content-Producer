@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAppDispatch } from "@/store/hooks";
 import { loadRun } from "@/store/slices/pipelineSlice";
-import { addRun } from "@/store/slices/historySlice";
+import { hydrateRun } from "@/store/slices/historySlice";
 import { ASSET_BASE } from "@/lib/api/client";
 import type { AngleResponse, ContentResponse } from "@/lib/api/types";
 
@@ -62,7 +62,9 @@ export function useRecoverRun() {
             captions: carousels.map(c => c.data.caption ?? ""),
             hashtags_per_angle: carousels.map(c => c.data.hashtags ?? []),
             errors: [],
-            blog_post_path: "",
+            blog_post_title:     "",
+            blog_post_json_path: "",
+            blog_post_path:      "",
             blog_post_html_path: "",
           };
         }
@@ -78,7 +80,7 @@ export function useRecoverRun() {
       };
 
       dispatch(loadRun(run));
-      dispatch(addRun(run));  // adds to history so it moves out of the orphan list
+      dispatch(hydrateRun(run));  // promotes to full run, demotes oldest if over limit
     } finally {
       setRecoveringId(null);
     }
