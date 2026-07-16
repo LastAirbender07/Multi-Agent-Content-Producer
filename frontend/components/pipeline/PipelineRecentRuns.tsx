@@ -1,6 +1,6 @@
 "use client";
-import { useState, useEffect } from "react";
-import { History, RefreshCw, FolderOpen, Download } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { History, RefreshCw, FolderOpen, Download, ChevronDown, ChevronUp } from "lucide-react";
 import { RunCard } from "@/components/pipeline/RunCard";
 import { OrphanedRunCard } from "@/components/pipeline/OrphanedRunCard";
 import { api } from "@/lib/api";
@@ -119,25 +119,46 @@ function SlimRunCard({ slim, isLoading, onLoad }: {
   isLoading: boolean;
   onLoad: () => void;
 }) {
-  const date = new Date(slim.timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const [expanded, setExpanded]   = useState(false);
+  const [isClamped, setIsClamped] = useState(false);
+  const textRef = useRef<HTMLParagraphElement>(null);
+  const date    = new Date(slim.timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+
+  useEffect(() => {
+    const el = textRef.current;
+    if (el) setIsClamped(el.scrollHeight > el.clientHeight + 2);
+  }, [slim.topic]);
+
   return (
-    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-900/60 border border-zinc-800/50">
+    <div className="p-2.5 rounded-xl bg-zinc-900/60 border border-zinc-800/50 hover:border-zinc-700 transition-all">
       <div className="flex-1 min-w-0">
-        <p className="text-[11px] font-semibold text-zinc-400 truncate">{slim.topic}</p>
-        <p className="text-[10px] text-zinc-700">{date} · {slim.angleCount} angles · {slim.slideCount} slides{slim.hasBlog ? " · blog" : ""}</p>
+        <p
+          ref={textRef}
+          className={`text-[11px] font-semibold text-zinc-400 break-words ${expanded ? "" : "line-clamp-2"}`}
+        >
+          {slim.topic}
+        </p>
+        {(isClamped || expanded) && (
+          <button
+            onClick={() => setExpanded(e => !e)}
+            className="text-[9px] font-semibold text-zinc-700 hover:text-zinc-500 mt-0.5 flex items-center gap-0.5 transition-colors"
+          >
+            {expanded ? <><ChevronUp size={9} /> less</> : <><ChevronDown size={9} /> more</>}
+          </button>
+        )}
       </div>
-      <button
-        onClick={onLoad}
-        disabled={isLoading}
-        title="Load full run"
-        className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold text-zinc-500 hover:text-violet-400 hover:bg-violet-500/10 border border-zinc-800 hover:border-violet-500/30 disabled:opacity-40 transition-all"
-      >
-        {isLoading
-          ? <RefreshCw size={10} className="animate-spin" />
-          : <Download size={10} />
-        }
-        Load
-      </button>
+      <div className="flex items-center justify-between mt-1.5">
+        <p className="text-[9px] text-zinc-700">{date} · {slim.angleCount} angles · {slim.slideCount} slides{slim.hasBlog ? " · blog" : ""}</p>
+        <button
+          onClick={onLoad}
+          disabled={isLoading}
+          title="Load full run"
+          className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold text-zinc-500 hover:text-violet-400 hover:bg-violet-500/10 border border-zinc-800 hover:border-violet-500/30 disabled:opacity-40 transition-all"
+        >
+          {isLoading ? <RefreshCw size={10} className="animate-spin" /> : <Download size={10} />}
+          Load
+        </button>
+      </div>
     </div>
   );
 }

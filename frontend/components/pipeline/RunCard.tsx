@@ -20,7 +20,7 @@ export function RunCard({ run, onLoad }: RunCardProps) {
       className="flex items-start justify-between px-4 py-3 bg-zinc-900/40 border border-zinc-800/50 rounded-2xl hover:border-violet-500/30 hover:bg-zinc-900/70 transition-colors text-left group w-full"
     >
       <div className="min-w-0 flex-1 pr-3">
-        <p className="text-xs font-bold text-zinc-300 group-hover:text-white transition-colors wrap-break-word">
+        <p className="text-xs font-bold text-zinc-300 group-hover:text-white transition-colors break-words">
           {visibleTopic}
           {needsTruncation && !expanded && (
             <span

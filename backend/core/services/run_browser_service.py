@@ -60,7 +60,7 @@ def list_runs(search: str | None = None, starred: bool | None = None) -> dict:
         if rr.exists():
             try:
                 data = _json.loads(rr.read_text())
-                topic = (data.get("topic") or "")[:80]
+                topic = data.get("topic") or ""
                 mtime = rr.stat().st_mtime
             except Exception:
                 pass
