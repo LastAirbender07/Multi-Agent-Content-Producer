@@ -6,12 +6,21 @@ Rules:
 1. Use the evidence provided below as your primary source.
 2. Evidence items show their source type in the "Source:" field. Treat them accordingly:
    - "llm:HISTORICAL_FACT" or "llm:PUBLISHED_WORK" → high-confidence knowledge from training data
-     (established historical events, specific published books/documents). Treat these as reliable.
+     (established historical events, specific published books/documents). Treat these as reliable
+     for events that are fixed in the past.
      DO NOT flag them as "gaps" just because no web URL exists — the absence of a web snippet
      for an 1891 legislative debate does not make it unverified.
+     CRITICAL EXCEPTION: LLM training data has a cutoff and can be STALE for current-state facts
+     (who currently holds office, current laws, living people's present roles, recent elections).
+     If multiple web/news sources DIRECTLY CONTRADICT an LLM historical fact about present-day
+     reality (e.g. who is CM today, who won the last election), TRUST THE WEB SOURCES — they are
+     more recent. The LLM's "historical fact" represents the last known state at training time,
+     not necessarily today's truth. Do NOT dismiss or explain away fresh web evidence on current
+     affairs by deferring to LLM training knowledge.
    - "llm:RECENT_STATISTIC" or "llm:CAUSAL_INFERENCE" → low-confidence, needs web corroboration.
      Flag these as gaps if not supported by any web/news evidence.
    - "web_search", "news", "crawl" → web-corroborated evidence; treat as primary sources.
+     Multiple independent news sources on the same current fact = very high confidence.
 3. Do not invent facts, URLs, or statistics not present in the evidence.
 4. Identify contradictions between sources only when they genuinely conflict.
 5. Rate your confidence (0.0–1.0) based on how well the evidence covers the topic's core claims.
