@@ -8,19 +8,29 @@ class Settings(BaseSettings):
     Application settings loaded from environment variables.
 
     Supports multiple LLM providers:
-    - Claude (via HAI Proxy)
-    - OpenAI
-    - Google Gemini
+    - claude / hai_proxy — Anthropic Claude via HAI Proxy (requires HAI_PROXY_API_KEY + HAI_PROXY_URL)
+                           LLM_MODEL = Anthropic model ID, e.g. claude-3-5-sonnet-20241022
+                           (NOT "anthropic--*" — that is a SAP AI Core naming convention)
+    - openai          — OpenAI (requires OPENAI_API_KEY)
+    - gemini          — Google Gemini (requires GEMINI_API_KEY)
+    - sap_ai_core     — SAP AI Core direct deployment (requires AICORE_* vars)
+    - sap_ai_core_orch — SAP AI Core Orchestration Service (requires AICORE_* vars)
 
     Set LLM_PROVIDER in .env to choose provider.
+    SAP AI Core credentials (AICORE_CLIENT_ID, AICORE_CLIENT_SECRET, AICORE_AUTH_URL,
+    AICORE_BASE_URL, AICORE_RESOURCE_GROUP) are read directly by the SDK from the
+    environment — they do not need to appear in this settings class.
     """
 
     # === LLM Provider Selection ===
-    llm_provider: str = "claude"  # Options: "claude", "openai", "gemini"
+    # Options: "claude", "hai_proxy", "openai", "gemini", "sap_ai_core", "sap_ai_core_orch"
+    # "claude" and "hai_proxy" are aliases — both route to ClaudeLLM via HAI Proxy.
+    llm_provider: str = "claude"
 
-    # === Claude Settings (via HAI Proxy) ===
+    # === Claude / HAI Proxy Settings ===
+    # Required when llm_provider="claude" or "hai_proxy". Not needed for SAP AI Core providers.
     hai_proxy_url: str = "http://localhost:6655/anthropic"
-    hai_proxy_api_key: str
+    hai_proxy_api_key: Optional[str] = None
 
     # === OpenAI Settings ===
     openai_api_key: Optional[str] = None
@@ -128,6 +138,7 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False
+        extra = "ignore"   # AICORE_* and other SDK env vars pass through to the SDK untouched
 
 
 @lru_cache()

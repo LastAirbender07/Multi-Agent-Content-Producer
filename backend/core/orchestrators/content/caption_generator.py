@@ -33,7 +33,6 @@ async def generate_caption_node(state: ContentGraphState) -> dict:
     )
 
     try:
-        llm = await LLMFactory.get_client()
         system_prompt = get_system_prompt("content")
         user_prompt = load_prompt(
             "caption_generation",
@@ -44,11 +43,13 @@ async def generate_caption_node(state: ContentGraphState) -> dict:
             slide_titles=slide_titles,
         )
 
-        result = await llm.generate_structured(
-            prompt=user_prompt,
-            output_schema=CaptionOutput,
-            system_prompt=system_prompt,
-            _token_meta=(state.get("run_id"), "caption"),
+        result = await LLMFactory.get_client_with_retry(
+            lambda llm: llm.generate_structured(
+                prompt=user_prompt,
+                output_schema=CaptionOutput,
+                system_prompt=system_prompt,
+                _token_meta=(state.get("run_id"), "caption"),
+            )
         )
 
         logger.info("generate_caption_node_complete", run_id=state.get("run_id"))

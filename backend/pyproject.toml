@@ -3,7 +3,7 @@ name = "backend"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "aiohttp>=3.13.5",
     "bs4>=0.0.2",
@@ -38,6 +38,9 @@ dependencies = [
     "google-api-python-client>=2.198.0",
     "google-auth-oauthlib>=1.4.0",
     "google-auth-httplib2>=0.4.0",
+    "sap-ai-sdk-gen>=6.10.0",
+    "langchain-aws>=1.7.0",
+    "aiobotocore>=3.9.0",
 ]
 
 [tool.setuptools]

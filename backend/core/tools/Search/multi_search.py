@@ -8,7 +8,6 @@ import json
 import re
 
 from langchain_core.messages import HumanMessage
-
 from core.prompts.prompt_loader import load_prompt
 from core.tools.Search.ddgs_search import DDGSSearch
 from infra.llm.langchain_adapter import get_langchain_llm_with_retry

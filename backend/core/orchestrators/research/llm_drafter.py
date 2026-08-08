@@ -104,8 +104,7 @@ async def draft_research(
         context_block=context_block,
         topic_slug=topic_slug,
     )
-    llm = await LLMFactory.get_client()
-    raw = await llm.generate(prompt=prompt)
+    raw = await LLMFactory.get_client_with_retry(lambda llm: llm.generate(prompt=prompt))
     payload = json.loads(strip_fences(raw.content))
 
     response = _build_response(run_id, topic, payload, "", topic_slug)
@@ -141,8 +140,7 @@ async def refine_research(
         evidence_summary=evidence_summary,
         topic_slug=topic_slug,
     )
-    llm = await LLMFactory.get_client()
-    raw = await llm.generate(prompt=prompt)
+    raw = await LLMFactory.get_client_with_retry(lambda llm: llm.generate(prompt=prompt))
     payload = json.loads(strip_fences(raw.content))
 
     response = _build_response(run_id, topic, payload, "", topic_slug)

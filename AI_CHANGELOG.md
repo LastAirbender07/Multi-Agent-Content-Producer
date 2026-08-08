@@ -6,6 +6,97 @@
 
 ---
 
+## 2026-08-08 — LLM Layer: SAP AI Core + HAI Proxy, LLMFactoryAdapter, uv.lock cleanup
+
+### Summary
+
+Full LLM provider layer audit and expansion. Added SAP AI Core Orchestration provider, built `LLMFactoryAdapter` to unify all providers under one LangChain interface, fixed missing structured logs for HAI proxy, removed dead code, and untracked `uv.lock` from git.
+
+---
+
+### New: SAP AI Core Providers
+
+Two new providers added to `infra/llm/providers/`:
+
+**`sap_ai_core.py`** — Direct model deployment via `gen_ai_hub`. Uses `AICORE_*` env vars (read by SDK automatically). `LLM_MODEL` = deployment name in AI Launchpad.
+
+**`sap_ai_core_orch.py`** — Orchestration Service via `gen_ai_hub`. Supports Anthropic/Claude, GPT-4o, etc. `LLM_MODEL` = model_name in orchestration config (e.g. `anthropic--claude-4.6-sonnet`).
+
+`factory.py` updated: `_build_instance()` extracted from `get_client()` (cleaner); `hai_proxy` added as alias for `claude`; both SAP AI Core providers added. Error message updated with all valid provider names.
+
+`main.py`: `load_dotenv()` called before all imports so `AICORE_*` environment variables are available to the gen_ai_hub SDK at startup.
+
+---
+
+### New: `LLMFactoryAdapter(BaseChatModel)` in `langchain_adapter.py`
+
+**Problem:** `sap_ai_core_orch` had no native LangChain class for Claude/Anthropic models. `ChatAnthropic` (native) also bypassed `LLMFactory` entirely, producing no provider-level logs.
+
+**Solution:** `LLMFactoryAdapter` — a thin `BaseChatModel` wrapper that:
+- Converts LangChain message list → `(system_prompt, user_prompt)` text
+- Calls `LLMFactory.get_client_with_retry()` (JWT retry included)
+- Returns `AIMessage`
+
+**Provider routing in `_build_client()`:**
+
+| `LLM_PROVIDER` | `langchain_adapter` → | structured logs |
+|---|---|---|
+| `claude` / `hai_proxy` | `LLMFactoryAdapter` → `ClaudeLLM` | ✅ `llm_generate_start/complete` |
+| `openai` | `ChatOpenAI` (native) | LangChain internal |
+| `gemini` | `ChatGoogleGenerativeAI` (native) | LangChain internal |
+| `sap_ai_core` | `gen_ai_hub ChatOpenAI` | SDK internal |
+| `sap_ai_core_orch` | `LLMFactoryAdapter` → `SAPAICoreOrchestrationProvider` | ✅ `sap_ai_core_orch_generate_start/complete` |
+
+---
+
+### Bug Fix: HAI Proxy Missing Structured Logs
+
+**Before:** `claude`/`hai_proxy` routed to `ChatAnthropic` (native LangChain). `ChatAnthropic` calls Anthropic directly — `LLMFactory` and `ClaudeLLM` never touched → no `llm_generate_start` / `llm_generate_complete` logs.
+
+**After:** Both `claude` and `hai_proxy` now route through `LLMFactoryAdapter` → `ClaudeLLM.generate()` → structured logs always fire.
+
+**Verified:** Chat endpoint with `LLM_PROVIDER=claude` (HAI proxy) produces:
+```
+2026-08-08T11:09:59Z [info] llm_generate_start  [infra.llm.providers.claude]
+2026-08-08T11:10:02Z [info] llm_generate_complete [infra.llm.providers.claude] elapsed_ms=2594
+```
+
+---
+
+### `BaseLLM` refactored (`base.py`)
+
+`generate_structured()` moved from `ClaudeLLM` into `BaseLLM` as a concrete shared method. Providers implement only `generate()` (transport). `_strip_fences()` centralised in `base.py`. `MAX_VALIDATION_RETRIES = 3` class constant. `close()` made abstract.
+
+`ClaudeLLM` now inherits `generate_structured()` — no duplication across providers.
+
+---
+
+### `jwt_handler.py` expanded
+
+`_AUTH_ERROR_TOKENS` frozenset covers both HAI Proxy JWT and SAP XSUAA token errors: `jwt`, `expired`, `401`, `unauthorized`, `403`, `forbidden`, `invalid_token`, `token_expired`, `authentication`.
+
+---
+
+### Callers updated to `get_client_with_retry()`
+
+`caption_generator.py` and `llm_drafter.py` updated from `get_client()` → `get_client_with_retry()` so auth retry is automatic. Unnecessary `_prompt`/`_run_id` variable aliases (workarounds, not needed outside loops) cleaned up.
+
+---
+
+### Documentation updates
+
+- `settings.py` docstring updated with all 5 providers + model name conventions
+- `.env.example` rewritten: provider options, model name per provider, explicit WARNING about `anthropic--*` being SAP AI Core–only naming convention
+- `langchain_adapter.py` module docstring updated with actual provider routing table
+
+---
+
+### `uv.lock` untracked from git
+
+`git rm --cached backend/uv.lock` + `backend/uv.lock` added to `.gitignore`. File stays on disk for `uv` to use. Removed from GitHub remote via commit `84d94f1`.
+
+---
+
 ## 2026-07-04 to 2026-07-05 — Analytics, Content Strategy, LLM Mode Bug Fix
 
 ### Summary
