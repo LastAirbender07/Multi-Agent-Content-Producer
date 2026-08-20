@@ -10,19 +10,72 @@ from core.orchestrators.research.normalizer import normalize_evidence_node
 from core.orchestrators.research.query_preprocessor import QueryPreprocessor
 from core.orchestrators.research.router import route_node
 from core.orchestrators.research.synthesizer import synthesize_node
-from core.orchestrators.research import _progress_store as progress
 from core.schemas.workflow_state import ResearchGraphState
+from core.services.progress_store import progress_store
 from infra.logging import get_logger
 
 logger = get_logger(__name__)
 
 _URL_RE = _re.compile(r'https?://\S+')
 
+# ── Progress metadata for each LangGraph node ─────────────────────────────────
+
+_PHASE_MAP: dict[str, str] = {
+    "intake":            "intake",
+    "route":             "planning",
+    "llm_knowledge":     "planning",
+    "execute_tools":     "executing_tools",
+    "normalize":         "executing_tools",
+    "score_evidence":    "executing_tools",
+    "synthesize":        "synthesizing",
+    "evaluate":          "synthesizing",
+    "refine":            "synthesizing",
+    "finalize":          "synthesizing",
+    "finalize_partial":  "synthesizing",
+}
+
+_NODE_PCT: dict[str, int] = {
+    "intake":            8,
+    "route":             18,
+    "llm_knowledge":     25,
+    "execute_tools":     55,
+    "normalize":         65,
+    "score_evidence":    72,
+    "synthesize":        85,
+    "evaluate":          92,
+    "refine":            88,
+    "finalize":          98,
+    "finalize_partial":  98,
+}
+
+_NODE_LABELS: dict[str, str] = {
+    "intake":            "Starting…",
+    "route":             "Planning queries…",
+    "llm_knowledge":     "Loading background knowledge…",
+    "execute_tools":     "Searching news & web…",
+    "normalize":         "Processing sources…",
+    "score_evidence":    "Scoring evidence…",
+    "synthesize":        "Synthesising findings…",
+    "evaluate":          "Evaluating quality…",
+    "refine":            "Refining…",
+    "finalize":          "Saving results…",
+    "finalize_partial":  "Saving results…",
+}
+
+
+def _emit(run_id: str, node: str) -> None:
+    """Push a progress event for the given node to all SSE subscribers."""
+    progress_store.update(f"research:{run_id}", {
+        "phase":   _PHASE_MAP.get(node, "running"),
+        "pct":     _NODE_PCT.get(node, 50),
+        "message": _NODE_LABELS.get(node, "Running…"),
+    })
+
 
 async def intake_node(state: ResearchGraphState) -> dict:
     """Validate request, extract URLs from topic, run query preprocessor."""
     run_id = state["run_id"]
-    progress.update(run_id, "intake", 1)
+    _emit(run_id, "intake")
     request = state["request"]
     updates: dict = {}
 
@@ -97,31 +150,31 @@ async def intake_node(state: ResearchGraphState) -> dict:
 
 
 # ── Progress-tracked node wrappers ────────────────────────────────────────────
-# Each underlying node function is wrapped to report progress before delegating.
+# Each underlying node function is wrapped to emit a progress event before
+# delegating to the real implementation.
 
-def _tracked(underlying_fn, step: int):
-    """Wrap a node function to report progress before delegating."""
+def _tracked(underlying_fn, node_name: str):
+    """Wrap a node function to emit a progress event before delegating."""
     async def wrapper(state: ResearchGraphState) -> dict:
-        progress.update(state["run_id"], underlying_fn.__name__, step)
+        _emit(state["run_id"], node_name)
         return await underlying_fn(state)
-    wrapper.__name__ = f"_{underlying_fn.__name__}_tracked"
+    wrapper.__name__ = f"_{node_name}_tracked"
     return wrapper
 
-_route_node_tracked          = _tracked(route_node,              2)
-_llm_knowledge_node_tracked  = _tracked(llm_knowledge_node,      3)
-_execute_tools_node_tracked  = _tracked(execute_tools_node,       4)
-_normalize_node_tracked      = _tracked(normalize_evidence_node,  5)
-_score_evidence_node_tracked = _tracked(score_evidence_node,      6)
-_synthesize_node_tracked     = _tracked(synthesize_node,          7)
-_evaluate_node_tracked       = _tracked(evaluate_node,            8)
+_route_node_tracked          = _tracked(route_node,              "route")
+_llm_knowledge_node_tracked  = _tracked(llm_knowledge_node,      "llm_knowledge")
+_execute_tools_node_tracked  = _tracked(execute_tools_node,       "execute_tools")
+_normalize_node_tracked      = _tracked(normalize_evidence_node,  "normalize")
+_score_evidence_node_tracked = _tracked(score_evidence_node,      "score_evidence")
+_synthesize_node_tracked     = _tracked(synthesize_node,          "synthesize")
+_evaluate_node_tracked       = _tracked(evaluate_node,            "evaluate")
 
 
 async def refine_node(state: ResearchGraphState) -> dict:
     """Record completed iteration, save snapshot to disk, increment loop counter."""
     from core.orchestrators.research.orchestrator import save_iteration_snapshot
 
-    # Step back to 4 (execute_tools) since the graph loops back there
-    progress.update(state["run_id"], "refine", 4)
+    _emit(state["run_id"], "refine")
 
     loop_count = state.get("loop_count", 0)
     iteration_number = loop_count + 1
@@ -149,11 +202,16 @@ async def refine_node(state: ResearchGraphState) -> dict:
 
 
 async def finalize_node(state: ResearchGraphState) -> dict:
-    """save full output to disk. Called on Success"""
+    """Save full output to disk. Called on success."""
     from core.orchestrators.research.orchestrator import save_research_output
-    progress.update(state["run_id"], "finalize", 9)
+    run_id = state["run_id"]
+    _emit(run_id, "finalize")
     output_path = await save_research_output(state, status="success", iteration_history=state.get("iteration_history", []))
-    progress.clear(state["run_id"])
+    # Signal completion — push final event then close all SSE streams
+    progress_store.update(f"research:{run_id}", {
+        "phase": "complete", "pct": 100, "message": "Research complete"
+    })
+    progress_store.finish(f"research:{run_id}")
     return {
         "output_path": output_path,
         "messages": state.get("messages", []) + [f"Research run completed successfully. Output saved to {output_path}"],
@@ -161,11 +219,16 @@ async def finalize_node(state: ResearchGraphState) -> dict:
 
 
 async def finalize_partial_node(state: ResearchGraphState) -> dict:
-    """save partial output to disk. Called when quality gate fails and no budget left."""
+    """Save partial output to disk. Called when quality gate fails and no budget left."""
     from core.orchestrators.research.orchestrator import save_research_output
-    progress.update(state["run_id"], "finalize_partial", 9)
+    run_id = state["run_id"]
+    _emit(run_id, "finalize_partial")
     output_path = await save_research_output(state, status="partial_success", iteration_history=state.get("iteration_history", []))
-    progress.clear(state["run_id"])
+    # Signal completion — push final event then close all SSE streams
+    progress_store.update(f"research:{run_id}", {
+        "phase": "complete", "pct": 100, "message": "Research complete"
+    })
+    progress_store.finish(f"research:{run_id}")
     return {
         "output_path": output_path,
         "messages": state.get("messages", []) + [f"Research run completed with partial results. Output saved to {output_path}"],

@@ -6,6 +6,7 @@ from configs.settings import get_settings
 from core.graphs.content_graph import build_content_graph
 from core.orchestration.contracts import ContentRequest, ContentResponse, ResearchSynthesis, RunStatus
 from core.schemas.workflow_state import ContentGraphState
+from core.services.progress_store import progress_store
 from infra.logging import get_logger
 from infra.output_manager import RunOutputManager
 
@@ -110,12 +111,20 @@ class ContentOrchestrator:
 
     async def run(self, request: ContentRequest) -> ContentResponse:
         run_id = request.run_id or str(uuid.uuid4())
+        total_angles = len(request.selected_angles)
         logger.info(
             "content_orchestrator_started",
             run_id=run_id,
             topic=request.topic,
-            angles=len(request.selected_angles),
+            angles=total_angles,
         )
+
+        # ── Initial progress event ─────────────────────────────────────────────
+        progress_store.update(f"content:{run_id}", {
+            "phase": "starting",
+            "pct": 5,
+            "message": "Starting content generation…",
+        })
 
         all_png_paths: list[list[str]] = []
         output_paths: list[str] = []
@@ -128,11 +137,26 @@ class ContentOrchestrator:
 
         for idx, angle in enumerate(request.selected_angles):
             logger.info("content_processing_angle", run_id=run_id, angle_index=idx)
+
+            # Emit per-angle "generating" event — pct is monotonically increasing
+            # across angles: angle 0 → 5%, angle 1 → ~45%, etc.
+            angle_start_pct = round(idx / total_angles * 80) + 5
+            progress_store.update(f"content:{run_id}", {
+                "phase": "generating_carousel",
+                "pct": angle_start_pct,
+                "message": (
+                    f"Generating angle {idx + 1} of {total_angles}…"
+                    if total_angles > 1
+                    else "Building carousel slides…"
+                ),
+            })
+
             initial: ContentGraphState = {
                 "request": request.model_dump(),
                 "run_id": run_id,
                 "angle": angle,
                 "angle_index": idx,
+                "total_angles": total_angles,
                 "slides": [],
                 "caption": "",
                 "hashtags": [],
@@ -171,6 +195,11 @@ class ContentOrchestrator:
                 all_image_assets_per_angle.append([])
 
         # ── Blog post generation (non-fatal) ──────────────────────────────────
+        progress_store.update(f"content:{run_id}", {
+            "phase": "blog_post",
+            "pct": 92,
+            "message": "Generating long-form blog post…",
+        })
         blog_title, blog_json_path, blog_post_path, blog_post_html_path = await _run_blog_post_generation(
             run_id=run_id,
             request=request,
@@ -182,6 +211,21 @@ class ContentOrchestrator:
         status = RunStatus.SUCCESS if not all_errors else (
             RunStatus.PARTIAL_SUCCESS if angles_processed else RunStatus.FAILED
         )
+
+        # ── Final progress event ───────────────────────────────────────────────
+        if status == RunStatus.FAILED:
+            progress_store.update(f"content:{run_id}", {
+                "phase": "error",
+                "pct": 0,
+                "message": f"Content generation failed: {all_errors[0] if all_errors else 'Unknown error'}",
+            })
+        else:
+            progress_store.update(f"content:{run_id}", {
+                "phase": "complete",
+                "pct": 100,
+                "message": "Carousels ready",
+            })
+        progress_store.finish(f"content:{run_id}")
 
         return ContentResponse(
             run_id=run_id,

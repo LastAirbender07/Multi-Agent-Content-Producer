@@ -237,6 +237,14 @@ class ResearchOrchestrator:
             final_state = await graph.ainvoke(initial_state)
         except Exception as e:
             logger.error("research_orchestrator_error", run_id=run_id, error=str(e))
+            # Emit error event and close all SSE streams so clients don't hang
+            from core.services.progress_store import progress_store
+            progress_store.update(f"research:{run_id}", {
+                "phase": "error",
+                "pct": 0,
+                "message": f"Research failed: {str(e)[:200]}",
+            })
+            progress_store.finish(f"research:{run_id}")
             final_state = initial_state.copy()
             final_state["errors"].append(str(e))
             output_path = await save_research_output(final_state, status="failed")

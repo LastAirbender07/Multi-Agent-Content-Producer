@@ -8,6 +8,7 @@ from core.orchestration.contracts import ContentRequest, Slide
 from core.orchestrators.content import _progress_store as content_progress
 from core.orchestrators.content.render_server import serve_directory
 from core.schemas.workflow_state import ContentGraphState
+from core.services.progress_store import progress_store
 from infra.logging import get_logger
 
 logger = get_logger(__name__)
@@ -112,7 +113,25 @@ async def screenshot_slides_fabric_node(state: ContentGraphState) -> dict:
         # with canvas_template + _theme so inferTemplate() picks the right builder.
         canvas_template = slide_dict.get("canvas_template") or _canvas_template_id(slide_type, theme, layout_variant, has_image)
         slide_dict = {**slide_dict, "canvas_template": canvas_template, "_theme": theme}
+        # Update the legacy polling store (for /render-status endpoint)
         content_progress.update(run_id, i + 1, len(slides_raw))
+
+        # Push per-slide rendering progress to all SSE subscribers.
+        # pct spans the angle's reserved range within 10–90% across all angles.
+        total_angles  = state.get("total_angles", 1) or 1
+        angle_start   = round(angle_index / total_angles * 80) + 10
+        angle_end     = round((angle_index + 1) / total_angles * 80) + 5
+        slide_pct     = angle_start + round((i + 1) / len(slides_raw) * (angle_end - angle_start))
+        progress_store.update(f"content:{run_id}", {
+            "phase":   "rendering",
+            "pct":     slide_pct,
+            "message": (
+                f"Angle {angle_index + 1}/{total_angles} — slide {i + 1} of {len(slides_raw)}…"
+                if total_angles > 1
+                else f"Rendering slide {i + 1} of {len(slides_raw)}…"
+            ),
+        })
+
         tasks.append(SlideRenderTask(
             slide_data=slide_dict,
             image_url=image_url,
