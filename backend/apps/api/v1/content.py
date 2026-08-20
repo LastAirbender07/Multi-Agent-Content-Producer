@@ -2,7 +2,7 @@ import json as _json
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
-from fastapi.responses import PlainTextResponse, HTMLResponse, Response
+from fastapi.responses import PlainTextResponse, HTMLResponse, Response, StreamingResponse
 
 from apps.api.v1.schemas import (
     SlideEditRequest, SlideEditResponse, BlogPostUpdateRequest,
@@ -20,6 +20,7 @@ from core.services.caption_service import get_caption, update_caption
 from core.services.slide_reorder_service import reorder_slides, delete_slide as svc_delete_slide
 from core.services.token_tracker import token_tracker
 from core.orchestrators.content import _progress_store as content_progress
+from core.services.progress_store import progress_store
 from core.services.slide_editor_service import (
     ai_rewrite_slide as svc_ai_rewrite,
     bulk_style_slides as svc_bulk_style,
@@ -39,6 +40,45 @@ _orchestrator = ContentOrchestrator()
 _settings = get_settings()
 _BACKEND_ROOT = Path(__file__).parents[3]
 _OUTPUTS_ROOT = _BACKEND_ROOT / _settings.content_output_dir
+
+
+# ── SSE progress stream ────────────────────────────────────────────────────────
+
+@router.get("/{run_id}/events")
+async def content_events(run_id: str) -> StreamingResponse:
+    """Push-based SSE stream of content generation progress for a given run_id.
+
+    Subscribes to the ProgressStore queue. Events are pushed the instant the
+    ContentOrchestrator or carousel_generator fires ``progress_store.update()``,
+    with zero CPU overhead while the run is idle. The stream terminates cleanly
+    when the orchestrator calls ``progress_store.finish()``.
+
+    Late-joining clients receive the last known state immediately on connect;
+    if the run already completed they receive the final event + EOF straight away.
+
+    Event format: ``data: {"phase": str, "pct": int, "message": str}``
+    """
+
+    async def generate():
+        queue = await progress_store.subscribe(f"content:{run_id}")
+        try:
+            while True:
+                event = await queue.get()
+                if event is None:   # sentinel from progress_store.finish()
+                    break
+                yield f"data: {_json.dumps(event)}\n\n"
+        finally:
+            progress_store.unsubscribe(f"content:{run_id}", queue)
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 # ── Core pipeline ──────────────────────────────────────────────────────────────

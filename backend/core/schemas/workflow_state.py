@@ -62,6 +62,7 @@ class ContentGraphState(TypedDict, total=False):
     run_id: str
     angle: dict
     angle_index: int
+    total_angles: int           # populated by ContentOrchestrator for pct calculation
     slides: list[dict]
     caption: str
     hashtags: list[str]

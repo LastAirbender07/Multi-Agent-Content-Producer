@@ -8,9 +8,9 @@ export const ASSET_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localh
 // Standard timeout for quick API calls (metadata, saves, searches)
 const TIMEOUT_MS = 30_000;
 
-// Long timeout for pipeline operations that run LLM chains (research, angles, carousel)
-// These can take 5–10 minutes. We use 15 minutes as a hard upper bound.
-const LONG_TIMEOUT_MS = 15 * 60 * 1000;
+// Long timeout for pipeline operations that run LLM chains (research, angles, carousel).
+// Blog post generation can take 16+ minutes on SAP AI Core — use 25 min as the hard upper bound.
+const LONG_TIMEOUT_MS = 25 * 60 * 1000;
 
 export function fetchWithTimeout(input: RequestInfo, init?: RequestInit, timeoutMs = TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();

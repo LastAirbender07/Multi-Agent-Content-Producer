@@ -6,6 +6,50 @@
 
 ---
 
+## 2026-08-13 — SSE Real-Time Pipeline Progress
+
+### Summary
+
+Replaced polling-based/simulated progress with push-based Server-Sent Events across both the Research and Content pipeline stages. Research shows 10–16 granular events per run. Content tracks per-slide rendering across all selected angles with monotonic global pct.
+
+---
+
+### What Changed
+
+**Backend**
+
+- `core/services/progress_store.py` — New push-based queue singleton. `update()` stores latest state and immediately delivers to all subscriber queues (zero CPU when idle). `finish()` sends `None` sentinel. `subscribe()` replays last known state on connect; if run is already complete, replays final event + sentinel so the stream closes in <1ms.
+- `core/graphs/research_graph.py` — All nodes call `_emit()` with `{phase, pct, message}`. Namespaced key `research:{run_id}`.
+- `apps/api/v1/research.py` — Push-based SSE endpoint `GET /research/{run_id}/events`.
+- `apps/api/v1/content.py` — Push-based SSE endpoint `GET /content/{run_id}/events`.
+- `core/orchestrators/content/orchestrator.py` — Emits `starting`, per-angle `generating_carousel`, and `complete` events. `complete` only fires after ALL angles and blog post generation finish.
+- `core/orchestrators/content/carousel_generator.py` — Per-slide rendering events with angle-proportional global pct. For multi-angle runs, message includes `"Angle A/B — slide N of M…"` context.
+- `core/schemas/workflow_state.py` — Added `angle_index`, `total_angles` to `ContentGraphState`.
+
+**Frontend**
+
+- `hooks/usePipelineSSE.ts` — Absolute URL (`ASSET_BASE/api/v1/...`, not relative), monotonic pct via `Math.max`, state preserved across `active` flips.
+- `components/pipeline/ResearchStageCard.tsx` — SSE activity log (running) + full research summary + LLM knowledge accordion (done).
+- `components/pipeline/ContentStageCard.tsx` — SSE activity log (running) + CarouselViewer + TokenChips + BlogExportBar + Editor button (done).
+
+**Tests** — `frontend/e2e/sse-ui.spec.ts`, 9 tests, all passing.
+- Group A (6 mocked, ~23s): UI state, element presence, no static tick marks, screenshots at 1440×900.
+- Group B (3 real-backend, ~7–10 min): B1 — 16 live research events; B2 — late-join replay; B3 — 16 content events including per-slide rendering.
+
+---
+
+### Key Design Decisions
+
+**Research pct can go backwards in raw SSE events** (refine loop resets to 55%). Frontend applies `Math.max(prev, incoming)` — bar never moves backwards. Raw events are intentionally non-monotonic to reflect actual graph state.
+
+**`complete` is not emitted per-angle** — only once after all angles + blog post finish. Per-angle context is in the `generating_carousel` and `rendering` message text.
+
+**Pipeline advancement is POST-driven, not SSE-driven** — a broken SSE stream can never stall the pipeline. SSE is purely cosmetic progress display.
+
+**B1 test design** — `POST /research/run` blocks until completion so run_id is only available after the run finishes. B1 pre-generates a UUID, passes it as `run_id` in the request body (supported by `ResearchRequest.run_id: Optional[str]`), and opens SSE concurrently before POSTing.
+
+---
+
 ## 2026-08-08 — LLM Layer: SAP AI Core + HAI Proxy, LLMFactoryAdapter, uv.lock cleanup
 
 ### Summary

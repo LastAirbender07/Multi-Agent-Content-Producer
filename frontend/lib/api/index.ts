@@ -3,7 +3,7 @@
 export * from "./types";
 export * from "./analytics";
 export * from "./settings";
-export { BASE, fetchWithTimeout, post, postMultipart } from "./client";
+export { BASE, ASSET_BASE, fetchWithTimeout, post, postMultipart } from "./client";
 
 import { research } from "./research";
 import { angles } from "./angles";

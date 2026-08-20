@@ -30,11 +30,13 @@ export default function PipelinePage() {
   const angleStatus = stages.angle.status;
   const contentStatus = stages.content.status;
 
-  // Auto-expand each stage when it completes
+  // Auto-expand each stage when it starts running OR completes.
+  // Direct addSection calls (no startTransition) so the accordion opens
+  // immediately — not deferred — the moment a stage becomes active.
   useEffect(() => {
-    if (researchStatus === "done") startTransition(() => addSection("research"));
-    if (angleStatus === "done") startTransition(() => addSection("angle"));
-    if (contentStatus === "done") startTransition(() => addSection("content"));
+    if (researchStatus === "running" || researchStatus === "done") addSection("research");
+    if (angleStatus === "done") addSection("angle");
+    if (contentStatus === "running" || contentStatus === "done") addSection("content");
   }, [researchStatus, angleStatus, contentStatus, addSection]);
 
   // Collapse all when pipeline resets
@@ -133,9 +135,19 @@ export default function PipelinePage() {
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-4"
               >
-                <ResearchStageCard open={openSections.has("research")} onToggle={() => toggle("research")} />
+                <ResearchStageCard
+                  active={researchStatus === "running"}
+                  open={openSections.has("research")}
+                  onToggle={() => toggle("research")}
+                />
                 <AngleStageCard open={openSections.has("angle")} onToggle={() => toggle("angle")} onOpenSelector={() => setShowAngleModal(true)} />
-                <ContentStageCard open={openSections.has("content")} onToggle={() => toggle("content")} />
+                <ContentStageCard
+                  runId={runId}
+                  active={contentStatus === "running"}
+                  stageStatus={contentStatus}
+                  open={openSections.has("content")}
+                  onToggle={() => toggle("content")}
+                />
 
                 {mounted && hasHistory && <PipelineRecentRuns runs={runs} onLoad={handleLoadRun} />}
               </motion.div>
