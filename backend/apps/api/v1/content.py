@@ -7,7 +7,7 @@ from fastapi.responses import PlainTextResponse, HTMLResponse, Response, Streami
 from apps.api.v1.schemas import (
     SlideEditRequest, SlideEditResponse, BlogPostUpdateRequest,
     NewBlankRunRequest, SwapImageUrlRequest,
-    ImageDeleteRequest, CanvasSaveRequest,
+    ImageDeleteRequest, CanvasSaveRequest, CanvasSaveResponse,
 )
 from core.orchestration.contracts import ContentRequest, ContentResponse
 from core.orchestrators.content.orchestrator import ContentOrchestrator
@@ -364,7 +364,23 @@ async def get_canvas(run_id: str, angle_index: int, slide_number: int) -> dict:
     return {"canvas_json": canvas_json, "slide": slide}
 
 
-@router.put("/{run_id}/slides/{angle_index}/{slide_number}/canvas")
-async def save_canvas(run_id: str, angle_index: int, slide_number: int, request: CanvasSaveRequest) -> dict:
-    """Persist the Fabric.js canvas JSON for a slide."""
-    return asset_library_service.save_canvas(run_id, angle_index, slide_number, request.fabric_json)
+@router.put(
+    "/{run_id}/slides/{angle_index}/{slide_number}/canvas",
+    response_model=CanvasSaveResponse,
+)
+async def save_canvas(
+    run_id: str, angle_index: int, slide_number: int, request: CanvasSaveRequest,
+) -> CanvasSaveResponse:
+    """Persist the Fabric.js canvas JSON AND re-render the slide PNG.
+
+    Fabric JSON is the canonical source of truth. On save the backend:
+    - extracts inline base64 image data (from user uploads) to disk
+    - rewrites the srcs in the JSON to local paths
+    - writes canvas_NN.json alongside slides.json
+    - re-renders png/slide_NN.png via Playwright + window.Renderer.renderFromCanvasJson
+    - returns a cache-bust-decorated PNG URL so the preview refreshes cleanly.
+    """
+    result = await asset_library_service.save_canvas(
+        run_id, angle_index, slide_number, request.fabric_json,
+    )
+    return CanvasSaveResponse(**result)

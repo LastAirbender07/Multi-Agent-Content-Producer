@@ -9,9 +9,17 @@ interface SlidePngPreviewProps {
   angleIndex: number;
   slideNumber: number;
   onEnterEditMode: () => void;
+  /**
+   * Optional cache-bust token appended to the PNG URL as `?v=<versionQuery>`.
+   * Pass the `version_query` returned from the last saveCanvas() so the preview
+   * shows the freshly re-rendered image instead of the browser-cached copy.
+   */
+  versionQuery?: string;
 }
 
-export function SlidePngPreview({ runId, angleIndex, slideNumber, onEnterEditMode }: SlidePngPreviewProps) {
+export function SlidePngPreview({
+  runId, angleIndex, slideNumber, onEnterEditMode, versionQuery,
+}: SlidePngPreviewProps) {
   const [pngUrl, setPngUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasCanvas, setHasCanvas] = useState(false);
@@ -43,7 +51,9 @@ export function SlidePngPreview({ runId, angleIndex, slideNumber, onEnterEditMod
         if (angle?.png_paths) {
           const png = angle.png_paths.find(p => p.includes(`slide_${String(slideNumber).padStart(2, "0")}`));
           if (png) {
-            const url = `${ASSET_BASE}${png.startsWith("/") ? png : "/" + png}`;
+            const base = `${ASSET_BASE}${png.startsWith("/") ? png : "/" + png}`;
+            // Cache-bust when caller passed a fresh versionQuery (immediately after save).
+            const url = versionQuery && !base.includes("?v=") ? `${base}?v=${versionQuery}` : base;
             setPngUrl(url);
           }
         }
@@ -54,7 +64,7 @@ export function SlidePngPreview({ runId, angleIndex, slideNumber, onEnterEditMod
 
     load();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runId, angleIndex, slideNumber]);
+  }, [runId, angleIndex, slideNumber, versionQuery]);
 
   if (hasCanvas) return null;
 

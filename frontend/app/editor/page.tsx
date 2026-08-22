@@ -40,7 +40,9 @@ function EditorContent() {
   const [selectedObject, setSelectedObject] = useState<SelectedObjectInfo | null>(null);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [latestVersionQuery, setLatestVersionQuery] = useState<string | null>(null);
   const [exportStatus, setExportStatus] = useState<"idle" | "exporting" | "exported">("idle");
   const [zoom, setZoom] = useState(1);
   const [slideTheme, setSlideTheme] = useState<"aurora" | "lumina">("aurora");
@@ -108,18 +110,32 @@ function EditorContent() {
     const api_ = canvasApiRef.current;
     if (!api_ || !selectedRunId || selectedAngle === null || selectedSlide === null) return;
     setSaveStatus("saving");
+    setSaveError(null);
     try {
       const json = api_.getCanvasJson();
-      await api.saveCanvas(selectedRunId, selectedAngle, selectedSlide, json);
+      const result = await api.saveCanvas(selectedRunId, selectedAngle, selectedSlide, json);
       // Clear checkpoint
       const cpKey = `canvas_cp_${selectedRunId}_${selectedAngle}_${selectedSlide}`;
       localStorage.removeItem(cpKey);
+      // Cache-bust the PNG preview when the user returns to view mode
+      if (result.version_query) setLatestVersionQuery(result.version_query);
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 2000);
-    } catch {
-      setSaveStatus("idle");
+    } catch (e: unknown) {
+      const rawMsg = e instanceof Error ? e.message : String(e);
+      const friendly =
+        rawMsg.includes("Failed to fetch") || rawMsg.toLowerCase().includes("networkerror")
+          ? "Backend is unreachable. Is uvicorn running on :8000?"
+          : rawMsg.slice(0, 240);
+      setSaveError(friendly);
+      setSaveStatus("error");
     }
   }, [selectedRunId, selectedAngle, selectedSlide]);
+
+  const handleDismissSaveError = useCallback(() => {
+    setSaveError(null);
+    setSaveStatus("idle");
+  }, []);
 
   const handleExportPng = useCallback(async () => {
     const api_ = canvasApiRef.current;
@@ -231,6 +247,8 @@ function EditorContent() {
             onRedo={() => canvasApiRef.current?.redo()}
             onSave={handleSave}
             saveStatus={isViewOnly ? "idle" : saveStatus}
+            saveError={isViewOnly ? null : saveError}
+            onDismissSaveError={handleDismissSaveError}
             onExportPng={handleExportPng}
             exportStatus={isViewOnly ? "idle" : exportStatus}
             zoom={zoom}
@@ -298,6 +316,7 @@ function EditorContent() {
                     angleIndex={selectedAngle!}
                     slideNumber={selectedSlide!}
                     onEnterEditMode={enterEditMode}
+                    versionQuery={latestVersionQuery ?? undefined}
                   />
                 )}
 

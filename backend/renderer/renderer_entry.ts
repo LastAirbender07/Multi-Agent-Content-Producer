@@ -75,6 +75,54 @@ const _canvasInstances = new WeakMap<HTMLCanvasElement, fabric.Canvas>();
 
 (window as Window & { Renderer?: RendererAPI }).Renderer = {
   loadFonts,
+
+  /**
+   * Load a previously-saved Fabric.js canvas JSON directly and paint it to the #slide canvas.
+   *
+   * Used by the editor Save flow — bypasses the template builder because the JSON
+   * already contains the exact object graph the user built in the editor.
+   */
+  async renderFromCanvasJson(fabricJson, options) {
+    await loadFonts(options.imageBaseUrl);
+
+    const canvasEl = document.getElementById("slide") as HTMLCanvasElement | null;
+    if (!canvasEl) throw new Error('Canvas element #slide not found in slide_render.html');
+
+    // Dispose previous instance on this element (same pattern as render())
+    const prev = _canvasInstances.get(canvasEl);
+    if (prev) {
+      prev.dispose();
+      _canvasInstances.delete(canvasEl);
+    }
+
+    const canvas = new fabric.Canvas(canvasEl, {
+      width:  1080,
+      height: 1080,
+      backgroundColor: CANVAS_BG_COLOR,
+      enableRetinaScaling: false,
+    });
+    _canvasInstances.set(canvasEl, canvas);
+
+    // Pre-pass: rewrite relative image srcs so they resolve against imageBaseUrl.
+    // Deep-clone so we never mutate the caller's object.
+    // HTTP / data URLs pass through untouched.
+    const rewriteSrc = (o: unknown): void => {
+      if (!o || typeof o !== "object") return;
+      const rec = o as Record<string, unknown>;
+      const src = rec.src;
+      if (typeof src === "string" && !src.startsWith("http") && !src.startsWith("data:")) {
+        rec.src = `${options.imageBaseUrl}${src.startsWith("/") ? "" : "/"}${src}`;
+      }
+      const objects = rec.objects;
+      if (Array.isArray(objects)) objects.forEach(rewriteSrc);
+    };
+    const cloned = JSON.parse(JSON.stringify(fabricJson)) as Record<string, unknown>;
+    if (Array.isArray(cloned.objects)) (cloned.objects as unknown[]).forEach(rewriteSrc);
+
+    await canvas.loadFromJSON(cloned);
+    canvas.renderAll();
+  },
+
   async render(slideJson, options) {
     await loadFonts(options.imageBaseUrl);
 

@@ -7,14 +7,18 @@ Manages two image storage roots:
 """
 from __future__ import annotations
 
+import base64
 import io
 import json
+import re
+import time
 from pathlib import Path
 
 from fastapi import HTTPException
 from PIL import Image as PilImage
 
 from configs.settings import get_settings
+from core.orchestrators.content.renderer import render_from_canvas_json
 from infra.logging import get_logger
 
 logger = get_logger(__name__)
@@ -141,17 +145,115 @@ def delete_image(path: str) -> dict:
 
 # ── Canvas JSON save/load ──────────────────────────────────────────────────────
 
-def save_canvas(run_id: str, angle_index: int, slide_number: int, fabric_json: dict) -> dict:
-    """Persist the Fabric.js canvas JSON for a slide alongside slides.json."""
+_DATA_URL_RE = re.compile(r"^data:image/(?P<ext>\w+);base64,(?P<data>.+)$", re.DOTALL)
+
+
+def _persist_inline_images(
+    fabric_json: dict,
+    images_dir: Path,
+    slide_number: int,
+    static_url_prefix: str,
+) -> dict:
+    """Walk fabric_json.objects recursively.  For every image object whose ``src``
+    is an inline base64 data URL, decode the bytes, save them as a file inside
+    ``images_dir``, and rewrite the ``src`` to the resulting static URL.
+
+    Returns the same ``fabric_json`` (mutated in place) for chaining.
+    Non-image objects and http/https srcs are passed through untouched.
+    """
+    counter = 0
+
+    def walk(objects: list) -> None:
+        nonlocal counter
+        for obj in objects:
+            if not isinstance(obj, dict):
+                continue
+            src = obj.get("src")
+            if isinstance(src, str) and src.startswith("data:image/"):
+                m = _DATA_URL_RE.match(src)
+                if m:
+                    ext = m.group("ext").lower()
+                    if ext == "jpeg":
+                        ext = "jpg"
+                    try:
+                        payload = base64.b64decode(m.group("data"))
+                    except Exception as exc:  # noqa: BLE001 — malformed base64 shouldn't kill save
+                        logger.warning("asset_library.bad_base64", error=str(exc))
+                        continue
+                    filename = f"slide_{slide_number:02d}_canvas_{counter}.{ext}"
+                    dest = images_dir / filename
+                    images_dir.mkdir(parents=True, exist_ok=True)
+                    dest.write_bytes(payload)
+                    obj["src"] = f"{static_url_prefix}/{filename}"
+                    counter += 1
+            nested = obj.get("objects")
+            if isinstance(nested, list):
+                walk(nested)
+
+    walk(fabric_json.get("objects", []))
+    return fabric_json
+
+
+async def save_canvas(
+    run_id: str,
+    angle_index: int,
+    slide_number: int,
+    fabric_json: dict,
+) -> dict:
+    """Persist the Fabric.js canvas JSON AND re-render the slide PNG.
+
+    Fabric JSON is the canonical source of truth for an edited slide.  This
+    function:
+
+    1. Extracts any inline base64 image data (from user uploads) to disk under
+       ``images/`` alongside the slide and rewrites the srcs in the JSON to
+       relative static URLs.
+    2. Writes the (rewritten) canvas JSON to ``canvas_{NN}.json``.
+    3. Regenerates ``png/slide_{NN}.png`` via the Fabric renderer bundle by
+       calling ``render_from_canvas_json``.
+    4. Returns the cache-bust-decorated PNG URL so the frontend can force a
+       fresh fetch of the new image.
+    """
     angle_dir = _OUTPUTS_ROOT / run_id / "content" / f"angle_{angle_index}"
     if not angle_dir.exists():
-        raise HTTPException(status_code=404, detail=f"Angle {angle_index} not found for run {run_id}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Angle {angle_index} not found for run {run_id}",
+        )
+
+    # Deep-clone so we never mutate the caller's object
+    canvas_data = json.loads(json.dumps(fabric_json))
+
+    images_dir = angle_dir / "images"
+    static_url_prefix = f"/outputs/runs/{run_id}/content/angle_{angle_index}/images"
+    canvas_data = _persist_inline_images(
+        canvas_data, images_dir, slide_number, static_url_prefix
+    )
 
     canvas_path = angle_dir / f"canvas_{slide_number:02d}.json"
-    canvas_path.write_text(json.dumps(fabric_json, ensure_ascii=False), encoding="utf-8")
+    canvas_path.write_text(json.dumps(canvas_data, ensure_ascii=False), encoding="utf-8")
 
-    logger.info("asset_library.save_canvas", run_id=run_id, angle=angle_index, slide=slide_number)
-    return {"saved": True}
+    png_path = angle_dir / "png" / f"slide_{slide_number:02d}.png"
+    await render_from_canvas_json(canvas_data, png_path)
+
+    version_query = str(int(time.time() * 1000))
+    png_url = (
+        f"/outputs/runs/{run_id}/content/angle_{angle_index}/png/"
+        f"slide_{slide_number:02d}.png?v={version_query}"
+    )
+
+    logger.info(
+        "asset_library.save_canvas",
+        run_id=run_id, angle=angle_index, slide=slide_number,
+        png_url=png_url,
+    )
+
+    return {
+        "saved": True,
+        "png_url": png_url,
+        "canvas_json": canvas_data,
+        "version_query": version_query,
+    }
 
 
 def load_canvas(run_id: str, angle_index: int, slide_number: int) -> dict | None:

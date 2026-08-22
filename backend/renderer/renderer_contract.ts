@@ -40,6 +40,19 @@ export interface RendererAPI {
   render(slide: SlideInput, options: RenderOptions): Promise<void>;
 
   /**
+   * Load a previously-saved Fabric.js canvas JSON directly and paint it to the #slide canvas.
+   * Bypasses the template builder — the JSON is the authoritative representation.
+   *
+   * Used by the editor Save flow: after the user edits the canvas, we serialize
+   * canvas.toJSON(["data"]) and post it to /canvas. Backend then screenshots the
+   * result via this method — the exact same visual state the user saw.
+   *
+   * @param fabricJson  Output of `fabric.Canvas.toJSON(["data"])`
+   * @param options     Same shape as render(); imageBaseUrl resolves relative image srcs
+   */
+  renderFromCanvasJson(fabricJson: Record<string, unknown>, options: RenderOptions): Promise<void>;
+
+  /**
    * Pre-load fonts so the first render() call has no font flash.
    * Called automatically by render() — call explicitly only if you need fonts
    * guaranteed before the first render (e.g. editor startup).

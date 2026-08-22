@@ -145,3 +145,11 @@ class ImageDeleteRequest(BaseModel):
 
 class CanvasSaveRequest(BaseModel):
     fabric_json: dict  # full fabric.Canvas.toJSON(["data"]) output
+
+
+class CanvasSaveResponse(BaseModel):
+    """Response body for PUT /content/{run_id}/slides/{angle_index}/{slide_number}/canvas."""
+    saved: bool
+    png_url: str          # e.g. "/outputs/runs/.../slide_01.png?v=1724353200000"
+    canvas_json: dict     # the fabric_json AFTER inline images were persisted to disk
+    version_query: str    # the cache-bust value used in png_url

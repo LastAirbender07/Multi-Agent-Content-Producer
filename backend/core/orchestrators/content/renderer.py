@@ -123,3 +123,68 @@ async def render_slide_fabric(
         SlideRenderTask(slide_data=slide_data, image_url=image_url, output_path=Path(output_path))
     ])
     return results[0]
+
+
+async def render_from_canvas_json(
+    fabric_json: dict,
+    output_path: Path,
+) -> str:
+    """
+    Render a Fabric.js canvas JSON directly to PNG (bypassing template builders).
+
+    Used by the editor Save flow: the frontend serialises the canvas via
+    canvas.toJSON(["data"]) and posts it to /canvas. This function loads that JSON
+    into a headless Fabric.Canvas via window.Renderer.renderFromCanvasJson and
+    screenshots the result — the PNG matches exactly what the user built.
+
+    Args:
+        fabric_json: Output of fabric.Canvas.toJSON — the source of truth for this slide.
+        output_path: PNG destination. Parent dir will be created.
+
+    Returns:
+        Absolute path string of the written PNG.
+    """
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    js_errors: list[str] = []
+
+    async with serve_directory(_BACKEND_ROOT) as asset_base_url:
+        async with async_playwright() as pw:
+            browser = await pw.chromium.launch(headless=True)
+            page    = await browser.new_page(
+                viewport={"width": _CANVAS_SIZE, "height": _CANVAS_SIZE},
+                device_scale_factor=2,
+            )
+            page.on("console",   lambda m: js_errors.append(m.text[:120]) if m.type == "error" else None)
+            page.on("pageerror", lambda e: js_errors.append(str(e)[:120]))
+
+            renderer_url = f"{asset_base_url}/renderer/slide_render.html"
+            await page.goto(renderer_url, wait_until="networkidle")
+
+            await page.evaluate(
+                """async (args) => {
+                    await window.Renderer.renderFromCanvasJson(args.fabricJson, args.options);
+                }""",
+                {
+                    "fabricJson": fabric_json,
+                    "options": {"imageBaseUrl": asset_base_url},
+                },
+            )
+
+            # loadFromJSON kicks off image fetches asynchronously — wait for them.
+            await page.wait_for_load_state("networkidle")
+
+            raw_path = output_path.with_suffix("._raw.png")
+            await page.screenshot(path=str(raw_path), full_page=False)
+            await browser.close()
+
+    with Image.open(raw_path) as img:
+        img = img.resize((_CANVAS_SIZE, _CANVAS_SIZE), Image.LANCZOS)
+        img.save(str(output_path), "PNG", optimize=True)
+    raw_path.unlink(missing_ok=True)
+
+    if js_errors:
+        logger.warning("render_from_canvas_json_js_errors", count=len(js_errors), first=js_errors[0])
+
+    return str(output_path)
