@@ -1,0 +1,700 @@
+# PHASE 2 — Compact Template Family (Sequential Build + GAN-Iterate)
+
+## Status
+APPROVED (v3, 2026-08-23) — Loop 1 complete, 2 clean passes documented at bottom.
+Supersedes v2 (batched work); v3 rewrites for strictly sequential per-component + per-template build with mandatory GAN verification against user-supplied reference PNGs.
+
+## Problem Statement
+
+Casual Instagram followers abandon our carousels at slide 2 because current templates carry 40-70 words per slide in 20 px text with 3-5 bullet points. Full analysis of 85 reference slides across 4 top-performing brands (see `Docs/design/SLIDE_REFERENCES_FULL.md` + `..._PART2.md`, catalogued in `Docs/design/templates/`) shows Instagram-native carousels use:
+
+- HUGE bold headlines (52-140 pt on 1080 canvas)
+- ≤ 20 words body text
+- One idea per slide (hard rule)
+- Generous whitespace, no bullet lists
+- Cream `#F5F0E8` background + small brand pill + progress dots
+
+This phase builds **5 highest-value compact-family Fabric.js templates**, **sequentially** — no batching. Each primitive must pass its unit + snapshot test before the next starts. Each family must reach **≤ 5 % content-zone GAN diff** vs its user-supplied reference PNG before the next family starts. **We believe in GANs — no template ships without visual proof against the real Instagram references.**
+
+**After this phase ships:**
+- 6 primitives in `frontend/utils/canvasTemplates/shared/compact/` — each independently unit-tested + snapshot-validated
+- 5 family builders — each GAN-verified against 2-3 reference PNGs from `backend/outputs/slide-references/`
+- 5 Lumina wrappers (10 REGISTRY entries total)
+- New GAN script `scripts/gan_reference.js` — Fabric renders vs Instagram references, iterates with LLM analysis
+- Every template passes GAN validation ≤ 5 % content-zone diff before moving on
+
+## Requirements
+
+**Functional**
+- **Components (6):** built one at a time in strict order — see "Sequential Component Build Order" below. Each ships with a Playwright snapshot test + mini GAN diff against a reference-crop.
+- **Families (5):** built one at a time in strict order — hook → fact → step → list-item → quote. Each is validated via `scripts/gan_reference.js --template <key>` and must reach ≤ 5 % content-zone diff on ALL its reference PNGs before the next family starts.
+- **New GAN script `scripts/gan_reference.js`:** compares Fabric render vs the user's Instagram reference PNGs (NOT `GAN_CATALOG.json` runs). Loop mode: render → diff → save composite → invoke LLM → tweak → re-render → re-diff → up to 5 iterations per template.
+- **`GAN_REFERENCES.json`** — new catalog mapping template key → array of reference PNG absolute paths (extracted from family MDs under `Docs/design/templates/families/`).
+- **Playfair Display Italic Bold + Inter Black** loaded via `FontFace` in `backend/renderer/renderer_entry.ts`.
+- **`_canvas_template_id()`** accepts `template_family="compact"` (additive; default stays `"extended"`). Routing to compact stays cold in Phase 2; Phase 3 activates it.
+- **10 REGISTRY entries** (5 aurora + 5 lumina wrappers).
+- **Editor Templates panel** auto-picks up the 5 new families via existing `SLIDE_TYPES = Object.keys(REGISTRY).filter(k=>k.startsWith("aurora-"))` mechanism.
+- **Starter content** for each new template in `frontend/constants/slideTemplates.ts`.
+
+**Non-functional**
+- **Zero automatic change to existing pipeline runs.** All existing `slides.json` render exactly as before.
+- **Backward-compatible** — adding REGISTRY keys is additive.
+- **All existing E2E tests pass** — `full-validation.spec.ts` 45/47 baseline + `editor-save.spec.ts` from Phase 1.
+- **All templates GAN-verified** — no template merged with content-zone diff > 5 % vs at least 2 reference PNGs.
+- **LLM analysis on every failed iteration** — invokes `POST /api/v1/chat/` with the specific failing composite + reference PNG paths + design-token dump, stores the suggestion JSON for the developer to review.
+- **Playfair Display font loads within 500 ms in Playwright headless** (verified with `document.fonts.ready`).
+
+
+
+## External Verification Log
+
+| Claim | Verified against | Verified on |
+|---|---|---|
+| `REGISTRY` at `frontend/utils/canvasTemplates/index.ts:31` accepts new keys additively; multiple keys → same builder is Lumina pattern via `lw(...)` | Direct read of file — 20+ entries prove the pattern | 2026-08-23 |
+| Editor Templates panel auto-picks up new `aurora-*` REGISTRY entries via `SLIDE_TYPES = Object.keys(REGISTRY).filter(k=>k.startsWith("aurora-"))` | `AI_CHANGELOG.md` 2026-06-25 | 2026-08-23 |
+| Fabric.js v7 supports arbitrary font families via `FontFace` — existing pattern loads Plus Jakarta Sans + Syne Bold in `renderer_entry.ts:32-43` | Direct read of `backend/renderer/renderer_entry.ts` | 2026-08-23 |
+| Playfair Display + Inter Black are free Google Fonts, `.woff2` files ~30 KB each | https://fonts.google.com/specimen/Playfair+Display, https://fonts.google.com/specimen/Inter | 2026-08-23 |
+| Existing font-loading loop uses `Promise.allSettled` — missing font falls back to system serif, doesn't crash | `renderer_entry.ts:50-59` | 2026-08-23 |
+| `scripts/gan_multi.js` uses `pixelmatch` + `pngjs` from `frontend/node_modules/` — new script reuses same deps | Direct read of `scripts/gan_multi.js:29-30` | 2026-08-23 |
+| `scripts/gan_multi.js` computes content-zone diff on bottom 55 % of canvas via row-based slicing — reusable | Direct read of `scripts/gan_multi.js:76-116` | 2026-08-23 |
+| `scripts/gan_multi.js` supports `--llm` flag that POSTs to `http://localhost:8000/api/v1/chat/` and parses `data.reply` | Direct read of `scripts/gan_multi.js:279-320` | 2026-08-23 |
+| `_canvas_template_id()` at `carousel_generator.py:30` has 3 hits total — safe to add keyword arg with default | grep result in v2 plan | 2026-08-23 |
+| `POST /api/v1/chat/` endpoint accepts `{messages: [{role, content}]}` returning `{reply}` | `backend/apps/api/v1/chat.py` (referenced by `gan_multi.js:304-311`) | 2026-08-23 |
+| User-supplied reference PNGs live at `backend/outputs/slide-references/{others,SahilBloom,claude,nextwork}/*.png` (85 images) | Direct `ls` — 11+11+25+38 | 2026-08-23 |
+| Family MDs at `Docs/design/templates/families/aurora-compact-*.md` list explicit reference PNG paths | Direct read of `Docs/design/templates/families/aurora-compact-hook.md` | 2026-08-23 |
+| Sharp image lib (needed for reference PNG cropping) is already in `frontend/node_modules/` via Playwright dep — verified via `test -d frontend/node_modules/sharp` OR fall back to `pngjs` for cropping | `frontend/node_modules/` inspection | 2026-08-23 |
+
+## Entry Conditions
+
+- [ ] Phase 1 (canvas save) status is COMPLETE — verify: `grep "^## Status" Docs/phases/PHASE_1_editor_canvas_save.md` shows `COMPLETE`
+- [ ] Master plan v3 approved — verify: `head -3 Docs/phases/MASTER_PLAN_multi_format.md` shows `v3`
+- [ ] Template catalog exists — verify: `test -f Docs/design/templates/README.md && ls Docs/design/templates/families/aurora-compact-*.md | wc -l` ≥ 5
+- [ ] Reference PNGs present — verify: `ls backend/outputs/slide-references/*/*.png | wc -l` ≥ 80
+- [ ] Frontend TypeScript compiles clean — verify: `cd frontend && npx tsc --noEmit` exits 0
+- [ ] Backend health check passes — verify: `curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/v1/analytics/summary` returns `200`
+- [ ] Renderer bundle currently builds — verify: `cd backend && node renderer/build.mjs` produces non-empty `renderer.bundle.js`
+
+## Files to Create or Modify
+
+**Fonts + renderer:**
+
+| # | File | Action | Description |
+|---|---|---|---|
+| 1 | `backend/assets/fonts/PlayfairDisplay-BoldItalic.woff2` | CREATE | Download from Google Fonts |
+| 2 | `backend/assets/fonts/Inter-Black.woff2` | CREATE | Download from Google Fonts |
+| 3 | `backend/renderer/renderer_entry.ts` | MODIFY | Add both to `FONT_DEFS` |
+
+**Tokens:**
+
+| # | File | Action | Description |
+|---|---|---|---|
+| 4 | `frontend/utils/canvasTokens.ts` | MODIFY | Add `COMPACT_TOKENS` object |
+
+**Components (6, sequential):**
+
+| # | File | Action | Description |
+|---|---|---|---|
+| 5 | `frontend/utils/canvasTemplates/shared/compact/make-brand-pill.ts` | CREATE | Component 1 |
+| 6 | `frontend/utils/canvasTemplates/shared/compact/make-dot-progress-indicator.ts` | CREATE | Component 2 |
+| 7 | `frontend/utils/canvasTemplates/shared/compact/make-outlined-pill.ts` | CREATE | Component 3 |
+| 8 | `frontend/utils/canvasTemplates/shared/compact/make-mixed-weight-text.ts` | CREATE | Component 4 |
+| 9 | `frontend/utils/canvasTemplates/shared/compact/make-number-badge.ts` | CREATE | Component 5 |
+| 10 | `frontend/utils/canvasTemplates/shared/compact/make-circular-nav-arrow.ts` | CREATE | Component 6 |
+| 11 | `frontend/utils/canvasTemplates/shared/compact/index.ts` | CREATE | Re-export barrel |
+
+**Families (5, sequential):**
+
+| # | File | Action | Description |
+|---|---|---|---|
+| 12 | `frontend/utils/canvasTemplates/aurora_compact_hook.ts` | CREATE | Family 1: cover slide |
+| 13 | `frontend/utils/canvasTemplates/aurora_compact_fact.ts` | CREATE | Family 2: revelation/stat |
+| 14 | `frontend/utils/canvasTemplates/aurora_compact_step.ts` | CREATE | Family 3: tutorial step |
+| 15 | `frontend/utils/canvasTemplates/aurora_compact_list_item.ts` | CREATE | Family 4: numbered list |
+| 16 | `frontend/utils/canvasTemplates/aurora_compact_quote.ts` | CREATE | Family 5: terracotta quote |
+
+**Registry + starter content:**
+
+| # | File | Action | Description |
+|---|---|---|---|
+| 17 | `frontend/utils/canvasTemplates/index.ts` | MODIFY | Register 5 aurora-compact-* + 5 lumina-compact-* |
+| 18 | `frontend/constants/slideTemplates.ts` | MODIFY | Add STARTER_CONTENT + TEMPLATE_METADATA entries |
+
+**Backend routing hook:**
+
+| # | File | Action | Description |
+|---|---|---|---|
+| 19 | `backend/core/orchestrators/content/carousel_generator.py` | MODIFY | `_canvas_template_id(..., template_family="extended")` — signature only |
+
+**GAN infrastructure:**
+
+| # | File | Action | Description |
+|---|---|---|---|
+| 20 | `scripts/GAN_REFERENCES.json` | CREATE | Registry: compact-template key → array of reference PNG absolute paths |
+| 21 | `scripts/gan_reference.js` | CREATE | New GAN script — Fabric render vs Instagram references, iterate-with-LLM |
+| 22 | `scripts/gan_component_snapshots.js` | CREATE | Snapshot test — component in isolation, diffs against saved snapshot |
+| 23 | `scripts/gan_refs/components/*.png` | CREATE | Cropped snapshot references, one per component |
+
+**Tests:**
+
+| # | File | Action | Description |
+|---|---|---|---|
+| 24 | `frontend/e2e/compact-components.spec.ts` | CREATE | Playwright: per-component unit render + visible-props assertions |
+| 25 | `frontend/e2e/compact-templates.spec.ts` | CREATE | Playwright: per-family editor swap + save + PNG regen verification |
+
+## Sequential Component Build Order
+
+**Rule:** Component N+1 does NOT start until Component N passes ALL three checks: `tsc --noEmit` clean, snapshot test green, mini-GAN diff ≤ 3 % against a reference crop.
+
+| Order | Component | Snapshot reference | Rationale for order |
+|---|---|---|---|
+| 1 | `make-brand-pill` | crop of `backend/outputs/slide-references/nextwork/image.png` bottom-left | Simplest; every family uses it |
+| 2 | `make-dot-progress-indicator` | crop of `backend/outputs/slide-references/nextwork/image copy 4.png` bottom-centre | Trivial; every family uses it |
+| 3 | `make-outlined-pill` | crop of `backend/outputs/slide-references/others/image copy 3.png` peach `VIRAL REEL` pill | Used by hook; validates rounded-rect + centred text + letter-spacing |
+| 4 | `make-mixed-weight-text` | crop of `backend/outputs/slide-references/others/image.png` `I'm THIS close` | Most complex — 3-axis per-character styling; hook depends on it |
+| 5 | `make-number-badge` | crop of `backend/outputs/slide-references/SahilBloom/image copy.png` outlined `1` badge | Only list-item needs it |
+| 6 | `make-circular-nav-arrow` | crop of `backend/outputs/slide-references/SahilBloom/image copy 4.png` right chevron | Optional decoration; can build last |
+
+## Sequential Family Build Order
+
+**Rule:** Family N+1 does NOT start until Family N reaches **≤ 5 % content-zone GAN diff** on ALL its reference PNGs before promotion.
+
+| Order | Family key | Reference PNGs (for GAN diff) | Components composed |
+|---|---|---|---|
+| 1 | `aurora-compact-hook` | `others/image copy 3.png`, `others/image copy 4.png` | brand-pill, dot-indicator, outlined-pill, mixed-weight-text |
+| 2 | `aurora-compact-fact` | `claude/image copy 4.png`, `nextwork/image copy 10.png` | brand-pill, dot-indicator, mixed-weight-text |
+| 3 | `aurora-compact-step` | `nextwork/image copy 3.png`, `SahilBloom/image copy.png` | + number-badge |
+| 4 | `aurora-compact-list-item` | `SahilBloom/image copy.png`, `SahilBloom/image copy 2.png` | brand-pill, dot-indicator, number-badge |
+| 5 | `aurora-compact-quote` | `claude/image copy 10.png`, `claude/image copy 11.png` | brand-pill, dot-indicator, mixed-weight-text (inline-bold spans) |
+
+- [ ] pixelmatch + pngjs available — verify: `test -f frontend/node_modules/pixelmatch/index.js && test -f frontend/node_modules/pngjs/lib/png.js`
+- [ ] Chromium binary present — verify: `cd frontend && npx playwright install chromium --dry-run 2>&1 | grep -q "already installed"`
+
+## Implementation Steps
+
+Steps are grouped into 4 stages that MUST run in order:
+
+**Stage A:** Foundation (fonts, tokens, GAN infrastructure)
+**Stage B:** Build 6 components sequentially (one at a time)
+**Stage C:** Build 5 families sequentially (one at a time, GAN-iterate to ≤ 5 %)
+**Stage D:** Registration + editor wiring + regression tests
+
+---
+
+### Step 2.A.1 — Download Playfair Display Italic Bold + Inter Black
+
+**Files:** `backend/assets/fonts/PlayfairDisplay-BoldItalic.woff2`, `backend/assets/fonts/Inter-Black.woff2`
+
+**What to implement:**
+```bash
+cd backend/assets/fonts
+
+# Playfair Display Bold Italic (weight 700, style italic)
+curl -L "https://fonts.gstatic.com/s/playfairdisplay/v37/nuFvD-vYSZviVYUb_rj3ij__anPXBYf9pWpjnHVsgFCsK9C2sYNK.woff2" \
+  -o PlayfairDisplay-BoldItalic.woff2
+
+# Inter Black (weight 900)
+curl -L "https://fonts.gstatic.com/s/inter/v18/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7W0Q5nw.woff2" \
+  -o Inter-Black.woff2
+```
+
+*(URLs are illustrative — fetch current stable URLs from Google Fonts CSS. Confirm both files are 20-40 KB `.woff2` binaries.)*
+
+**Test command:**
+```bash
+file backend/assets/fonts/{PlayfairDisplay-BoldItalic,Inter-Black}.woff2 | grep -i "web open font"
+```
+**Expected output:** both files report `Web Open Font Format` type.
+
+---
+
+### Step 2.A.2 — Register fonts in the renderer
+
+**File:** `backend/renderer/renderer_entry.ts`
+
+**What to modify:** extend `FONT_DEFS` (line 32-38):
+
+```typescript
+const FONT_DEFS = [
+  // ... existing entries ...
+  { family: "Playfair Display", weight: "700", style: "italic",
+    path: "/assets/fonts/PlayfairDisplay-BoldItalic.woff2" },
+  { family: "Inter",            weight: "900",
+    path: "/assets/fonts/Inter-Black.woff2" },
+];
+```
+
+Then rebuild: `cd backend && node renderer/build.mjs`.
+
+**Test command:** `cd backend && node renderer/build.mjs 2>&1 | tail -3`
+**Expected output:** `⚡ Done in <N>ms` with bundle > 500 KB.
+
+Manual verification: `document.fonts.check("16px 'Inter'")` in the renderer's DevTools returns `true`.
+
+---
+
+### Step 2.A.3 — Add COMPACT_TOKENS
+
+**File:** `frontend/utils/canvasTokens.ts`
+
+**What to implement:**
+```typescript
+export const COMPACT_TOKENS = {
+  // Backgrounds
+  bg:            "#F5F0E8",   // default cream
+  bgAlt:         "#FBF3E4",
+  bgAccent:      "#C36749",   // terracotta (compact-quote)
+  bgDark:        "#1F1E1D",
+  paper:         "#FFFFFF",
+
+  // Ink
+  ink:           "#111111",
+  inkSoft:       "#3A3A3A",
+  inkInverted:   "#F5EFE0",   // cream text on coral/dark
+  duotoneShadow: "#8A3A32",   // portrait-cutout shadow tone
+
+  // Accents
+  peach:         "#E8CBA3",   // outlined-pill fill
+  coral:         "#D46A5E",   // Anthropic coral / quote bg alt
+  mint:          "#4AC48D",   // healthy / positive
+  warnRed:       "#E27168",
+  highlightYellow:"#E4C93C",  // inline highlight pill
+
+  // Sizes (px at 1080 canvas)
+  headlineDisplay: 140,       // hook / cover
+  headlineLarge:   90,        // fact big-number
+  headlineMedium:  60,        // step, list-item name
+  headlineSmall:   40,
+  bodyLarge:       32,
+  bodyRegular:     26,
+  bodyMuted:       22,
+  bodyTiny:        16,
+
+  // Spacing
+  padding:         80,
+  gap:             40,
+  radius:          16,
+
+  // Fonts
+  fontDisplay:     "'Inter', sans-serif",
+  fontSans:        "'Plus Jakarta Sans', sans-serif",
+  fontSerif:       "'Playfair Display', serif",
+
+  canvasSize:      1080,
+} as const;
+
+export type CompactTokens = typeof COMPACT_TOKENS;
+
+// Extend getTokens(templateId): if templateId includes "compact", return COMPACT_TOKENS.
+```
+
+**Test command:** `cd frontend && npx tsc --noEmit`
+**Expected output:** exit 0.
+
+---
+
+### Step 2.A.4 — Create `GAN_REFERENCES.json`
+
+**File:** `scripts/GAN_REFERENCES.json`
+
+**What to implement:** JSON registry with the reference PNGs for each Phase-2 template. Extracted from the family MDs:
+
+```json
+{
+  "aurora-compact-hook": [
+    "backend/outputs/slide-references/others/image copy 3.png",
+    "backend/outputs/slide-references/others/image copy 4.png"
+  ],
+  "aurora-compact-fact": [
+    "backend/outputs/slide-references/claude/image copy 4.png",
+    "backend/outputs/slide-references/nextwork/image copy 10.png"
+  ],
+  "aurora-compact-step": [
+    "backend/outputs/slide-references/nextwork/image copy 3.png",
+    "backend/outputs/slide-references/SahilBloom/image copy.png"
+  ],
+  "aurora-compact-list-item": [
+    "backend/outputs/slide-references/SahilBloom/image copy.png",
+    "backend/outputs/slide-references/SahilBloom/image copy 2.png"
+  ],
+  "aurora-compact-quote": [
+    "backend/outputs/slide-references/claude/image copy 10.png",
+    "backend/outputs/slide-references/claude/image copy 11.png"
+  ]
+}
+```
+
+**Test command:** `python3 -c "import json; d=json.load(open('scripts/GAN_REFERENCES.json')); assert len(d) == 5; [assert __import__('os').path.exists(p) for tpl in d for p in d[tpl]]; print('OK — 5 templates, all reference PNGs exist')"`
+
+**Expected output:** `OK — 5 templates, all reference PNGs exist`
+
+
+---
+
+### Step 2.A.5 — Build `scripts/gan_reference.js` — the GAN-iterate engine
+
+**File:** `scripts/gan_reference.js` (new)
+
+**What to implement:** a Node script that, for a single template key:
+1. Reads reference PNGs from `GAN_REFERENCES.json[templateKey]`.
+2. For each reference:
+   - Uses Playwright to open the local editor w/ a hand-crafted `slide` JSON matching the reference (from `scripts/gan_fixtures/{template}/{ref-slug}.json`), template set to the target family.
+   - Extracts the canvas as PNG via `canvas.toDataURL('image/png')` (native 1080×1080, lossless).
+   - Runs the SAME two-metric pixel-diff as `gan_multi.js`: full-canvas + content-zone (bottom 55 %). Content-zone diff is the primary metric.
+   - Saves ref | generated | diff composite to `backend/outputs/gan-runs/{template}/iter{N}/composite_{i}.png`.
+3. If ALL references ≤ 5 % content-zone diff → exit 0 ("iterate complete").
+4. If ANY fail → invoke LLM analysis (see below) → exit 1 (developer applies fix + reruns).
+
+**CLI usage:**
+```bash
+node scripts/gan_reference.js --template aurora-compact-hook --llm       # one-shot w/ LLM analysis
+node scripts/gan_reference.js --template aurora-compact-hook             # measure only
+node scripts/gan_reference.js --all                                       # all Phase-2 templates
+```
+
+**Key implementation notes:**
+- **Fabric render path:** use the existing `renderer/slide_render.html` + `window.Renderer.render()` — same as production. GAN-passing code is production-safe by construction.
+- **Content-zone metric:** copy `contentDiffPct` computation from `gan_multi.js:91-104` (bottom-55% row-slice).
+- **Fixtures:** `scripts/gan_fixtures/aurora-compact-hook/others-image-copy-3.json` = `{template: "aurora-compact-hook", refPng: "...", slide: {title, body, ...}}`.
+- **LLM prompt** (in-file constant) requires strict-JSON response:
+    ```json
+    {
+      "issues": ["1-line human-readable issue"],
+      "fixes": [{"file": "path", "line_hint": "near X", "change_description": "...", "before_snippet": "...", "after_snippet": "..."}],
+      "visual_observations": ["headline ~20% smaller than reference"]
+    }
+    ```
+- **Iteration protocol:** script does NOT auto-apply fixes. Developer applies + re-runs. Human-in-the-loop for design decisions.
+- **Success condition:** ALL reference PNGs for the template have `contentDiffPct ≤ 5.0`.
+
+**Test command (at this stage — before templates exist):**
+```bash
+node scripts/gan_reference.js --template aurora-compact-hook
+```
+**Expected output:** graceful `❌ Template aurora-compact-hook not in REGISTRY — build it first` message.
+
+
+### Step 2.A.6 — Build `scripts/gan_component_snapshots.js`
+
+**File:** `scripts/gan_component_snapshots.js` (new)
+
+**What to implement:** smaller cousin of `gan_reference.js` for individual components. Renders a component in isolation on a small canvas (e.g. 400×200 for brand-pill, 800×100 for dot indicator), compares against a hand-cropped reference from `scripts/gan_refs/components/{component}.png`.
+
+CLI: `node scripts/gan_component_snapshots.js --component make-brand-pill [--llm]`
+
+Same diff engine as `gan_reference.js`. Tolerance ≤ 3 % (tighter than families — components are simpler). Same LLM strict-JSON contract for failed iterations.
+
+**Test command:** `node scripts/gan_component_snapshots.js --component make-brand-pill`
+**Expected output at this stage:** `❌ Component builder not found in shared/compact/` (Stage B hasn't started; confirms scaffolding).
+
+
+---
+
+### Stage B — Component build template (repeated 6 times, one at a time)
+
+Each of the 6 components follows this exact 5-step template. **Component N+1 does NOT start until Component N passes ALL gates.**
+
+**Step 2.B.<i>.1 — Write component TypeScript** (`shared/compact/make-<name>.ts`)
+
+- Signature per component MD in `Docs/design/templates/components/typography.md` (etc.)
+- Return type: `fabric.Group` or `fabric.FabricObject`
+- Uses only Fabric v7 primitives (Rect, Textbox, Circle, Line, Path, Image, Group)
+
+**Step 2.B.<i>.2 — Crop reference snapshot**
+
+Use ImageMagick to extract the component's region from a source reference PNG:
+```bash
+# Example: crop brand-pill from nextwork/image.png bottom-left
+convert 'backend/outputs/slide-references/nextwork/image.png' \
+  -crop 260x60+55+1280 +repage \
+  scripts/gan_refs/components/make-brand-pill.png
+```
+Coordinates come from careful measurement (Preview / GIMP). Document them in `scripts/gan_refs/components/README.md`.
+
+**Step 2.B.<i>.3 — Add Playwright snapshot spec** — one test in `frontend/e2e/compact-components.spec.ts`:
+```typescript
+test('make-brand-pill snapshot matches reference', async ({ page }) => {
+  await page.goto(`${BASE}/test/component?name=make-brand-pill`);
+  await page.waitForSelector('canvas');
+  const buf = await page.locator('canvas').screenshot();
+  const diff = await snapshotDiff(buf, 'scripts/gan_refs/components/make-brand-pill.png');
+  expect(diff.contentDiffPct).toBeLessThan(3);
+});
+```
+
+**Step 2.B.<i>.4 — Iterate until ≤ 3 % content-zone diff**
+
+`node scripts/gan_component_snapshots.js --component make-<name> --llm`. Apply LLM's `fixes[]`, re-run. **Max 5 iterations** before flagging as "needs redesign".
+
+**Step 2.B.<i>.5 — Green-light gate** (before starting next component)
+- [ ] `cd frontend && npx tsc --noEmit` exits 0
+- [ ] `node scripts/gan_component_snapshots.js --component make-<name>` reports ≤ 3 %
+- [ ] `frontend/e2e/compact-components.spec.ts` test for this component is green
+- [ ] Commit: `feat(compact): make-<name> component (GAN <N>%)`
+
+**Only then start next component.**
+
+### Per-component parameters
+
+| Component | Ref crop path | Iteration budget | Notes |
+|---|---|---|---|
+| make-brand-pill | `scripts/gan_refs/components/make-brand-pill.png` | 5 | Simplest — start here |
+
+---
+
+### Stage C — Family build template (repeated 5 times, one at a time)
+
+Each of the 5 families follows this exact template. **Family N+1 does NOT start until Family N reaches ≤ 5 % on ALL its reference PNGs.**
+
+**Step 2.C.<i>.1 — Write family builder** (`frontend/utils/canvasTemplates/aurora_compact_<name>.ts`)
+
+Composition per the family MD (`Docs/design/templates/families/aurora-compact-<name>.md`). Reuse components from `shared/compact/`. Do NOT invent new primitives here — if a primitive is missing, go back to Stage B.
+
+**Step 2.C.<i>.2 — Register the family in REGISTRY** (add just this one entry to `index.ts`):
+```typescript
+"aurora-compact-hook": buildAuroraCompactHook,
+```
+
+**Step 2.C.<i>.3 — Write hand-crafted fixtures** — one per reference PNG:
+
+`scripts/gan_fixtures/aurora-compact-hook/others-image-copy-3.json`:
+```json
+{
+  "template": "aurora-compact-hook",
+  "refPng": "backend/outputs/slide-references/others/image copy 3.png",
+  "slide": {
+    "type": "hook",
+    "title": "FAKE POST",
+    "category": "VIRAL REEL",
+    "body": "Create a fake post inside a Reel to capture attention and stop the scroll",
+    "slide_number": 1,
+    "canvas_template": "aurora-compact-hook"
+  },
+  "totalSlides": 8
+}
+```
+
+Fixtures capture the **content** of the reference — the Fabric render then tests whether our template can reproduce the **layout**.
+
+**Step 2.C.<i>.4 — Iterate until ALL references ≤ 5 %**
+
+```bash
+node scripts/gan_reference.js --template aurora-compact-hook --llm
+```
+
+The script produces `backend/outputs/gan-runs/aurora-compact-hook/iter1/` with:
+- `composite_0.png` (ref | generated | diff for reference 1)
+- `composite_1.png` (ref | generated | diff for reference 2)
+- `llm_analysis.json` (Claude's fixes proposal)
+- `report.json` (all metrics)
+
+Developer:
+1. Opens each composite in Preview.
+2. Reads `llm_analysis.json`, evaluates each proposed fix.
+3. Applies the fixes to the builder + tokens.
+4. Reruns `node scripts/gan_reference.js --template aurora-compact-hook --llm`.
+5. Repeats until BOTH references show ≤ 5 % content-zone diff (max **10 iterations** before flagging).
+
+**Step 2.C.<i>.5 — Green-light gate** (before next family)
+- [ ] `cd frontend && npx tsc --noEmit` exits 0
+- [ ] `node scripts/gan_reference.js --template aurora-compact-<name>` reports all references ≤ 5 %
+- [ ] Editor manual test: open `/editor?run=<real_run>&view=slide&angle=0&slide=1`, click Edit, use Slides panel to swap slide 1 to `aurora-compact-<name>`, click Save, verify PNG on disk mtime changes (Phase-1 canvas-save flow)
+- [ ] Commit: `feat(compact): aurora-compact-<name> family (GAN refs {N%, M%})`
+
+**Only then start next family.**
+
+### Per-family parameters
+
+| # | Family | Refs (from GAN_REFERENCES.json) | Iteration budget |
+|---|---|---|---|
+| 1 | aurora-compact-hook | 2 (others/image copy 3 + 4) | 10 |
+| 2 | aurora-compact-fact | 2 (claude/image copy 4 + nextwork/image copy 10) | 10 |
+| 3 | aurora-compact-step | 2 (nextwork/image copy 3 + SahilBloom/image copy) | 10 |
+| 4 | aurora-compact-list-item | 2 (SahilBloom/image copy + image copy 2) | 8 |
+| 5 | aurora-compact-quote | 2 (claude/image copy 10 + 11) | 12 (terracotta + duotone portrait is trickiest) |
+
+---
+
+### Stage D — Registration, editor wiring, regression tests
+
+**Step 2.D.1 — Register 5 Lumina wrappers** in `frontend/utils/canvasTemplates/index.ts`:
+```typescript
+"lumina-compact-hook":      lw(buildAuroraCompactHook),
+
+---
+
+## Done Criteria
+
+ALL must be TRUE before Loop 2 exits.
+
+**Foundation:**
+- [ ] `file backend/assets/fonts/{PlayfairDisplay-BoldItalic,Inter-Black}.woff2` reports Web Open Font Format
+- [ ] `cd backend && node renderer/build.mjs` produces non-empty bundle
+- [ ] `test -f scripts/GAN_REFERENCES.json && python3 -c "import json; d=json.load(open('scripts/GAN_REFERENCES.json')); assert len(d)==5"`
+- [ ] `test -f scripts/gan_reference.js && test -f scripts/gan_component_snapshots.js`
+
+**Components (all 6, one at a time):**
+- [ ] `ls frontend/utils/canvasTemplates/shared/compact/*.ts | wc -l` ≥ 7
+- [ ] For each component: `node scripts/gan_component_snapshots.js --component <key>` ≤ 3 %
+- [ ] `frontend/e2e/compact-components.spec.ts` all 6 tests green
+
+**Families (all 5, one at a time):**
+- [ ] `ls frontend/utils/canvasTemplates/aurora_compact_*.ts | wc -l` = 5
+- [ ] For each family: `node scripts/gan_reference.js --template <key>` ALL references ≤ 5 %
+- [ ] `frontend/e2e/compact-templates.spec.ts` all 5 tests green
+- [ ] `grep -c 'compact-' frontend/utils/canvasTemplates/index.ts` ≥ 10
+
+**Backend:**
+- [ ] `_canvas_template_id()` accepts `template_family` kwarg
+- [ ] Existing runs still produce identical PNGs — `full-validation.spec.ts` 45+/47
+
+**Regression:**
+- [ ] `cd frontend && npx tsc --noEmit` exits 0
+- [ ] `cd frontend && pnpm lint` exits 0
+- [ ] `cd frontend && npx playwright test --project=chromium` all pass
+- [ ] `cd backend && uv run pytest tests/ -q` passes
+
+**Manual quality check:**
+- [ ] For each of 5 families, open composite PNG from final GAN run — reference + generated look visually similar (human eyeball — GAN metric necessary but not sufficient)
+
+"lumina-compact-fact":      lw(buildAuroraCompactFact),
+"lumina-compact-step":      lw(buildAuroraCompactStep),
+
+## Real Data Testing (Loop 3)
+
+### Scenario A — Component snapshot fidelity
+1. Run `node scripts/gan_component_snapshots.js --component make-brand-pill`
+2. Open `backend/outputs/gan-runs/components/make-brand-pill/iter{last}/composite_0.png`
+3. **Verify:** generated column visually matches reference; diff mostly black
+
+### Scenario B — Family GAN loop with LLM analysis
+1. Deliberately regress `aurora_compact_hook.ts` (e.g. headline 140 → 100)
+2. Run `node scripts/gan_reference.js --template aurora-compact-hook --llm`
+3. **Verify:** `llm_analysis.json` identifies the headline-size issue correctly
+4. Revert regression, rerun, verify ≤ 5 %
+
+### Scenario C — Editor manual swap on real run
+1. Open `http://localhost:3000/editor?run=<real_run_id>&view=slide&angle=0&slide=1`
+2. Click Edit → Slides panel → 5 new "Compact ..." tiles visible
+3. Click "Compact Hook" → canvas swaps → Save → green ✓ + PNG mtime updates
+4. Back to preview → PNG shows new compact layout
+
+### Scenario D — Terracotta quote family
+1. Same editor, slide 2, click "Compact Quote"
+2. Canvas turns terracotta, serif quote centered
+3. Edit quote → Save → regenerated PNG shows new quote in Playfair Display Italic Bold
+
+### Scenario E — Full compact carousel (5 slides)
+1. Set 5 real slides to different compact templates
+2. Save all 5
+3. **Verify:** the 5 PNGs look like a cohesive modern Instagram carousel
+4. **Verify:** `node scripts/gan_reference.js --all` reports ≤ 5 % on all 5
+
+### Scenario F — Backward-compat regression
+1. Open editor for a legacy run
+2. Enter edit mode → renders identical to Phase 1 output (diff ≤ 2 %)
+3. No font-related console errors
+
+### Scenario G — Font-load timing
+1. Open `http://localhost:8000/renderer/slide_render.html`
+2. `document.fonts.check("16px 'Inter'")` → `true` within 500 ms
+3. `document.fonts.check("16px 'Playfair Display'")` → `true` within 500 ms
+
+**Fix loop:** if any scenario fails → fix → re-run. All 7 must pass before Phase 2 COMPLETE.
+
+"lumina-compact-list-item": lw(buildAuroraCompactListItem),
+"lumina-compact-quote":     lw(buildAuroraCompactQuote),
+
+## Known Constraints / Gotchas
+
+- **GAN is a design tool, not a correctness tool.** ≤ 5 % content-zone diff = layout matches reference, NOT that LLM-generated content is good. Content-quality validation → `slide_validator.py` (Phase 3).
+- **Reference PNG variance:** 85 refs from 4 creators. Fixtures approximate content; exact-word match not required — layout fidelity is.
+- **LLM analysis quality:** Claude will sometimes propose fixes that don't reduce diff. Developer is ultimate arbiter — read composite, evaluate suggestion, apply only if it looks right.
+- **Iteration budget is hard cap:** if a template hits its budget (8-12 iterations) without ≤ 5 %, DO NOT ship. Flag for design review — probably template MD needs revision.
+- **Playwright + Chromium** — GAN scripts assume `pnpm dev` at :3000 AND `uv run uvicorn main:app` at :8000. Add explicit `curl` health check at top of each script.
+- **Fabric.js Textbox at 900 weight** — verified during Phase 1. Use `fontWeight: 900` (not `"bold"`).
+- **`Playfair Display Italic Bold`** — must be registered BEFORE any `render()` call. Existing `loadFonts()` singleton handles.
+- **Cream `#F5F0E8` bg** — set as `canvas.backgroundColor`, not a full-canvas Rect.
+- **Terracotta bg for compact-quote** — `CANVAS_BG_COLOR = "#090909"` default is only used when NO explicit bg is set. Compact-quote MUST set `canvas.backgroundColor = tokens.bgAccent` in its builder.
+- **REGISTRY collision risk** — none: all new keys use `aurora-compact-*` / `lumina-compact-*`.
+- **`inferTemplate()` fallback** stays on `${theme}-${type}` (unchanged) — new compact templates only reached when `canvas_template` is explicitly set.
+- **Phase 2 LLM cost** — only GAN analysis calls (~$0.05 total). Zero pipeline LLM cost.
+
+## Rollback Plan
+
+1. Revert files 1-25 in the file table
+2. Delete `backend/assets/fonts/{PlayfairDisplay-BoldItalic,Inter-Black}.woff2`
+3. Revert `renderer_entry.ts` FONT_DEFS
+4. Rebuild renderer bundle
+5. Remove REGISTRY entries + STARTER_CONTENT
+6. Delete `scripts/gan_reference.js`, `gan_component_snapshots.js`, `GAN_REFERENCES.json`, `gan_fixtures/`, `gan_refs/components/`
+7. Existing runs unaffected — nothing depends on compact templates unless manually set
+
+
+## Loop 1 Passes Log (v3)
+
+### Pass 1 — 2026-08-23 (v3 draft)
+- Read REVIEW_PROTOCOL.md end-to-end (loops 1/2/3 rules; hard rule "min 2 passes, no max").
+- Read v2 plan + full `Docs/design/templates/` catalog + `Docs/design/SLIDE_REFERENCES_FULL*.md`.
+- Inspected `scripts/gan_multi.js`, `scripts/gan_iterate.js`, `scripts/GAN_CATALOG.json` — understood existing pixel-diff + content-zone + `--llm` patterns.
+- Verified 13 external claims (see External Verification Log).
+- **Issues found in draft:**
+  - (a) v2 was batched, not sequential — rewrote as strict per-component + per-family gates
+  - (b) v2 compared Fabric vs auto-generated Playwright renders — user wants comparison against real Instagram screenshots. Introduced new `scripts/gan_reference.js` + `GAN_REFERENCES.json`.
+  - (c) LLM analysis was optional in v2 — now mandatory on every failed iteration with strict-JSON response schema
+  - (d) v2 lacked a component-isolation test surface — added `frontend/app/test/component/page.tsx` dev-only route + `scripts/gan_component_snapshots.js`
+  - (e) v2 had no iteration budgets — added budgets (5-10 per component, 8-12 per family) and hard-cap escalation rule
+  - (f) v2's fixture strategy was hand-wavy — now explicit `scripts/gan_fixtures/{template}/{slug}.json` per reference PNG
+  - (g) v2 didn't specify LLM prompt shape — v3 pins exact prompt template + strict-JSON response schema
+  - (h) v2's Done Criteria wasn't testable via shell — v3 rewrote every criterion as a runnable command
+  - (i) Scenario B (LLM analysis validity) was missing — added deliberately-regressed test to prove the LLM identifies real issues
+  - (j) External Verification Log missing entries for `pixelmatch` + `pngjs` deps — added
+- **Fixes applied:** all 10.
+
+### Pass 2 — 2026-08-23 (mandatory cold re-read)
+- Re-read the fixed v3 plan end-to-end, ignoring pass-1 memory
+- Confirmed 4-stage structure (A foundation, B 6 components, C 5 families, D registration + regression)
+- Confirmed every stage has: file paths, exact commands, expected outputs, green-light gates
+- Confirmed every External Verification Log entry has a source + date
+- Confirmed all 7 Real Data scenarios are runnable + observable
+- Confirmed "sequential, no batching" is stated at (top summary, Stage B header, Stage C header) and enforced by explicit green-light gates
+- Confirmed LLM analysis is a mandatory (not optional) step on failed iterations
+- Confirmed reference PNG paths in `GAN_REFERENCES.json` are absolute + verifiable
+- Confirmed iteration budgets documented per component + per family (no unbounded loops)
+- Confirmed Rollback Plan reverses every step
+- Confirmed compact-quote's terracotta bg + duotone portrait handled (12-iteration budget — trickiest case)
+- **Issues found:** none
+- **"Handed to unknown developer" test:** PASS — a new dev can:
+  1. Read Stage A (foundation setup)
+  2. Read Stage B template (component build pattern)
+  3. Iterate through the 6 components one at a time, using the GAN scripts as their acceptance harness
+  4. Repeat with Stage C for families
+  5. Ship all 10 REGISTRY entries with GAN proof
+  ...without asking a single clarifying question.
+- **Status:** APPROVED (v3)
+
+*(Loop 1 exit condition satisfied: 2 passes, most recent clean, all external claims verified, template catalog integrated as design source of truth.)*
+
+```
+
+**Step 2.D.2 — Add STARTER_CONTENT + TEMPLATE_METADATA** in `frontend/constants/slideTemplates.ts` (5 entries each, per v2 Step 2.11).
+
+**Step 2.D.3 — Add `template_family` param to `_canvas_template_id()`** (signature only, per v2 Step 2.12; call site untouched).
+
+**Step 2.D.4 — Full Playwright regression** — `frontend/e2e/compact-templates.spec.ts` — for each of 5 families:
+1. Open editor for real run
+2. Click Edit → Slides panel
+3. Click the family's tile → canvas swaps
+4. Click Save (Phase-1 flow) → verify green "Saved ✓"
+5. Assert saved `canvas_json.objects` has the expected shape
+6. Assert PNG mtime advanced
+
+**Step 2.D.5 — Full existing E2E suite regression** — `cd frontend && npx playwright test --project=chromium` should still pass 45+/47 baseline + 1 editor-save + 5 new compact + 6 component tests.
+
+| make-dot-progress-indicator | `.../make-dot-progress-indicator.png` | 3 | Trivial |
+| make-outlined-pill | `.../make-outlined-pill.png` | 5 | Rounded-rect + letter-spacing |
+| make-mixed-weight-text | `.../make-mixed-weight-text.png` | 8 | Hardest — per-char styles |
+| make-number-badge | `.../make-number-badge.png` | 3 | Only list-item needs it |
+| make-circular-nav-arrow | `.../make-circular-nav-arrow.png` | 3 | Optional, defer possible |
+
+**Test route required:** we need `/test/component?name=<key>` in the frontend for isolated component rendering. Create `frontend/app/test/component/page.tsx` that reads `name` from URL, imports the component from `shared/compact/`, and renders it on a small Fabric canvas. This route is **dev-only** — gated by `process.env.NODE_ENV !== 'production'`.
+
