@@ -29,10 +29,13 @@ const CANVAS_BG_COLOR   = "#090909";
 const DEFAULT_LOGO_PATH = "/assets/brand/logo.png";
 
 const FONT_DEFS = [
-  { family: "Syne",              weight: "700", path: "/assets/fonts/Syne-Bold.woff2" },
-  { family: "Plus Jakarta Sans", weight: "700", path: "/assets/fonts/PlusJakartaSans-Bold.woff2" },
-  { family: "Plus Jakarta Sans", weight: "600", path: "/assets/fonts/PlusJakartaSans-SemiBold.woff2" },
-  { family: "Plus Jakarta Sans", weight: "400", path: "/assets/fonts/PlusJakartaSans-Regular.woff2" },
+  { family: "Syne",              weight: "700", style: "normal", path: "/assets/fonts/Syne-Bold.woff2" },
+  { family: "Plus Jakarta Sans", weight: "700", style: "normal", path: "/assets/fonts/PlusJakartaSans-Bold.woff2" },
+  { family: "Plus Jakarta Sans", weight: "600", style: "normal", path: "/assets/fonts/PlusJakartaSans-SemiBold.woff2" },
+  { family: "Plus Jakarta Sans", weight: "400", style: "normal", path: "/assets/fonts/PlusJakartaSans-Regular.woff2" },
+  // Phase 2 compact-family additions
+  { family: "Inter",             weight: "900", style: "normal", path: "/assets/fonts/Inter-Black.woff2" },
+  { family: "Playfair Display",  weight: "700", style: "italic", path: "/assets/fonts/PlayfairDisplay-BoldItalic.woff2" },
 ];
 
 // ── One-time fabric init ──────────────────────────────────────────────────────
@@ -47,9 +50,9 @@ let _fontsLoaded = false;
 
 async function loadFonts(baseUrl: string): Promise<void> {
   if (_fontsLoaded) return;
-  await Promise.allSettled(FONT_DEFS.map(async ({ family, weight, path }) => {
+  await Promise.allSettled(FONT_DEFS.map(async ({ family, weight, style, path }) => {
     try {
-      const face = new FontFace(family, `url(${baseUrl}${path})`, { weight });
+      const face = new FontFace(family, `url(${baseUrl}${path})`, { weight, style: style ?? "normal" });
       document.fonts.add(await face.load());
     } catch {
       // Font unavailable — system sans-serif fallback used
