@@ -1,0 +1,12 @@
+{
+  "canvas_template": "aurora-carousel-cover-hero-phone",
+  "type": "hook",
+  "_theme": "aurora",
+  "cover_hero": {
+    "category_pill": "MONEY TIPS",
+    "headline": "BROKE AT\n25 → RICH",
+    "body_text": "3 financial habits I wish someone told me before I turned 25.\n\nNumber 2 alone saved me $4,000 in the first year.",
+    "cta_line": "*Comment \"HABITS\" for the full breakdown",
+    "screen_image_url": "/assets/dev/phone-screen.jpg"
+  }
+}

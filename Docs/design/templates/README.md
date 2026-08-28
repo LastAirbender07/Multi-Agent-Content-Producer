@@ -70,13 +70,13 @@ Components are **consolidated per group** — each group MD contains a section p
 
 - [**Typography**](components/typography.md) — mixed-weight text, pills (outlined, inline-highlight, framing-label, progress-counter, status), title-underline, section-label, handwritten annotation, rotated sticker tag, monospace label
 - [**Cards**](components/cards.md) — brand pill, URL CTA pill, name card, portrait card, avatar chip, portrait cutout, description card, pull-quote card, brand CTA card, stat callout card, torn paper card, framed illustration
-- [**Mockups**](components/mockups.md) — AWS console, browser window, terminal, dashboard, KPI grid, form, iMessage, calendar, IG post chrome, tweet slide, verified badge, overlapping mockup pair, mockup chrome
+- [**Mockups**](components/mockups.md) — AWS console, browser window, terminal, dashboard, KPI grid, form, iMessage, calendar, IG post chrome, tweet slide, verified badge, overlapping mockup pair, mockup chrome, **tilted phone mockup (iPhone slot with tilt + overlay cards)**, **tilted image pair (Google-variant 2-image stack)**
 - [**Charts**](components/charts.md) — salary bar, compact bar, stat comparison bars, progress bar stat, schematic bar, spectrum, axis shift, stacked-100%-bar, treemap, state cartogram, figure-row-with-anomaly
 - [**Diagrams**](components/diagrams.md) — VPC boundary, concept contrast, client-server loop, load balancer fanout, request flow comparison, architecture flow, app tree, labelled box, tree fanout connector, L-shape connector, doodle arrow, hand-drawn callout arrow, highlight circle
 - [**Decorative**](components/decorative.md) — sticker badge, doodle registry, grain overlay, metallic gradient, silhouette motif, scattered icon field, labelled folder card row, level folder card header, dot progress indicator, circular nav arrow, editorial header, etched illustration, illustration diptych, illustration with annotations, hand-drawn illustration hero, portrait strip, typography art hero, glyph cloud, multilingual glyph cloud, tool card column
 - [**Icons**](components/icons.md) — AWS icon strip, AWS icon registry, resource mini card, topic badge, nextwork globe icon, company logo card row, number badge
 - [**Lists**](components/lists.md) — editorial list item, editorial list layout, flow verb list, bulleted recap list, facts grid, use case chip row, skill tag row, keyword tag row, categorical legend
-- [**Layouts**](components/layouts.md) — comparison layout, image pair, section block, vertical content brief, editorial body slide, essay body slide, product cover slide, product body slide, annotated example, nextwork card
+- [**Layouts**](components/layouts.md) — comparison layout, image pair, section block, vertical content brief, editorial body slide, essay body slide, product cover slide, product body slide, annotated example, nextwork card, **white card with straddling title chip (composite for `aurora-carousel-cover-hero`)**
 
 ---
 

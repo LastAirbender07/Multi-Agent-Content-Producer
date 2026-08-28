@@ -1,0 +1,12 @@
+{
+  "canvas_template": "aurora-carousel-cover-hero-phone",
+  "type": "hook",
+  "_theme": "aurora",
+  "cover_hero": {
+    "category_pill": "AI TIPS",
+    "headline": "CHATGPT\nHACK",
+    "body_text": "This one prompt doubled my productivity in a single week.\n\nSave this before your boss figures it out and blocks ChatGPT at work.",
+    "cta_line": "*Comment \"PROMPT\" to get the template",
+    "screen_image_url": "/assets/dev/phone-screen.jpg"
+  }
+}

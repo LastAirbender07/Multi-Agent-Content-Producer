@@ -1,0 +1,15 @@
+{
+  "canvas_template": "aurora-carousel-cover-hero-images",
+  "type": "hook",
+  "_theme": "aurora",
+  "cover_hero": {
+    "category_pill": "TRAVEL",
+    "headline": "FOUND THIS\nACCIDENTALLY",
+    "body_text": "Missed my train, wandered into an alley, and ended up in the best restaurant of my life.\n\nHappenstance travel hits different.",
+    "cta_line": "*Comment \"MAP\" for the full travel guide",
+    "image_urls": [
+      "/assets/dev/tablet-scene-1.jpg",
+      "/assets/dev/tablet-scene-2.jpg"
+    ]
+  }
+}

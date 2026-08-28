@@ -90,3 +90,55 @@ UI-fakes (fake screenshots of real apps) rendered in Fabric primitives. Each is 
 ## make-mockup-chrome
 **What:** Unified chrome primitive for all mockup types. `style: "mac-traffic-lights" | "dark-title-bar" | "browser-url" | "no-chrome"`.
 **Used by:** all mockups above.
+
+## make-tilted-phone-mockup
+**What:** iPhone silhouette (rounded-rect body + notch + speaker + home indicator) with a screen slot that can hold an image, GIF, or nested Fabric group. The **whole mockup group is rotated** (default `-6 deg`) and has a drop shadow. Designed to be placed at the **left ~40%** of a container and to **intentionally overflow** that container's boundary.
+**Props:**
+```ts
+{
+  screenImage: string | FabricImage | FabricGroup,   // fills the screen slot, cover-fitted
+  overlayCards?: Array<{
+    x: number, y: number,       // relative to screen slot
+    width: number, height: number,
+    content: FabricGroup,       // e.g. a mocked IG comment card
+  }>,
+  tilt: number,                 // default -6; positive = clockwise
+  phoneFrameColor: "#111111",
+  phoneFrameThickness: 12,
+  cornerRadius: 60,             // outer corner radius (iPhone-style)
+  width: 360,                   // phone body width
+  height: 780,                  // phone body height (~2.16 aspect)
+  shadow: { y: 12, blur: 36, opacity: 0.25 },
+  x: number, y: number,         // group top-left before rotation
+  allowOverflow: true,          // do not clip to parent bounds
+}
+```
+**Ref PNGs:**
+- `backend/outputs/slide-references/others/image copy 3.png` — "Fake Post" — iPhone with 2 overlay comment cards on top of a Reel-frame screen.
+- `backend/outputs/slide-references/others/image copy 6.png` — "Hold & Scroll" (variant with different overlays).
+**Used by:** `aurora-carousel-cover-hero` (`mockupType: "phone-post"`).
+**Contract:**
+- The rotation MUST apply to the entire group (frame + screen + shadow + overlays), not just the frame.
+- The screen slot is a clipped rounded-rect region; `screenImage` is `cover`-fitted inside it.
+- `overlayCards` render **above** the screen but **inside** the rotated group so they tilt with the phone.
+
+## make-tilted-image-pair
+**What:** Two rounded-corner images stacked with independent tilts (default `[-6 deg, +4 deg]`) and a small overlap — used for the "Google, Where Am I?" variant where the mockup is not a phone but a paper-cutout + tablet-screenshot combo.
+**Props:**
+```ts
+{
+  images: [
+    { src: string, tilt: number, width: number, height: number, cornerRadius: number, shadow?: {...} },
+    { src: string, tilt: number, width: number, height: number, cornerRadius: number, shadow?: {...} },
+  ],
+  overlapPct: 20,              // second image overlaps the first by ~20% of its width
+  x: number, y: number,        // top-left of the pair's bounding group before rotation
+  allowOverflow: true,
+}
+```
+**Ref PNGs:**
+- `backend/outputs/slide-references/others/image copy 4.png` — "Google, Where Am I?" — paper-cutout of a person + tablet mockup showing a Google-Images result grid.
+**Used by:** `aurora-carousel-cover-hero` (`mockupType: "image-pair"`).
+**Contract:**
+- Each image is a rounded-rect-clipped `FabricImage`. Both must have independent drop shadows to sell the 3D-stacked feel.
+- Group's overall bbox may exceed the parent card — do not clip.

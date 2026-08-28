@@ -1,0 +1,16 @@
+{
+  "title": "GOOGLE, WHERE AM I?",
+  "type": "hook",
+  "canvas_template": "aurora-compact-hook",
+  "_theme": "aurora",
+  "compact_meta": {
+    "category_pill": "AI PROMPT",
+    "headline_runs": [
+      { "text": "GOOGLE,\nWHERE AM I?", "weight": 900 }
+    ],
+    "brand_wordmark": "@nextwork",
+    "dot_count": 5,
+    "dot_active": 0,
+    "headline_size": 130
+  }
+}

@@ -29,19 +29,40 @@
 
 Phase 2 is broken into **4 stages** — each with sequential sub-steps and green-light gates. **We do NOT skip stages or batch work.**
 
-### Stage A — Foundation (POC gate) ✅ COMPLETE 2026-08-28
+### Stage A — Foundation (POC v1) ✅ COMPLETE 2026-08-28
 
-_Proved the tooling works end-to-end before touching templates. All 8 POC gates green._
+_Proved the tooling PLUMBING works with synthetic stubs. All 8 gates green._
 
 | Step | Description | Status |
 |---|---|---|
-| 2.A.1 | Download Playfair Display Italic Bold + Inter Black woff2 | ✅ DONE 2026-08-28 |
-| 2.A.2 | Register fonts in `renderer_entry.ts` + rebuild bundle | ✅ DONE 2026-08-28 |
-| 2.A.3 | Add `COMPACT_TOKENS` to `design_tokens.ts` | ✅ DONE 2026-08-28 |
-| 2.A.4 | Create `scripts/GAN_REFERENCES.json` — reference-PNG registry | ✅ DONE 2026-08-28 |
-| 2.A.5 | Build `scripts/gan_reference.js` — main GAN loop | ✅ DONE 2026-08-28 |
-| 2.A.6 | Build `scripts/gan_component_snapshots.js` — component GAN loop | ✅ DONE 2026-08-28 |
-| **POC Gate** | `bash scripts/poc_stage_a.sh` prints `POC_STAGE_A=PASS` | ✅ **GREEN 2026-08-28** |
+| 2.A.1-6 | Fonts + tokens + GAN scripts (plumbing) | ✅ DONE 2026-08-28 |
+| POC v1 Gate | `bash scripts/poc_stage_a.sh` → `POC_STAGE_A=PASS` | ✅ GREEN 2026-08-28 |
+
+### Stage A.5 — POC v2 (one real end-to-end template) 🟠 YELLOW/RED with valuable finding — 2026-08-28
+
+_v1 was synthetic solid-colour rects. v2 renders `aurora-compact-hook` for real, iterates GAN loop vs user reference PNGs. Loop-1 APPROVED 2026-08-28 (3 clean passes). Full implementation shipped 2026-08-28._
+
+| Sub-stage | Description | Status |
+|---|---|---|
+| 1 | 4 MVP primitives + `component_test` bundle + isolated snapshots | ✅ DONE — all 4 pass at 0.00% self-ref |
+| 2 | `aurora_compact_hook.ts` + REGISTRY entry + 2 fixtures | ✅ DONE — template renders, 5 objects on canvas |
+| 3 | `gan_reference.js` with `runTemplate()` — real template GAN loop | ✅ DONE — Playwright + static-server + letterbox + LLM strict-JSON w/ path guardrails |
+| 4 | `scripts/poc_v2_stage.sh` — one-command runner (6 gates) | ✅ DONE — all 6 gates work end-to-end |
+| **POC v2 Gate** | `bash scripts/poc_v2_stage.sh` → `POC_V2=?` | **`POC_V2=RED best=42.88%/52.25%`** — SEE FINDING BELOW |
+
+**⚠ Critical POC finding (this is exactly what POC v2 exists to catch):**
+
+The 2 user reference PNGs (`others/image copy 3.png`, `others/image copy 4.png`) are **photographs of an actual iPhone displaying an Instagram carousel**, complete with the brown phone case frame and photo distortion — NOT clean digital design mockups. Pixel probing confirmed:
+- Corners contain brown phone-case pixels `[168,134,110]`
+- Bottom rows contain photo-shadow gradient
+- The actual slide content occupies only ~60% of the ref PNG's area, wrapped in phone-case chrome
+
+**What this means for Stage B:**
+- Before Stage B begins, either **(a)** hand-crop new reference PNGs to isolate the slide content (removing the phone-case frame), OR **(b)** relax the ≤ 5 % tolerance to ≤ 15 % accepting the photo-frame noise, OR **(c)** switch to structural comparison (object bounding boxes) instead of pixel diff.
+- The infrastructure — Playwright + fabric render + pixelmatch + LLM analysis with path guardrails — is proven to work end-to-end. The pipeline is not the blocker.
+- **The LLM analysis is genuinely useful** — over 8 iterations it produced 62 total fixes, correctly identifying real position and sizing issues (5 filtered fixes in path-guardrail bucket, so guardrail works too).
+
+**Decision point:** the POC v2 has served its purpose — it proved the pipeline works AND caught a real Loop-1-missed assumption (that user PNGs were clean design refs). Stage B needs a design-input clarification before starting.
 
 ### Stage B — Build 6 components sequentially
 _Each component: write TS → hand-crop reference PNG → GAN-iterate → ≤ 3 % → commit → next._

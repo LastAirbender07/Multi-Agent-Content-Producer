@@ -5,6 +5,7 @@ export interface CanvasTokens {
   fontTitle: string; fontBody: string;
   brandBarH: number; progressH: number;
   canvasSize: number;
+  canvasHeight?: number; // if set, overrides height (e.g. 1350 for 4:5 templates)
 }
 
 export const AURORA: CanvasTokens = {

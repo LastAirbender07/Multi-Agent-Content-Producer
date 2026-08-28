@@ -135,9 +135,177 @@ If POC fails and Stage A is abandoned:
 
 Phase 1 unaffected; no REGISTRY changes exist yet.
 
+## POC v2 Gate — One real end-to-end template
+
+> **Loop 1 status:** Pass 1 + Pass 2 complete (see bottom of file). APPROVED for implementation 2026-08-28.
+
+**Why:** POC v1 proved the plumbing (Playwright → Fabric → pixelmatch → LLM) using solid-color rectangles. It did NOT prove we can render a **real Instagram-style compact template** and hit ≤ 5 % against a **real user reference PNG**. That's the actual risk before Stages B+C.
+
+**Scope:** one template — `aurora-compact-hook` — plus its 4 required primitives, built in strict sequential order per the 13-step build sequence (see Pass 1 Fix-14 below). Iterate GAN loop against 2 real reference PNGs. Report GREEN / YELLOW / RED with root cause.
+
+### Sub-stage 1 — primitives (MVP versions, sequential)
+
+Design ref: `Docs/design/templates/families/aurora-compact-hook.md` L28-42. Build MVP-level primitives — just enough to render the hook. Full spec ships in Stage B.
+
+| # | Primitive | Signature (MVP) | Reference PNG (hand-cropped from) | Isolated GAN gate |
+|---|---|---|---|---|
+| 1 | `make-brand-pill` | `(opts: {wordmark: string, x: number, y: number, tokens: CompactTokens}) → fabric.Group` | `nextwork/image.png` bottom-left → `scripts/gan_refs/components/brand-pill.png` | ≤ 5 % |
+| 2 | `make-outlined-pill` | `(opts: {text: string, x, y, fillColor: string, textColor: string, tokens}) → fabric.Group` | `others/image copy 3.png` peach `VIRAL REEL` pill → `outlined-pill.png` | ≤ 5 % |
+| 3 | `make-mixed-weight-text` | `(opts: {runs: {text: string, family?: string, weight?: number\|string, style?: "normal"\|"italic", color?: string}[], x, y, size: number, maxWidth: number, tokens}) → fabric.Textbox` | `others/image copy 3.png` headline → `mixed-weight-text.png` | ≤ 5 % |
+| 4 | `make-dot-progress-indicator` | `(opts: {count: number, active: number, x, y, tokens}) → fabric.Group` | `others/image copy 3.png` bottom-center → `dot-indicator.png` | ≤ 5 % |
+
+**Files created:**
+- `frontend/utils/canvasTemplates/shared/compact/{make-brand-pill,make-outlined-pill,make-mixed-weight-text,make-dot-progress-indicator}.ts`
+- `frontend/utils/canvasTemplates/shared/compact/index.ts` — barrel export
+- `backend/renderer/component_test.ts` — bundle entry exposing `window.ComponentTest.build(name, opts)` + `loadFonts(baseUrl)`
+- `backend/renderer/component_test.html` — Playwright entry (mirrors `slide_render.html`)
+- `backend/renderer/build.mjs` — MODIFY to output a 2nd bundle `component_test.bundle.js`
+- `scripts/gan_refs/components/{brand-pill,outlined-pill,mixed-weight-text,dot-indicator}.png` — 4 hand-cropped PNGs
+
+**Isolation testing (fix-6 / fix-7):** `gan_component_snapshots.js` gets a real `runComponent()` mode. Loads `component_test.html` via `startStaticServer(BACKEND_ROOT)` (fix-2 pattern), calls `window.ComponentTest.build(name, opts)`, samples the canvas at ref-PNG-exact dimensions (fix-8 — no resize), compares full-canvas ≤ 5 %.
+
+### Sub-stage 2 — template
+
+- `frontend/utils/canvasTemplates/aurora_compact_hook.ts` — matches existing `TemplateBuilder` signature (`index.ts` L20-25)
+- Register in `index.ts` REGISTRY as `"aurora-compact-hook"`
+- Fixtures: `scripts/gan_fixtures/aurora-compact-hook/{fake-post,google-where-am-i}.json` — SlideData JSON blobs
+- **Fixture shape (fix-16):** each must contain at minimum
+  ```json
+  {
+    "title": "FAKE POST",
+    "type": "hook",
+    "canvas_template": "aurora-compact-hook",
+    "_theme": "aurora",
+    "category_pill": "VIRAL REEL",
+    "headline_runs": [
+      {"text": "FAKE POST", "weight": 900}
+    ],
+    "brand_wordmark": "@nextwork",
+    "dot_count": 5,
+    "dot_active": 0
+  }
+  ```
+  Non-standard fields (`category_pill`, `headline_runs`, `brand_wordmark`, `dot_count`, `dot_active`) live inside a `compact_meta` sub-object attached to slide extras. `aurora_compact_hook.ts` reads them via `slide.compact_meta ?? DEFAULTS`.
+- **Isolated component opts (fix-18):** `gan_component_snapshots.js` loads test opts from `scripts/gan_fixtures/components/<component>.json`. One file per component; each is the exact opts object passed to `ComponentTest.build(name, opts)`. Example `brand-pill.json`:
+  ```json
+  { "wordmark": "@nextwork", "x": 40, "y": 20, "tokens": "COMPACT_TOKENS" }
+  ```
+  (Token names are passed as string keys; `component_test.ts` resolves them from the bundled `COMPACT_TOKENS`.)
+- Template GAN gate: content-zone diff ≤ 5 % vs BOTH reference PNGs
+
+
+
 ---
 
 
+
+
+### Sub-stage 3 — GAN engine, real template mode
+
+Extend `scripts/gan_reference.js` — implement `runTemplate()`:
+
+1. Import `startStaticServer`, `getFreePort` from `scripts/poc_utils.js` (fix-2). Start a local Node static server on a free port serving `backend/`. This is exactly how `poc_loop.js` L60-84 already renders slides — no `backend/main.py` change needed.
+2. Load `scripts/GAN_REFERENCES.json` → get reference PNG paths for template key
+3. Load `scripts/gan_fixtures/<template>/*.json` (2 fixtures for aurora-compact-hook)
+4. Launch Playwright headless Chromium, `setViewportSize({width: 1080, height: 1080})`
+5. `page.goto('http://localhost:<port>/renderer/slide_render.html', {waitUntil: 'networkidle'})`
+6. Per fixture per iteration:
+   a. `await page.evaluate((slide) => window.Renderer.render(slide, {imageBaseUrl: 'http://localhost:<port>', totalSlides: 5}), slideJson)`
+   b. `const dataUrl = await page.evaluate(() => document.querySelector('canvas').toDataURL('image/png'))` — 1080×1080
+   c. Save as `iter{N}/gen_{fixture}.png`
+   d. **Reference resize (fix-1 / fix-3):** load ref PNG in a 2nd offscreen `<canvas>` inside the page; `ctx.fillStyle = '#F5F0E8'; ctx.fillRect(0,0,1080,1080)` letterbox; `ctx.drawImage(refImg, 0, letterBoxY, 1080, scaledHeight)` centered. Save letterboxed as `iter{N}/ref_{fixture}_1080.png`
+   e. Run `compareContentZone` (bottom 55%) on the two 1080×1080 PNGs
+   f. Build composite (ref | gen | diff) via ImageMagick (already used in v1)
+7. If any fixture > 5 %: call LLM (fix-4). Prompt sends: `(a)` template source (read from disk), `(b)` per-fixture diff % + composite PNG paths, `(c)` fixture JSON. Reuse `callLlmForAnalysis` extended with `template_source` field. Returns strict-JSON `{issues, fixes[{file, before, after}], visual_observations}`
+8. Human reviews `iter{N}/llm_analysis.json` + `iter{N}/composite_*.png`, applies fixes, re-runs iter N+1
+9. Hard cap: 8 iterations. Classify + emit (fix-12):
+   - PASS (all fixtures ≤ 5 %) → exit 0, `POC_V2=PASS iterations=<N>`
+   - YELLOW (best iter in 5-15 % band) → exit 2, `POC_V2=YELLOW best=<pct>% iterations=8`
+   - RED (best iter > 15 %) → exit 3, `POC_V2=RED best=<pct>% iterations=8`
+   - ERROR (infra failure) → exit 1, `POC_V2=ERROR <reason>`
+
+### Sub-stage 4 — one-command runner
+
+Single command: `bash scripts/poc_v2_stage.sh`. Runs sequentially, exits on first failure:
+
+| # | Gate | Command | Expected |
+|---|---|---|---|
+| 1 | v1 POC green | `bash scripts/poc_stage_a.sh` | ends `POC_STAGE_A=PASS` |
+| 2 | 4 primitives compile | `cd frontend && npx tsc --noEmit` | exit 0 |
+| 3 | Both bundles build | `cd backend && node renderer/build.mjs` | `renderer.bundle.js` + `component_test.bundle.js` non-empty |
+| 4 | 4 primitive snapshots | `for c in make-brand-pill make-outlined-pill make-mixed-weight-text make-dot-progress-indicator; do node scripts/gan_component_snapshots.js --component $c \|\| exit 1; done` | each ≤ 5 % |
+| 5 | Template registered | `grep -c "aurora-compact-hook" frontend/utils/canvasTemplates/index.ts` | ≥ 1 |
+| 6 | Template GAN loop | `node scripts/gan_reference.js --template aurora-compact-hook --llm --max-iter 8` | exit 0, STDOUT ends `POC_V2=PASS iterations=<N>` |
+
+### POC v2 exit criteria
+
+**Hard (objective, machine-checkable):**
+- [ ] `bash scripts/poc_v2_stage.sh` exits 0
+- [ ] STDOUT ends with `POC_V2=PASS iterations=<N>` (N ≤ 8)
+- [ ] `backend/outputs/gan-runs/aurora-compact-hook/iter<final>/composite_fake-post.png` exists
+- [ ] `backend/outputs/gan-runs/aurora-compact-hook/iter<final>/composite_google-where-am-i.png` exists
+- [ ] Final `llm_analysis.json` valid JSON with `{issues, fixes, visual_observations}` keys
+
+**Soft (human eyeball post-PASS quality check, fix-17):**
+- [ ] Both composites (`ref | gen | diff`) look visually similar — pass is meaningful, not gamed by whitespace
+- [ ] Final `llm_analysis.json.fixes[]` is empty OR only cosmetic (colour tweak, 2-4 px spacing)
+
+### LLM guardrails (fix-19)
+
+The LLM analysis prompt EXPLICITLY constrains fix paths to the compact-family tree:
+```
+Allowed files for fixes[].file:
+- frontend/utils/canvasTemplates/aurora_compact_hook.ts
+- frontend/utils/canvasTemplates/shared/compact/*.ts
+- frontend/utils/canvasTemplates/shared/design_tokens.ts
+
+DO NOT suggest changes to: backend/*, renderer bundle, index.ts REGISTRY, canvasTokens.ts.
+```
+If the LLM returns a fix targeting a disallowed path, the runner logs a warning and skips that fix — but continues with the other fixes.
+
+### Runner working directory (fix-15)
+
+`scripts/poc_v2_stage.sh` starts with `cd "$(dirname "$0")/.."` to guarantee PROJECT_ROOT as CWD before any gate runs. Every gate command uses relative paths from PROJECT_ROOT.
+
+### POC v2 result classifications (fix-12)
+
+| Outcome | Exit code | STDOUT | Meaning | Action |
+|---|---|---|---|---|
+| GREEN | 0 | `POC_V2=PASS iterations=<N>` | Pipeline works at real complexity | **Stage B unblocked** |
+| YELLOW | 2 | `POC_V2=YELLOW best=<pct>% iterations=8` | Stalls 5-15 % | Document quirks; extend budget to 12; user decision |
+| RED | 3 | `POC_V2=RED best=<pct>% iterations=8` | Best > 15 % — hard blocker | STOP, reopen Loop 1 on affected component |
+| ERROR | 1 | `POC_V2=ERROR <reason>` | Infra failure (backend, Playwright, LLM 401) | Fix infra; rerun |
+
+### POC v2 rollback
+
+1. Revert 4 primitives + `shared/compact/index.ts` barrel
+2. Revert `aurora_compact_hook.ts` + REGISTRY entry
+3. Revert `backend/renderer/build.mjs` + delete `component_test.{ts,html,bundle.js}`
+4. Delete `scripts/gan_refs/components/*.png` + `scripts/gan_fixtures/aurora-compact-hook/`
+5. Revert `scripts/gan_reference.js` + `scripts/gan_component_snapshots.js` extensions
+6. Delete `backend/outputs/gan-runs/aurora-compact-hook/`
+7. Delete `scripts/poc_v2_stage.sh`
+8. v1 POC (`scripts/poc_stage_a.sh`) still green
+
+### External Verification Log for POC v2
+
+| Claim | Verified against | Status |
+|---|---|---|
+| `sharp` NOT installed — use in-browser `<canvas>`+`drawImage` resize | `ls frontend/node_modules/sharp` empty | ✅ 2026-08-28 |
+| `startStaticServer` in `poc_utils.js` serves `/renderer/slide_render.html` | `poc_loop.js` L81 loads that URL successfully | ✅ 2026-08-28 |
+| `window.Renderer.render` is public API | `renderer_entry.ts` L76; used by `poc_loop.js` L82 | ✅ 2026-08-28 |
+| Fabric v7 Textbox `styles` per-char = `{[line]:{[char]: TextStyleDeclaration}}` | `frontend/node_modules/fabric/dist/fabric.d.ts` | ✅ 2026-08-28 |
+| Ref PNGs 4:5 (~650×800) — resize by letterbox not crop | `PNG.sync.read` = `646x804`, `662x792`, `654x806` | ✅ 2026-08-28 |
+| `inferTemplate()` honours explicit `canvas_template` | `index.ts` L59 | ✅ 2026-08-28 |
+| `nextwork/image.png` exists for brand-pill component ref | `ls` verified | ✅ 2026-08-28 |
+
+### Estimated cost
+
+- ~2-3 hours dev time (4 primitives + component bundle + template + engine)
+- 5-10 min wall-clock per 8-iter GAN run
+- ~$0.20 LLM cost total
+
+---
 
 ## Files to Create or Modify
 
@@ -832,3 +1000,114 @@ Re-read the fixed POC Gate cold, ignoring Pass 1 memory.
 
 *(Loop 1 exit satisfied for the POC Gate: 2 passes, most recent clean, all external claims verified, no circular deps.)*
 
+
+
+---
+
+## Loop 1 Passes Log — POC v2 Gate (2026-08-28)
+
+Draft added after POC v1 shipped. Per REVIEW_PROTOCOL, minimum 2 clean passes required.
+
+### Pass 1 — 2026-08-28 (POC v2 initial draft)
+
+**Inputs read:**
+- `Docs/protocol/REVIEW_PROTOCOL.md` (full)
+- `Docs/design/templates/families/aurora-compact-hook.md`
+- `Docs/design/templates/components/{typography,cards,decorative}.md`
+- `frontend/utils/canvasTemplates/{aurora_hook.ts,index.ts,shared/text.ts}`
+- `backend/renderer/{renderer_entry.ts,slide_render.html,build.mjs}`
+- `backend/main.py` — StaticFiles mounts
+- `scripts/poc_loop.js` + `scripts/poc_utils.js` — **key existing infra**
+- `scripts/gan_multi.js` — GAN diff primitives (already reused in v1)
+
+**Issues found:**
+
+- **ISSUE-1 [HIGH]** — Plan assumed `sharp` available. `frontend/node_modules/sharp` → not installed. **Fix:** drop sharp; resize inside browser via offscreen `<canvas>` + `drawImage`.
+- **ISSUE-2 [HIGH]** — Plan said "backend needs `/renderer/` mount." Existing `scripts/poc_utils.js` already provides `startStaticServer(BACKEND_ROOT, port)`. `poc_loop.js` uses it to load `${baseUrl}/renderer/slide_render.html`. **Fix:** re-use `poc_utils.js`. Do NOT touch `backend/main.py`.
+- **ISSUE-3 [HIGH]** — Aspect ratio: refs are 4:5 (~650×800), canvas is 1:1 (1080×1080). Cropping loses safe zones. **Fix:** letterbox-resize with cream `#F5F0E8` bars (matches ref bg). Content-zone diff (bottom 55%) excludes letterbox.
+- **ISSUE-4 [MEDIUM]** — LLM prompt for `runTemplate()` was described but not spec'd. **Fix:** append explicit prompt shape — template source + diff % + fixture JSON; strict-JSON `{issues, fixes[{file, before, after}], visual_observations}` (same shape as v1's `callLlmForAnalysis` + `template_source` field).
+- **ISSUE-5 [MEDIUM]** — Fabric.js Textbox `styles` per-char API flagged but not verified. **Fix:** verified `frontend/node_modules/fabric/dist/fabric.d.ts` exports `Textbox.styles: { [lineIndex: number]: { [charIndex: number]: TextStyleDeclaration } }`. Confirmed usable for `make-mixed-weight-text`. ✅
+- **ISSUE-6 [MEDIUM]** — Gate "4 primitive snapshots" assumes `gan_component_snapshots.js` has real component mode. Currently smoke-only. **Fix:** Sub-stage 1 also implements `runComponent()`.
+- **ISSUE-7 [MEDIUM]** — TypeScript primitives can't be `import`ed in Node directly. **Fix:** add 2nd bundle target `backend/renderer/component_test.ts` (exposes `window.ComponentTest.build(name, opts)` + `loadFonts(baseUrl)`). Add its entry to `build.mjs`. Isolated runs load `component_test.html`.
+- **ISSUE-8 [LOW]** — Ref PNGs 4:5; isolated component crops much smaller. Component snapshot canvas must match ref PNG dimensions exactly, NO resize. **Fix:** documented — canvas dimensions read directly from ref PNG on disk.
+- **ISSUE-9 [LOW]** — `nextwork/image.png` reference not verified. **Fix:** verified with `ls`. ✅
+- **ISSUE-10 [MEDIUM]** — `make-mixed-weight-text` signature missed `family?` required for Playfair-italic-emphasis. **Fix:** signature updated to `runs: {text, family?, weight?, style?, color?}[]`.
+- **ISSUE-11 [MEDIUM]** — Isolated component tests need fonts loaded before rendering. **Fix:** `component_test.ts` exposes `loadFonts(baseUrl)`.
+- **ISSUE-12 [HIGH]** — YELLOW escalation not defined programmatically. **Fix:** exit codes:
+  - 0 = `POC_V2=PASS iterations=N`
+  - 2 = `POC_V2=YELLOW best=<pct>% iterations=8`
+  - 3 = `POC_V2=RED best=<pct>% iterations=8`
+  - 1 = `POC_V2=ERROR <reason>` (infra failure)
+- **ISSUE-13 [LOW]** — `poc_loop.js` uses `THEME_MAP`. Compact fixtures don't fit. **Fix:** fixtures set `canvas_template: "aurora-compact-hook"` explicitly; `inferTemplate()` L59 honours it directly.
+- **ISSUE-14 [HIGH]** — Build ordering not explicit; circular risk. **Fix:** 13-step build order documented (below).
+
+**Build order for POC v2 (fix-14 detail):**
+1. Write 4 primitives + `shared/compact/index.ts` barrel
+2. Write `backend/renderer/component_test.ts` importing the barrel
+3. Add `component_test.ts` as 2nd entry in `backend/renderer/build.mjs`
+4. `node renderer/build.mjs` → `renderer.bundle.js` + `component_test.bundle.js`
+5. Write `backend/renderer/component_test.html`
+6. Hand-crop 4 ref PNGs to `scripts/gan_refs/components/`
+7. Extend `gan_component_snapshots.js` with `runComponent()`
+8. Run 4 isolated snapshots; iterate primitives until each ≤ 5 %
+9. Write `aurora_compact_hook.ts` using the 4 primitives
+10. Register in REGISTRY; rebuild renderer bundle
+11. Write 2 fixtures; extend `gan_reference.js` with `runTemplate()`
+12. Run template GAN loop against 2 refs; iterate until each ≤ 5 %
+13. `bash scripts/poc_v2_stage.sh` runs all above gates end-to-end
+
+**Total: 14 issues. All fixes applied inline. Pass 2 (cold re-read) required next.**
+
+### Pass 2 — 2026-08-28 (cold re-read of the Pass-1 fixed draft)
+
+Re-read the entire POC v2 section end-to-end without referring to Pass 1 notes. Re-audited against every REVIEW_PROTOCOL checklist.
+
+**Issues found in Pass 2:**
+
+- **ISSUE-15 [MEDIUM]** — `poc_v2_stage.sh` gate 4 loop doesn't `cd` anywhere; relies on shell CWD which is fragile. **Fix:** the script starts with `cd "$(dirname "$0")/.."` to force PROJECT_ROOT as CWD. Documented in new "Runner working directory" section.
+- **ISSUE-16 [MEDIUM]** — Fixture JSON shape not specified. `SlideData` schema doesn't accommodate compact-family extras like `category_pill`, `headline_runs`, `brand_wordmark`, `dot_count`. **Fix:** added an explicit fixture-shape example; extras live under a `compact_meta` sub-object; template reads `slide.compact_meta ?? DEFAULTS`.
+- **ISSUE-17 [LOW]** — Exit criterion "visually recognizable as same layout" was subjective and unfairly gated a machine-run script. **Fix:** split exit criteria into HARD (machine-checkable) and SOFT (human eyeball post-PASS). The composite PNG **existence** is hard; the "looks right" check is soft.
+- **ISSUE-18 [MEDIUM]** — Component test opts source unclear. Where does `gan_component_snapshots.js` get the opts to pass to `ComponentTest.build(name, opts)`? **Fix:** documented — one JSON file per component under `scripts/gan_fixtures/components/<component>.json`. Token names passed as strings resolved from bundled `COMPACT_TOKENS` inside `component_test.ts`.
+- **ISSUE-19 [LOW]** — What happens if the LLM suggests changes to disallowed paths (backend, REGISTRY, etc.)? **Fix:** added LLM guardrails — prompt constrains `fixes[].file` to compact-family tree. Runner filters + warns on disallowed suggestions but does NOT reject the whole analysis; other valid fixes proceed.
+
+**Total: 5 additional issues in Pass 2. All fixed. Pass 3 required next.**
+
+### Pass 3 — 2026-08-28 (cold re-read after Pass 2 fixes)
+
+Re-read the entire POC v2 section end-to-end for the 3rd time, ignoring Pass 1 + Pass 2 notes.
+
+**Checked against every REVIEW_PROTOCOL checklist:**
+- [x] No ambiguous "etc." — every command, file, gate named explicitly
+- [x] Entry conditions verifiable — every claim has a matching command/file cite
+- [x] Dependencies listed — 4 primitives, `poc_utils.js`, existing `pixelmatch` + `pngjs`, `fabric ^7.4.0`, `@playwright/test ^1.60.0`, no new npm installs required
+- [x] No circular dependencies — build order (fix-14) enforces 13-step sequence
+- [x] Config usage consistent — no new settings introduced
+- [x] Renderer boundary respected — all layout logic in `frontend/utils/canvasTemplates/`
+- [x] Single responsibility — each primitive has 1 signature; each stage has 1 responsibility
+- [x] No god functions — each primitive < 40 lines expected
+- [x] External verifications ALL ✅ (7/7 with dates + cited sources)
+- [x] Reliability — hard-cap 8 iterations; classify PASS/YELLOW/RED/ERROR with distinct exit codes
+- [x] Rollback plan reverses every file created
+- [x] LLM guardrails prevent architectural violations (fix-19)
+- [x] Runner working directory fixed (fix-15)
+- [x] Component opts source explicit (fix-18)
+- [x] Fixture shape explicit (fix-16)
+
+**"Handed to unknown developer" test:**
+A new dev reads the POC v2 section top-to-bottom and can:
+1. See exactly which 4 files to create (primitives) + 3 more (component_test.{ts,html} + build.mjs mod)
+2. Know the exact signature of each primitive
+3. Know where to find the 4 hand-cropped ref PNGs
+4. Extend `gan_component_snapshots.js` with `runComponent()` using existing `poc_utils.js` primitives
+5. Write `aurora_compact_hook.ts` using the 4 primitives + `compact_meta` shape
+6. Register in REGISTRY + rebuild bundle
+7. Write 2 fixtures + extend `gan_reference.js` with `runTemplate()`
+8. Run `bash scripts/poc_v2_stage.sh` and see PASS/YELLOW/RED/ERROR
+
+...without asking a single clarifying question. **PASS.**
+
+**Issues found:** none.
+
+**Status: APPROVED (POC v2 Gate, 2026-08-28)**
+
+_(Loop 1 exit satisfied for POC v2: 3 passes, most recent clean (Pass 3), all external claims verified with sources + dates, "unknown developer" test passes.)_

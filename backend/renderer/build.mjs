@@ -14,12 +14,11 @@ import { dirname, join } from "path";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "../..");  // project root
 
-await esbuild.build({
-  entryPoints: [join(__dirname, "renderer_entry.ts")],
+// Shared esbuild config — reused by both bundle targets.
+const sharedConfig = {
   bundle: true,
   platform: "browser",
   target: ["chrome110"],
-  outfile: join(__dirname, "renderer.bundle.js"),
   alias: {
     // @/ → frontend/ root
     "@/utils":       join(ROOT, "frontend/utils"),
@@ -54,4 +53,19 @@ await esbuild.build({
   },
   logLevel: "info",
   minify: process.env.NODE_ENV === "production",  // minify in CI/prod; keep readable in dev
+};
+
+// Bundle 1: main renderer (window.Renderer.render + loadFonts)
+await esbuild.build({
+  ...sharedConfig,
+  entryPoints: [join(__dirname, "renderer_entry.ts")],
+  outfile: join(__dirname, "renderer.bundle.js"),
+});
+
+// Bundle 2: component test harness (window.ComponentTest.build + loadFonts)
+// Used by scripts/gan_component_snapshots.js for isolated primitive testing.
+await esbuild.build({
+  ...sharedConfig,
+  entryPoints: [join(__dirname, "component_test.ts")],
+  outfile: join(__dirname, "component_test.bundle.js"),
 });

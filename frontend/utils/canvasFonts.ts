@@ -5,6 +5,9 @@ const FONT_DEFS = [
   { family: "Plus Jakarta Sans", weight: "700", path: "/assets/fonts/PlusJakartaSans-Bold.woff2" },
   { family: "Plus Jakarta Sans", weight: "600", path: "/assets/fonts/PlusJakartaSans-SemiBold.woff2" },
   { family: "Plus Jakarta Sans", weight: "400", path: "/assets/fonts/PlusJakartaSans-Regular.woff2" },
+  // Phase 5 cover-hero family
+  { family: "Inter",             weight: "400", path: "/assets/fonts/Inter-Regular.woff2" },
+  { family: "Inter",             weight: "700", path: "/assets/fonts/Inter-Bold.woff2" },
 ];
 
 let _loaded = false;

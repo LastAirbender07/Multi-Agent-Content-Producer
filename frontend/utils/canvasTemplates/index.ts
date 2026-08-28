@@ -9,6 +9,9 @@ import { buildAuroraStat }    from "./aurora_stat";
 import { buildAuroraQuote }   from "./aurora_quote";
 import { buildAuroraCta }     from "./aurora_cta";
 import { buildAuroraEngage }  from "./aurora_engage";
+import { buildAuroraCompactHook } from "./aurora_compact_hook";
+import { buildAuroraCarouselCoverHeroPhone }  from "./aurora_carousel_cover_hero_phone";
+import { buildAuroraCarouselCoverHeroImages } from "./aurora_carousel_cover_hero_images";
 
 export interface SlideMeta {
   slideNum:    number;
@@ -40,6 +43,11 @@ export const REGISTRY: Record<string, TemplateBuilder> = {
   "aurora-quote":         buildAuroraQuote,
   "aurora-cta":           buildAuroraCta,
   "aurora-engage":        buildAuroraEngage,
+  // Phase 2 compact family (POC v2)
+  "aurora-compact-hook":  buildAuroraCompactHook,
+  // Phase 5 cover-hero family
+  "aurora-carousel-cover-hero-phone":  buildAuroraCarouselCoverHeroPhone,
+  "aurora-carousel-cover-hero-images": buildAuroraCarouselCoverHeroImages,
   // Lumina (thin wrappers — same layout, different tokens)
   "lumina-hook":          lw(buildAuroraHook),
   "lumina-content-0":     lw((s,i,t,m) => buildAuroraContent(s,i,t,m, 0)),

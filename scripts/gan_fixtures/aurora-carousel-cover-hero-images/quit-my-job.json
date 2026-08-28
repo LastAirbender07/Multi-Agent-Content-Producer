@@ -1,0 +1,15 @@
+{
+  "canvas_template": "aurora-carousel-cover-hero-images",
+  "type": "hook",
+  "_theme": "aurora",
+  "cover_hero": {
+    "category_pill": "BUSINESS",
+    "headline": "QUIT MY\nJOB FOR\nTHIS",
+    "body_text": "I turned a $0 side hustle into full-time income in 8 months.\n\nHere's the exact system I used — no gatekeeping.",
+    "cta_line": "*Comment \"SYSTEM\" to get the blueprint",
+    "image_urls": [
+      "/assets/dev/tablet-scene-1.jpg",
+      "/assets/dev/tablet-scene-2.jpg"
+    ]
+  }
+}

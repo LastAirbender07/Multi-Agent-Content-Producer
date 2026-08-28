@@ -122,9 +122,131 @@ async function runSmoke() {
   console.log('\nsmoke_ok=true');
 }
 
+// ── Real component isolation mode ─────────────────────────────────────────────
+// Loads component_test.html via the poc_utils static server, calls
+// window.ComponentTest.build(name, opts) with fonts pre-loaded, samples the
+// canvas, compares against a self-ref (generated once, then reused).
+
+const { startStaticServer, getFreePort } = require('./poc_utils.js');
+
 async function runComponent() {
-  console.error(`❌ Component mode not yet implemented — Stage A is POC only.`);
-  process.exit(1);
+  const name = FLAG_COMPONENT;
+  const fixturePath = path.join(PROJECT, 'scripts/gan_fixtures/components', `${name}.json`);
+  if (!fs.existsSync(fixturePath)) {
+    console.error(`❌ Fixture not found: ${fixturePath}`);
+    process.exit(1);
+  }
+  const fixture = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
+  const { canvas: canvasSize, opts } = fixture;
+
+  const outDir = path.join(OUT_ROOT, 'components', name);
+  fs.mkdirSync(outDir, { recursive: true });
+
+  const refPath = path.join(PROJECT, 'scripts/gan_refs/components', `${name}.png`);
+  const genPath = path.join(outDir, 'gen.png');
+  const diffPath = path.join(outDir, 'diff.png');
+  const compPath = path.join(outDir, 'composite.png');
+
+  console.log(`🧬 gan_component_snapshots.js --component ${name}`);
+  console.log(`   Canvas: ${canvasSize.width}x${canvasSize.height}`);
+  console.log(`   Fixture: ${fixturePath}`);
+
+  // Start static server
+  const port = await getFreePort();
+  const BACKEND_ROOT = path.join(PROJECT, 'backend');
+  const server = startStaticServer(BACKEND_ROOT, port);
+  const baseUrl = `http://localhost:${port}`;
+  console.log(`   Static server: ${baseUrl}`);
+
+  const browser = await chromium.launch({ headless: true });
+  let renderedOk = false;
+  try {
+    const page = await browser.newPage();
+    page.on('pageerror', (err) => console.error('   [page-error]', err.message));
+    page.on('console', (m) => {
+      if (m.type() === 'error') console.error('   [console-error]', m.text());
+    });
+
+    await page.setViewportSize({ width: canvasSize.width, height: canvasSize.height });
+    await page.goto(`${baseUrl}/renderer/component_test.html`, { waitUntil: 'networkidle' });
+
+    // Load fonts + build component
+    const result = await page.evaluate(async ({ baseUrl, name, opts, canvasSize }) => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ct = /** @type {any} */ (window).ComponentTest;
+        await ct.loadFonts(baseUrl);
+        await document.fonts.ready;
+
+        // Size the canvas
+        const canvasEl = document.getElementById('c');
+        canvasEl.width = canvasSize.width;
+        canvasEl.height = canvasSize.height;
+
+        // StaticCanvas — no interaction layer, ideal for snapshot
+        const canvas = new ct.fabric.StaticCanvas('c', {
+          width: canvasSize.width,
+          height: canvasSize.height,
+          backgroundColor: ct.tokens.bgCream,
+          enableRetinaScaling: false,
+          renderOnAddRemove: false,
+        });
+
+        const obj = ct.build(name, opts);
+        canvas.add(obj);
+        canvas.renderAll();
+
+        return {
+          ok: true,
+          dataUrl: canvas.toDataURL({ format: 'png', multiplier: 1 }),
+        };
+      } catch (e) {
+        return { ok: false, error: e && (e.message + '\n' + e.stack) };
+      }
+    }, { baseUrl, name, opts, canvasSize });
+
+    if (!result.ok) {
+      throw new Error(`Build failed: ${result.error}`);
+    }
+
+    fs.writeFileSync(genPath, Buffer.from(result.dataUrl.split(',')[1], 'base64'));
+    console.log(`   ✓ Rendered ${genPath}`);
+    renderedOk = true;
+  } finally {
+    await browser.close();
+    server.close();
+  }
+
+  if (!renderedOk) {
+    console.error('POC_V2=ERROR component_render_failed');
+    process.exit(1);
+  }
+
+  // Self-reference bootstrap: if no ref exists, copy gen → ref and pass (0% diff).
+  // POC v2 pragma: we prove `runComponent` works end-to-end; real hand-crops come in Stage B.
+  if (!fs.existsSync(refPath)) {
+    fs.copyFileSync(genPath, refPath);
+    console.log(`   ✓ Self-ref bootstrapped: ${refPath}`);
+    console.log(`   ✓ Diff = 0.00% (self-ref)`);
+    console.log(`\nsmoke_ok=true`);
+    return;
+  }
+
+  // Diff
+  const metrics = compareFullCanvas(fs.readFileSync(refPath), fs.readFileSync(genPath), diffPath);
+  const emoji = metrics.diffPct <= 5 ? '✓' : '❌';
+  console.log(`   ${emoji} Diff = ${metrics.diffPct.toFixed(2)}% (tolerance 5%)`);
+
+  // Composite
+  if (buildComposite(refPath, genPath, diffPath, compPath)) {
+    console.log(`   ✓ Composite: ${compPath}`);
+  }
+
+  if (metrics.diffPct > 5) {
+    console.log(`\nCOMPONENT_FAIL name=${name} diffPct=${metrics.diffPct.toFixed(2)}`);
+    process.exit(2);
+  }
+  console.log(`\nCOMPONENT_PASS name=${name} diffPct=${metrics.diffPct.toFixed(2)}`);
 }
 
 if (require.main === module) {

@@ -1,0 +1,16 @@
+{
+  "canvas_template": "aurora-carousel-cover-hero-phone",
+  "type": "hook",
+  "_theme": "aurora",
+  "cover_hero": {
+    "category_pill": "VIRAL REEL",
+    "headline": "FAKE POST",
+    "body_text": "Create a 'Fake Post' within a reel to capture people's attention and stop the scroll!\n\nYou could even use this just on your opening shot if you don't want to use it as a whole video",
+    "cta_line": "*Comment \"TEMPLATE\" for the Canva Link",
+    "screen_image_url": "/assets/dev/phone-screen.jpg",
+    "overlay_cards": [
+      { "author": "@holler.academy", "body": "Canva templates & content trends",             "avatar_color": "#FFB4C4" },
+      { "author": "@holler.academy", "body": "Here's an example of how you could use this", "avatar_color": "#B4D9FF" }
+    ]
+  }
+}

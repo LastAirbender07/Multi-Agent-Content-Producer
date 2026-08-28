@@ -48,6 +48,22 @@
       "iteration_budget": 12,
       "tolerance": 0.05,
       "family_md": "Docs/design/templates/families/aurora-compact-quote.md"
+    },
+    "aurora-carousel-cover-hero-phone": {
+      "references": [
+        "others/image copy 3.png"
+      ],
+      "iteration_budget": 10,
+      "tolerance": 0.05,
+      "family_md": "Docs/design/templates/families/aurora-carousel-cover-hero.md"
+    },
+    "aurora-carousel-cover-hero-images": {
+      "references": [
+        "others/image copy 4.png"
+      ],
+      "iteration_budget": 10,
+      "tolerance": 0.05,
+      "family_md": "Docs/design/templates/families/aurora-carousel-cover-hero.md"
     }
   }
 }

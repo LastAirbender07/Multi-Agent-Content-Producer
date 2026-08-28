@@ -36,6 +36,9 @@ const FONT_DEFS = [
   // Phase 2 compact-family additions
   { family: "Inter",             weight: "900", style: "normal", path: "/assets/fonts/Inter-Black.woff2" },
   { family: "Playfair Display",  weight: "700", style: "italic", path: "/assets/fonts/PlayfairDisplay-BoldItalic.woff2" },
+  // Phase 5 cover-hero family
+  { family: "Inter",             weight: "400", style: "normal", path: "/assets/fonts/Inter-Regular.woff2" },
+  { family: "Inter",             weight: "700", style: "normal", path: "/assets/fonts/Inter-Bold.woff2" },
 ];
 
 // ── One-time fabric init ──────────────────────────────────────────────────────
@@ -150,7 +153,7 @@ const _canvasInstances = new WeakMap<HTMLCanvasElement, fabric.Canvas>();
 
     const canvas = new fabric.Canvas(canvasEl, {
       width:  tokens.canvasSize,
-      height: tokens.canvasSize,
+      height: tokens.canvasHeight ?? tokens.canvasSize,
       backgroundColor: CANVAS_BG_COLOR,
       enableRetinaScaling: false,
     });
@@ -176,5 +179,11 @@ const _canvasInstances = new WeakMap<HTMLCanvasElement, fabric.Canvas>();
       obj.setCoords();
     });
     canvas.renderAll();
+    // Expose for debugging / POC introspection (safe: dev-only usage; no state mutation)
+    (window as unknown as { __lastRender?: unknown }).__lastRender = {
+      templateId,
+      objectCount: objects.length,
+      canvasBg: canvas.backgroundColor,
+    };
   },
 };

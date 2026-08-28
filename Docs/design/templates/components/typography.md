@@ -153,6 +153,21 @@ Text-styling primitives for Fabric.js templates. Each entry: what it does, prop 
 
 ---
 
+## make-italic-cta-line
+
+**Status:** NEW.
+
+**What:** Single-line italic-serif CTA text ("*Comment \"TEMPLATE\" for the Canva Link"). Small, centre- or left-aligned, tucked under body copy or below a card. Not a pill, not a button — just italic serif prose used as a mini-CTA.
+
+**Props:** `{text, fontFamily: "Playfair Display", fontWeight: 700, fontStyle: "italic", fontSize: 30, color: "#1B1B1B", align: "left"|"center", x, y, maxWidth}`
+
+**Ref PNGs:**
+- `backend/outputs/slide-references/others/image copy 3.png` — `*Comment "TEMPLATE" for the Canva Link`
+
+**Used by:** aurora-carousel-cover-hero, aurora-reel-cover.
+
+---
+
 ## make-monospace-label
 
 **Status:** NEW.

@@ -1,0 +1,15 @@
+{
+  "canvas_template": "aurora-carousel-cover-hero-images",
+  "type": "hook",
+  "_theme": "aurora",
+  "cover_hero": {
+    "category_pill": "VIRAL DESIGN",
+    "headline": "GOOGLE,\nWHERE AM I?",
+    "body_text": "Unique edits are making posts go VIRAL on Instagram right now!\n\nInstead of just sharing a holiday shot, why not make it look like a Google Search Result?",
+    "cta_line": "*Comment \"TEMPLATE\" for the Canva Link",
+    "image_urls": [
+      "/assets/dev/tablet-scene-1.jpg",
+      "/assets/dev/tablet-scene-2.jpg"
+    ]
+  }
+}

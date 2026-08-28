@@ -1,0 +1,9 @@
+{
+  "canvas": { "width": 200, "height": 40 },
+  "opts": {
+    "count": 5,
+    "active": 0,
+    "x": 100,
+    "y": 20
+  }
+}

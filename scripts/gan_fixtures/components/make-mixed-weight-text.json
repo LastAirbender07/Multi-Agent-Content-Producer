@@ -1,0 +1,13 @@
+{
+  "canvas": { "width": 800, "height": 220 },
+  "opts": {
+    "runs": [
+      {"text": "FAKE ", "weight": 900},
+      {"text": "POST", "weight": 900}
+    ],
+    "x": 20,
+    "y": 20,
+    "size": 120,
+    "maxWidth": 760
+  }
+}
