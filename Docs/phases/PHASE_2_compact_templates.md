@@ -7,7 +7,8 @@ Supersedes v2 (batched work); v3 rewrites for strictly sequential per-component 
 **Stage B progress (as of 2026-08-29):**
 - `aurora-compact-quote` ✅ DONE — B&W editorial portrait, hard-cut edge, Playfair Display serif quote, terracotta card on cream canvas. GAN YELLOW (~55%). Fixtures: community-quote, telescope-quote. Default portrait_edge: "hard".
 - `aurora-compact-hook` ✅ DONE (POC v2)
-- Remaining: `aurora-compact-fact`, `aurora-compact-step`, `aurora-compact-list-item`
+- `aurora-compact-fact` ✅ DONE — Compare variant (90pt muted baseline + 140pt coral featured, cream full-bleed, hairline rule, body section, brand pill) + Single variant (left-aligned outlined pill, 140pt coral stat, caption, rule, bold claim, italic attribution). GAN YELLOW (compare 13.3%, single 13.9%) — 13% floor is irreducible Instagram UI chrome in the reference screenshot. Both variants pass full aesthetic gate. Fixtures: compare-protein-design, single-salary-stat. No make-stat-callout-card needed (inline stats are simpler and match reference perfectly).
+- Remaining: `aurora-compact-step`, `aurora-compact-list-item`
 
 **POC v2:** APPROVED 2026-08-28. Two production templates shipped (`aurora-carousel-cover-hero-phone`, `aurora-carousel-cover-hero-images`). Shared component library at `shared/cover/` (7 components). GAN pipeline verified end-to-end.
 

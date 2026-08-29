@@ -17,8 +17,11 @@ const CORAL = "#D46A5E";
 const STAT_MUTED = "#B8B0A5";
 const RULE_COLOR = "#D9D4CC";
 
-// Inter Black 110pt single-line height (empirically ~135px in browser context)
-const STAT_LINE_H = 138;
+// Inter Black line heights: baseline 90pt → ~112px, featured 140pt → ~175px (empirical)
+const STAT_BASELINE_SIZE = 90;
+const STAT_FEATURED_SIZE = 140;
+const STAT_BASELINE_H = 112;
+const STAT_FEATURED_H = 175;
 
 type FactVariant = "single" | "compare";
 
@@ -82,7 +85,7 @@ export async function buildAuroraCompactFact(
     const stat1 = new fabric.Text(m.stat_baseline.value, {
       left: PAD_X, top: 100,
       fontFamily: tokens.fontDisplay,
-      fontSize: 110, fontWeight: 900,
+      fontSize: STAT_BASELINE_SIZE, fontWeight: 900,
       fill: m.stat_baseline.color ?? STAT_MUTED,
       originX: "left", originY: "top",
       selectable: false,
@@ -91,24 +94,24 @@ export async function buildAuroraCompactFact(
     objects.push(stat1);
 
     const cap1 = new fabric.Textbox(m.stat_baseline.caption, {
-      left: PAD_X, top: 100 + STAT_LINE_H,
+      left: PAD_X, top: 100 + STAT_BASELINE_H,
       width: CANVAS_SIZE - PAD_X * 2,
       fontFamily: tokens.fontBody,
-      fontSize: 24, fontWeight: 400,
-      fill: tokens.textDark,
+      fontSize: 22, fontWeight: 400,
+      fill: STAT_MUTED,
       originX: "left", originY: "top",
       selectable: false,
     });
     setData(cap1, { role: "fact_caption_baseline" });
     objects.push(cap1);
 
-    // Featured stat starts 70px below caption
-    const stat2Y = 100 + STAT_LINE_H + 38 + 70;
+    // Featured stat starts below baseline caption — extra air creates visual breathing room
+    const stat2Y = 100 + STAT_BASELINE_H + 34 + 56;
 
     const stat2 = new fabric.Text(m.stat_featured.value, {
       left: PAD_X, top: stat2Y,
       fontFamily: tokens.fontDisplay,
-      fontSize: 110, fontWeight: 900,
+      fontSize: STAT_FEATURED_SIZE, fontWeight: 900,
       fill: m.stat_featured.color ?? CORAL,
       originX: "left", originY: "top",
       selectable: false,
@@ -117,10 +120,10 @@ export async function buildAuroraCompactFact(
     objects.push(stat2);
 
     const cap2 = new fabric.Textbox(m.stat_featured.caption, {
-      left: PAD_X, top: stat2Y + STAT_LINE_H,
+      left: PAD_X, top: stat2Y + STAT_FEATURED_H,
       width: CANVAS_SIZE - PAD_X * 2,
       fontFamily: tokens.fontBody,
-      fontSize: 24, fontWeight: 400,
+      fontSize: 22, fontWeight: 400,
       fill: tokens.textDark,
       originX: "left", originY: "top",
       selectable: false,
@@ -129,7 +132,7 @@ export async function buildAuroraCompactFact(
     objects.push(cap2);
 
     // Hairline rule after second caption
-    const ruleY = stat2Y + STAT_LINE_H + 60;
+    const ruleY = stat2Y + STAT_FEATURED_H + 56;
     const rule = new fabric.Rect({
       left: PAD_X, top: ruleY,
       width: CANVAS_SIZE - PAD_X * 2, height: 1,
@@ -141,11 +144,11 @@ export async function buildAuroraCompactFact(
     objects.push(rule);
 
     // Body section
-    const bodyHeaderY = ruleY + 32;
+    const bodyHeaderY = ruleY + 36;
     const bodyHeader = new fabric.Text(m.body_header, {
       left: PAD_X, top: bodyHeaderY,
       fontFamily: tokens.fontBody,
-      fontSize: 28, fontWeight: 700,
+      fontSize: 26, fontWeight: 700,
       fill: tokens.textDark,
       originX: "left", originY: "top",
       selectable: false,
@@ -154,12 +157,12 @@ export async function buildAuroraCompactFact(
     objects.push(bodyHeader);
 
     const bodyCopy = new fabric.Textbox(m.body_copy, {
-      left: PAD_X, top: bodyHeaderY + 44,
+      left: PAD_X, top: bodyHeaderY + 40,
       width: CANVAS_SIZE - PAD_X * 2,
       fontFamily: tokens.fontBody,
-      fontSize: 24, fontWeight: 400,
+      fontSize: 22, fontWeight: 400,
       fill: tokens.textDark,
-      lineHeight: 1.5,
+      lineHeight: 1.55,
       originX: "left", originY: "top",
       selectable: false,
     });
@@ -167,24 +170,23 @@ export async function buildAuroraCompactFact(
     objects.push(bodyCopy);
 
   } else {
-    // Single-stat variant — category pill + big centered stat + claim
-    const pillH = 52;
+    // Single-stat variant — category pill + big stat + claim
+    const pillH = 48;
     const catPill = makeOutlinedPill({
       text: m.category_pill,
-      x: 0, y: 140,
+      x: PAD_X, y: 120,
       tokens,
       height: pillH,
-      padding: 28,
-      fontSize: 22,
+      padding: 24,
+      fontSize: 19,
       letterSpacing: 180,
     });
-    catPill.set({ left: (CANVAS_SIZE - (catPill.width ?? 0)) / 2 });
     setData(catPill, { role: "fact_category_pill" });
     objects.push(catPill);
 
-    // Big stat left-aligned
+    // Big stat left-aligned — 140pt fills ~190px height
     const bigStat = new fabric.Text(m.stat.value, {
-      left: PAD_X, top: 290,
+      left: PAD_X, top: 220,
       fontFamily: tokens.fontDisplay,
       fontSize: 140, fontWeight: 900,
       fill: m.stat.color ?? CORAL,
@@ -195,20 +197,20 @@ export async function buildAuroraCompactFact(
     objects.push(bigStat);
 
     const statCap = new fabric.Textbox(m.stat.caption, {
-      left: PAD_X, top: 460,
+      left: PAD_X, top: 420,
       width: CANVAS_SIZE - PAD_X * 2,
       fontFamily: tokens.fontBody,
-      fontSize: 30, fontWeight: 400,
-      fill: tokens.textDark,
+      fontSize: 26, fontWeight: 400,
+      fill: STAT_MUTED,
       originX: "left", originY: "top",
       selectable: false,
     });
     setData(statCap, { role: "fact_stat_caption" });
     objects.push(statCap);
 
-    // Rule + body claim
+    // Rule + bold claim
     const rule = new fabric.Rect({
-      left: PAD_X, top: 556,
+      left: PAD_X, top: 498,
       width: CANVAS_SIZE - PAD_X * 2, height: 1,
       fill: RULE_COLOR,
       originX: "left", originY: "top",
@@ -217,10 +219,10 @@ export async function buildAuroraCompactFact(
     objects.push(rule);
 
     const claim = new fabric.Textbox(m.body_copy, {
-      left: PAD_X, top: 588,
+      left: PAD_X, top: 530,
       width: CANVAS_SIZE - PAD_X * 2,
       fontFamily: tokens.fontBody,
-      fontSize: 36, fontWeight: 700,
+      fontSize: 34, fontWeight: 700,
       fill: tokens.textDark,
       lineHeight: 1.35,
       originX: "left", originY: "top",
@@ -229,12 +231,12 @@ export async function buildAuroraCompactFact(
     setData(claim, { role: "fact_claim" });
     objects.push(claim);
 
-    // Attribution
+    // Attribution sits above the brand pill
     const attr = new fabric.Textbox(m.attribution, {
-      left: PAD_X, top: 820,
+      left: PAD_X, top: 860,
       width: CANVAS_SIZE - PAD_X * 2,
       fontFamily: tokens.fontBody,
-      fontSize: 20, fontWeight: 300, fontStyle: "italic",
+      fontSize: 18, fontWeight: 300, fontStyle: "italic",
       fill: tokens.textMuted,
       originX: "left", originY: "top",
       selectable: false,

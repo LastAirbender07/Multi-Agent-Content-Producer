@@ -47,8 +47,7 @@
     },
     "aurora-compact-fact": {
       "references": [
-        "claude/image copy 4.png",
-        "nextwork/image copy 10.png"
+        "claude/image copy 4.png"
       ],
       "iteration_budget": 8,
       "tolerance": 0.05,

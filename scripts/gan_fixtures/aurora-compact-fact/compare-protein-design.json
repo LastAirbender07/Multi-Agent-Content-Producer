@@ -13,9 +13,7 @@
       "caption": "Claude's protein designs"
     },
     "body_header": "Into the lab",
-    "body_copy": "Two independent labs built Claude's proteins and tested them. Designs bound at roughly double the rate typical for the field.",
-    "brand_wordmark": "@anthropic",
-    "dot_count": 8,
-    "dot_active": 2
+    "body_copy": "Two independent labs (Adaptyv Bio and Twist Bioscience) physically built Claude's proteins and tested them. Claude's designs bound at roughly double the rate typical for the field.",
+    "brand_wordmark": "@anthropic"
   }
 }

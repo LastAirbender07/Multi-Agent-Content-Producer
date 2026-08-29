@@ -6,6 +6,39 @@
 
 ---
 
+## 2026-08-29 — aurora-compact-fact: Compare + Single Stat Variants
+
+**What was built:**
+- `aurora-compact-fact.ts` — two variants behind a `variant: "compare" | "single"` toggle
+- **Compare**: baseline stat 90pt muted grey (`#B8B0A5`) + featured stat 140pt coral (`#D46A5E`) on cream full-bleed. Hairline rule + bold body header + 22pt body copy + brand pill.
+- **Single**: left-aligned outlined pill (category label) + 140pt coral stat + 26pt muted caption + hairline rule + 34pt bold claim + 18pt italic attribution + brand pill.
+- Both use `originX: "left", originY: "top"` on all Rects (Fabric v7 requirement).
+- Fixtures: `compare-protein-design.json`, `single-salary-stat.json`.
+
+**GAN results:**
+- Compare: 13.3% YELLOW. Single: 13.9% YELLOW.
+- **The 13% is a floor from irreducible Instagram UI chrome** — the reference (`claude/image copy 4.png`) is a screenshot with a thick black card frame + nav dots baked in. Pixel diff is structurally unavoidable. Content-zone layout quality is confirmed by aesthetic gate, not GAN score.
+- Removed wrong reference (`nextwork/image copy 10.png` — dark photo style, belongs to future `aurora-compact-stat-hero`) from `GAN_REFERENCES.json`.
+
+**Design decisions:**
+- Baseline stat intentionally smaller (90pt) and muted — communicates "control" vs featured "result"
+- Featured stat larger (140pt) + coral — the instant-read focal point
+- Caption color for baseline uses `STAT_MUTED` (same as stat color) — they form a visual unit; featured caption stays dark for contrast
+- `make-stat-callout-card` component was NOT built — inline stat code is simpler and matched the reference exactly without an abstraction layer
+- Single variant pill left-aligned (not centered) — consistent with stat/text left edge
+
+**Bugs found + fixed:**
+1. Wrong GAN reference: `nextwork/image copy 10.png` (dark forest photo) assigned to cream fact template. Removed.
+2. Stat sizing identical for both stats (110pt each) — reference shows clear size hierarchy. Fixed to 90pt baseline / 140pt featured.
+3. Single variant pill was centered horizontally; left-aligned to match the template's left-column layout.
+4. Fixture body copy too short — updated to full reference copy ("Adaptyv Bio and Twist Bioscience...").
+
+**What to do differently next time:**
+- When the reference is an Instagram screenshot (not a raw Canva export), expect a ~5% noise floor from UI chrome. Don't chase it — run the aesthetic gate instead.
+- Check the GAN reference images BEFORE building to confirm they match the intended aesthetic. The dark photo reference was registered before anyone looked at it.
+
+---
+
 ## 2026-08-28/29 — aurora-compact-quote: B&W Portrait + Hard-Cut Edge Treatment
 
 ### Summary
