@@ -12,10 +12,43 @@
       "tolerance": 0.05,
       "family_md": "Docs/design/templates/families/aurora-compact-hook.md"
     },
+    "aurora-compact-step-index": {
+      "references": [
+        "nextwork/image copy 2.png"
+      ],
+      "iteration_budget": 10,
+      "tolerance": 0.05,
+      "family_md": "Docs/design/templates/families/aurora-compact-step.md"
+    },
+    "aurora-compact-step-detail": {
+      "references": [
+        "nextwork/image copy 3.png",
+        "nextwork/image copy 4.png"
+      ],
+      "iteration_budget": 10,
+      "tolerance": 0.05,
+      "family_md": "Docs/design/templates/families/aurora-compact-step.md"
+    },
+    "aurora-compact-fact-compare": {
+      "references": [
+        "claude/image copy 4.png"
+      ],
+      "iteration_budget": 10,
+      "tolerance": 0.05,
+      "family_md": "Docs/design/templates/families/aurora-compact-fact.md"
+    },
+    "aurora-compact-stat-hero": {
+      "references": [
+        "nextwork/image copy 10.png"
+      ],
+      "iteration_budget": 10,
+      "tolerance": 0.05,
+      "family_md": "Docs/design/templates/families/aurora-compact-fact.md"
+    },
     "aurora-compact-fact": {
       "references": [
-        "others/image copy 5.png",
-        "claude/image copy 4.png"
+        "claude/image copy 4.png",
+        "nextwork/image copy 10.png"
       ],
       "iteration_budget": 8,
       "tolerance": 0.05,
@@ -23,7 +56,7 @@
     },
     "aurora-compact-step": {
       "references": [
-        "others/image copy 6.png",
+        "nextwork/image copy 2.png",
         "nextwork/image copy 3.png",
         "nextwork/image copy 4.png"
       ],
@@ -42,8 +75,8 @@
     },
     "aurora-compact-quote": {
       "references": [
-        "claude/image copy 2.png",
-        "SahilBloom/image copy 3.png"
+        "claude/image copy 10.png",
+        "claude/image copy 11.png"
       ],
       "iteration_budget": 12,
       "tolerance": 0.05,

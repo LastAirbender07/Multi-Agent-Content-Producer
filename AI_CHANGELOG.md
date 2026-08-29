@@ -6,6 +6,102 @@
 
 ---
 
+## 2026-08-28/29 — aurora-compact-quote: B&W Portrait + Hard-Cut Edge Treatment
+
+### Summary
+
+Built `aurora-compact-quote` — the first Phase 2 compact template with a real Fabric.js image component. Editorial B&W portrait on the right, large Playfair Display serif quote on the left, terracotta card floated on cream canvas. Iteratively refined layout from initial placeholder to production state. Locked portrait edge treatment to "hard cut" after 3-way visual comparison.
+
+---
+
+### What Was Built
+
+**Template:** `frontend/utils/canvasTemplates/aurora_compact_quote.ts`
+
+Key layout constants:
+```
+CANVAS_SIZE = 1080
+CARD_INSET  = 36        (cream border)
+IMG_X       = 582       (portrait left edge — abs)
+IMG_TOP     = 211       (portrait top — abs)
+IMG_W       = 462px     (right to card edge)
+IMG_H       = 833px     (bottom to card edge)
+TEXT_W      = ~458px    (left column width)
+QUOTE_FONT_CANDIDATES = [62, 54, 46, 40, 34]  (adaptive)
+```
+
+Features:
+- B&W Grayscale filter via `fabric.filters.Grayscale()` — editorial magazine look
+- Adaptive font sizing — probes largest first, steps down on overflow above SAFE_BOT
+- Dynamic attribution placement — `ATTR_Y = QUOTE_Y + quoteProbeH + ATTR_GAP` (not pinned to bottom)
+- `portrait_edge` field: `"fade" | "hard" | "rule"` — controls left-edge treatment
+- DEFAULTS: `portrait_edge: "hard"` (locked after comparison)
+
+**Fixtures:** `scripts/gan_fixtures/aurora-compact-quote/{community-quote,telescope-quote}.json`
+
+**GAN scores (iter0, hard cut default):** community-quote 56%, telescope-quote 55% — YELLOW (acceptable for portrait template vs editorial reference)
+
+---
+
+### Bugs Found and Fixed
+
+#### 1. Curly quotes in TypeScript interface type literals
+**File:** `aurora_compact_quote.ts` line 44
+**Cause:** VSCode/editor autocorrected `"fade" | "hard" | "rule"` to use Unicode U+201C/U+201D curly quotes as TYPE STRING DELIMITERS in the interface definition.
+**Symptom:** `esbuild` parse error `Unexpected """` at that line.
+**Fix:** Python replace — swap `\xe2\x80\x9cfade\xe2\x80\x9d` etc → ASCII `"fade"` etc.
+**Rule for next time:** After writing TypeScript interfaces with string union types, always run `python3 -c "data=open(f,'rb').read(); [print(i+1,repr(l)) for i,l in enumerate(data.split(b'\\n')) if b'\\xe2\\x80\\x9c' in l or b'\\xe2\\x80\\x9d' in l]"` to verify no curly quotes snuck in.
+
+#### 2. Curly quotes in DEFAULTS string values
+**File:** `aurora_compact_quote.ts` DEFAULTS block
+**Cause:** ALL string values in DEFAULTS used curly quotes as delimiters (not just content). esbuild sees `"..."` inside a `"..."` string and fails.
+**Fix:** Rewrite ALL DEFAULTS values as backtick template literals.
+**Rule:** In this file, DEFAULTS values MUST be backtick template literals — never double-quoted strings.
+
+#### 3. Curly quotes in JSON fixture values via Write tool
+**Cause:** Write tool normalizes U+201C/U+201D to ASCII `"` — `"It's..."` becomes `""It's..."` (broken JSON).
+**Fix:** Use `“` and `”` JSON escape sequences for curly quotes in fixture files.
+
+#### 4. Stale renderer bundle — GAN always rendered old code
+**This was the most important bug of the session.**
+**Root cause:** `gan_reference.js` loads a pre-built static bundle from `backend/renderer/renderer.bundle.js`. It does NOT rebuild on every run. If the template TypeScript changed after the bundle was last built, all GAN renders use stale code.
+**Symptom:** All 3 comparison fixtures (fade/hard/rule) rendered identically despite different `portrait_edge` values. Took multiple debugging rounds to identify.
+**Fix:** `node backend/renderer/build.mjs` before EVERY GAN run where the template changed.
+**Rule for next time:** The GAN run sequence MUST be: 1) Edit template TS → 2) `node backend/renderer/build.mjs` → 3) `node scripts/gan_reference.js --template <key>`. Never skip step 2.
+
+#### 5. Light-background portrait makes edge treatments invisible
+**Cause:** `portrait-test.jpg` had a light grey studio background. After B&W filter, the left edge of the portrait zone was also light → fade vs hard vs rule all looked identical.
+**Fix:** Downloaded `portrait-contrast.jpg` (pure black background) — the dark-to-orange boundary makes all 3 treatments clearly distinguishable.
+**Rule:** When building edge-treatment comparison fixtures, always use a portrait with HIGH CONTRAST between background and the adjacent template color.
+
+---
+
+### Key Design Decisions
+
+**Hard cut chosen over soft fade:** The black portrait background naturally creates maximum contrast against the terracotta card. The gradient fade adds complexity without adding drama. Hard cut is the most editorial, magazine-quality treatment for this color palette.
+
+**Portrait covers most of right half of card:** `IMG_TOP = 211` (portrait starts at upper-third), bleeds to card edges on right and bottom. This matches the SahilBloom editorial reference where the portrait dominates the right column.
+
+**Adaptive font sizing with probe loop:** Quote body text must fit within `SAFE_BOT` regardless of content length. Probe largest font first, step down until it fits. Attribution placed dynamically after quote body, never pinned to bottom.
+
+**Two-pass layout:** Pass 1 (probe textboxes, no canvas) determines heights. Pass 2 places real objects. This avoids the classic Fabric.js issue where adding objects to canvas changes their measured height.
+
+---
+
+### What to Do Differently Next Time
+
+1. **Always rebuild bundle before running GAN.** Add a comment or script alias: `alias gan-run='node backend/renderer/build.mjs && node scripts/gan_reference.js'`. The silent stale-bundle failure cost multiple debugging rounds.
+
+2. **Scan new template files for curly quotes immediately after writing.** Before running build, run the byte-scan one-liner. This is a recurring issue with any tool that does smart-quote substitution.
+
+3. **For portrait/image comparison testing:** choose a dark-background test image from the start. Studio grey doesn't create enough contrast to see edge treatments.
+
+4. **The `portrait_edge` pattern is reusable.** Any future template with a configurable visual treatment should follow the same pattern: typed union field in the meta interface, DEFAULTS set to the preferred value, fixture overrides for comparison runs.
+
+5. **Bundle staleness is not obvious from GAN output.** The pixel-diff scores look plausible even when all variants render identically (they all score around 50% vs the editorial reference). There is no error — it silently "works". The only clue is when multiple variants have suspiciously similar scores.
+
+---
+
 ## 2026-08-13 — SSE Real-Time Pipeline Progress
 
 ### Summary

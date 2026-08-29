@@ -1,0 +1,19 @@
+{
+  "canvas_template": "aurora-compact-step",
+  "type": "content",
+  "title": "",
+  "compact_meta": {
+    "layout": "index",
+    "heading": "The parts of a VPC",
+    "steps": [
+      { "name": "Subnets",          "subLabel": "split",  "stepNumber": 1 },
+      { "name": "Route tables",     "subLabel": "direct", "stepNumber": 2 },
+      { "name": "Internet gateway", "subLabel": "open",   "stepNumber": 3 },
+      { "name": "NAT gateway",      "subLabel": "hide",   "stepNumber": 4 },
+      { "name": "Security groups",  "subLabel": "allow",  "stepNumber": 5 },
+      { "name": "Network ACLs",                           "stepNumber": 6 }
+    ],
+    "dot_count": 10,
+    "dot_active": 2
+  }
+}

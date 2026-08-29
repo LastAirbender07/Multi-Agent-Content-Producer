@@ -6,7 +6,6 @@ import {
   makeBrandPill,
   makeOutlinedPill,
   makeMixedWeightText,
-  makeDotProgressIndicator,
   type TextRun,
 } from "./shared/compact";
 import { COMPACT_TOKENS } from "./shared/design_tokens";
@@ -22,8 +21,6 @@ interface CompactMeta {
   category_pill?: string;
   headline_runs?: TextRun[];
   brand_wordmark?: string;
-  dot_count?: number;
-  dot_active?: number;
   headline_size?: number;
 }
 
@@ -31,9 +28,7 @@ const DEFAULTS: Required<CompactMeta> = {
   category_pill: "VIRAL REEL",
   headline_runs: [{ text: "FAKE POST", weight: 900 }],
   brand_wordmark: "@nextwork",
-  dot_count: 5,
-  dot_active: 0,
-  headline_size: 112,  // LLM suggested — 140 was too big causing over-wrap
+  headline_size: 112,
 };
 
 export async function buildAuroraCompactHook(
@@ -111,20 +106,6 @@ export async function buildAuroraCompactHook(
   });
   setData(brandPill, { role: "compact_brand_pill" });
   objects.push(brandPill);
-
-  // 5. Dot progress indicator (bottom center, LLM Iter-0 fix: y=966)
-  const dots = makeDotProgressIndicator({
-    count: m.dot_count,
-    active: m.dot_active,
-    x: CANVAS_SIZE / 2,
-    y: 966,
-    tokens,
-    size: 10,
-    gap: 14,
-    activeScale: 1.6,
-  });
-  setData(dots, { role: "compact_dot_indicator" });
-  objects.push(dots);
 
   return objects;
 }

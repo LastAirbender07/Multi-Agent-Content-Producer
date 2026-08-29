@@ -36,6 +36,9 @@ const FONT_DEFS = [
   // Phase 2 compact-family additions
   { family: "Inter",             weight: "900", style: "normal", path: "/assets/fonts/Inter-Black.woff2" },
   { family: "Playfair Display",  weight: "700", style: "italic", path: "/assets/fonts/PlayfairDisplay-BoldItalic.woff2" },
+  // Upright Playfair Display (variable font — covers 400 and 700 normal)
+  { family: "Playfair Display",  weight: "400", style: "normal", path: "/assets/fonts/PlayfairDisplay-Regular.woff2" },
+  { family: "Playfair Display",  weight: "700", style: "normal", path: "/assets/fonts/PlayfairDisplay-Regular.woff2" },
   // Phase 5 cover-hero family
   { family: "Inter",             weight: "400", style: "normal", path: "/assets/fonts/Inter-Regular.woff2" },
   { family: "Inter",             weight: "700", style: "normal", path: "/assets/fonts/Inter-Bold.woff2" },

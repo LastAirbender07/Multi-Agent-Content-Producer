@@ -14,8 +14,11 @@ export interface MakeBrandPillOpts {
 }
 
 /**
- * Bottom-left brand pill: dark rounded rectangle with a small mark + wordmark.
+ * Bottom-left brand pill: dark rounded rectangle with a small dot + wordmark.
  * Matches nextwork/image.png bottom-left pattern.
+ *
+ * All children use originX/Y "center" to avoid Fabric v7 group bounding-box
+ * miscalculation. x/y = top-left corner of the pill (group originX "left").
  */
 export function makeBrandPill(opts: MakeBrandPillOpts): fabric.Group {
   const {
@@ -27,20 +30,21 @@ export function makeBrandPill(opts: MakeBrandPillOpts): fabric.Group {
     fontSize = 16,
   } = opts;
 
-  // Measure text width via a temporary Text object
-  const text = new fabric.Text(wordmark, {
+  // Measure text width via probe
+  const probe = new fabric.Text(wordmark, {
     fontFamily: tokens.fontBody,
     fontSize,
     fontWeight: 700,
-    fill: textColor,
-    originX: "left",
-    originY: "center",
   });
-  const textW = text.width ?? 0;
-  const width = Math.round(padding + 18 + 8 + textW + padding);  // pad + dot + gap + text + pad
+  const textW = probe.width ?? 0;
+  const dotDiameter = 18;
+  const dotTextGap = 8;
+  const width = Math.round(padding + dotDiameter + dotTextGap + textW + padding);
 
+  // All children positioned at their centre relative to pill top-left (0,0).
   const bg = new fabric.Rect({
-    left: 0, top: 0,
+    left: width / 2, top: height / 2,
+    originX: "center", originY: "center",
     width, height,
     rx: height / 2, ry: height / 2,
     fill: bgColor,
@@ -48,26 +52,33 @@ export function makeBrandPill(opts: MakeBrandPillOpts): fabric.Group {
   });
 
   const dot = new fabric.Circle({
-    left: padding + 9, top: height / 2,
-    radius: 9,
+    left: padding + dotDiameter / 2,
+    top: height / 2,
+    originX: "center", originY: "center",
+    radius: dotDiameter / 2,
     fill: textColor,
-    originX: "center",
-    originY: "center",
     selectable: false,
   });
 
-  text.set({ left: padding + 18 + 8, top: height / 2 });
+  const label = new fabric.Text(wordmark, {
+    left: padding + dotDiameter + dotTextGap,
+    top: height / 2,
+    originX: "left", originY: "center",
+    fontFamily: tokens.fontBody,
+    fontSize,
+    fontWeight: 700,
+    fill: textColor,
+    selectable: false,
+  });
 
-  const group = new fabric.Group([bg, dot, text], {
-    left: x, top: y,
-    originX: "left", originY: "top",
+  const group = new fabric.Group([bg, dot, label], {
+    left: x,
+    top: y,
+    originX: "left",
+    originY: "top",
     selectable: false,
     subTargetCheck: false,
   });
-  // Explicitly ensure the group's bounding origin aligns with (x, y) top-left.
-  // Fabric v7 groups can auto-adjust position when children have varying origins;
-  // pin explicitly:
-  group.set({ left: x, top: y });
   group.setCoords();
   return group;
 }

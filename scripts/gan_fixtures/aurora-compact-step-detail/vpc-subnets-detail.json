@@ -1,0 +1,9 @@
+{
+  "canvas_template": "aurora-compact-step-detail",
+  "type": "content",
+  "compact_meta": {
+    "topicName": "Subnets",
+    "stepNumber": 1,
+    "explanation": "A subnet is a slice of your VPC's address range. You choose whether it can reach the internet. A /16 VPC gives you 65,536 addresses across Availability Zones."
+  }
+}

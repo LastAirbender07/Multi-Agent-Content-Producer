@@ -2,7 +2,7 @@
 
 **Family type:** Body slide — editorial ranked list (3–5 items per slide).
 **Phase:** 2 (core). **Status:** NEW.
-**Canvas:** 1080 × 1350 (4:5 portrait, IG feed carousel format).
+**Canvas:** 1080 × 1080.
 
 ---
 

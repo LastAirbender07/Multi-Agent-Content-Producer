@@ -1,0 +1,18 @@
+{
+  "canvas_template": "aurora-compact-fact",
+  "type": "stat",
+  "title": "",
+  "compact_meta": {
+    "variant": "single",
+    "stat": {
+      "value": "$112,521",
+      "caption": "average US tech professional salary"
+    },
+    "category_pill": "SALARY",
+    "body_copy": "Every security role ahead beats this benchmark. The 7 that follow all pay above average.",
+    "attribution": "Dice 2025 Tech Salary Report",
+    "brand_wordmark": "@nextwork",
+    "dot_count": 10,
+    "dot_active": 1
+  }
+}

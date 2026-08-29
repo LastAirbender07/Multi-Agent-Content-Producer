@@ -1,0 +1,27 @@
+{
+  "canvas_template": "aurora-compact-list-item",
+  "type": "content",
+  "title": "",
+  "compact_meta": {
+    "handle": "@SahilBloom",
+    "seriesTitle": "The 5 Types of Wealth.",
+    "items": [
+      {
+        "number": 1,
+        "body": "Tell your partner you love them every night before falling asleep. Someday you'll find the other side of the bed empty and wish you could."
+      },
+      {
+        "number": 2,
+        "body": "Never keep score in love."
+      },
+      {
+        "number": 3,
+        "body": "Laugh until you cry. Laughing together goes a long way to smooth the inevitable bumps in the road."
+      },
+      {
+        "number": 4,
+        "body": "Never stop dating. Marriages don't get boring — you stop trying."
+      }
+    ]
+  }
+}

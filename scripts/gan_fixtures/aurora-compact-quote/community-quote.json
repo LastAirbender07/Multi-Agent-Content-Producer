@@ -1,0 +1,13 @@
+{
+  "canvas_template": "aurora-compact-quote",
+  "type": "content",
+  "title": "",
+  "image_url": "/assets/images/portrait-test.jpg",
+  "compact_meta": {
+    "variant": "terracotta",
+    "intro_question": "What does it mean to publish a paper now?",
+    "quote_body": "“Individually we feel empowered. We’re at home and maybe we can develop ideas very quickly and it’s satisfactory. But what does it do to the whole community? Because it accelerates everything. Who has time even to read it, to review it?”",
+    "attribution_name": "Thomas Hofmann",
+    "attribution_role": "Professor, ETH Zurich"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "canvas_template": "aurora-compact-hook",
+  "type": "hook",
+  "_theme": "aurora",
+  "compact_meta": {
+    "category_pill": "TUTORIAL",
+    "headline_runs": [
+      { "text": "GOOGLE,\nWHERE AM ", "weight": 900 },
+      { "text": "I?", "weight": 700, "family": "Playfair Display", "style": "italic" }
+    ],
+    "brand_wordmark": "@nextwork",
+    "dot_count": 7,
+    "dot_active": 0,
+    "headline_size": 120
+  }
+}

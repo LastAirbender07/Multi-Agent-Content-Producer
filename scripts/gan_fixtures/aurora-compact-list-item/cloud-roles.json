@@ -1,0 +1,26 @@
+{
+  "canvas_template": "aurora-compact-list-item",
+  "type": "content",
+  "compact_meta": {
+    "handle": "@nextwork",
+    "seriesTitle": "4 Cloud Roles You Can Land.",
+    "items": [
+      {
+        "number": 1,
+        "body": "Cloud Solutions Architect — Design the full infrastructure before a single server is provisioned. You translate business goals into VPCs, subnets, and service boundaries that every other team depends on."
+      },
+      {
+        "number": 2,
+        "body": "DevOps Engineer — Own the pipeline from the moment code is committed to the moment it runs in production. CI/CD, monitoring, and rollback strategies are your daily vocabulary."
+      },
+      {
+        "number": 3,
+        "body": "Cloud Security Engineer — Every company needs someone to lock the doors. You design IAM policies, set guardrails, and make sure no port is left open to the internet by accident."
+      },
+      {
+        "number": 4,
+        "body": "Site Reliability Engineer — Keep the lights on when traffic spikes at 2 a.m. You write the runbooks, set the SLOs, and own the pager when something goes wrong at scale."
+      }
+    ]
+  }
+}

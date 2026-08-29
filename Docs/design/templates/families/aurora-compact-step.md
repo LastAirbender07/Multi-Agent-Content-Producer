@@ -2,7 +2,7 @@
 
 **Family type:** Body slide — one educational or tutorial step / concept deep-dive.
 **Phase:** 2 (core). **Status:** NEW.
-**Canvas:** 1080 × 1350 (4:5 portrait).
+**Canvas:** 1080 × 1080.
 
 ---
 

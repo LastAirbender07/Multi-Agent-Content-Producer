@@ -1,8 +1,25 @@
 # PHASE 2 — Compact Template Family (Sequential Build + GAN-Iterate)
 
 ## Status
-APPROVED (v3, 2026-08-23) — Loop 1 complete, 2 clean passes documented at bottom.
+**IN PROGRESS (v3, 2026-08-29) — POC v2 COMPLETE. Stage A ✅ DONE. Stage B IN PROGRESS.**
 Supersedes v2 (batched work); v3 rewrites for strictly sequential per-component + per-template build with mandatory GAN verification against user-supplied reference PNGs.
+
+**Stage B progress (as of 2026-08-29):**
+- `aurora-compact-quote` ✅ DONE — B&W editorial portrait, hard-cut edge, Playfair Display serif quote, terracotta card on cream canvas. GAN YELLOW (~55%). Fixtures: community-quote, telescope-quote. Default portrait_edge: "hard".
+- `aurora-compact-hook` ✅ DONE (POC v2)
+- Remaining: `aurora-compact-fact`, `aurora-compact-step`, `aurora-compact-list-item`
+
+**POC v2:** APPROVED 2026-08-28. Two production templates shipped (`aurora-carousel-cover-hero-phone`, `aurora-carousel-cover-hero-images`). Shared component library at `shared/cover/` (7 components). GAN pipeline verified end-to-end.
+
+**Design corrections applied 2026-08-29** (see `Docs/phases/COMPACT_RENDERING_PLAYBOOK.md`):
+- `aurora-compact-list-item` bg corrected: `#F3ECD8` → `#F9F9F7` (near-white, matches actual SahilBloom reference)
+- `aurora-compact-list-item` editorial header moved to TOP of slide (was erroneously at bottom)
+- `aurora-compact-step` bg paradigm corrected: flat cream → full-bleed photo + gradient overlay
+- `aurora-compact-step` number display corrected: 240pt digit → 18px colour dot + 110pt Inter Bold topic name
+
+**Canvas size for ALL compact templates: 1080 × 1080** — same as cover-hero family. Fixed during POC v2.
+
+**Rendering playbook:** `Docs/phases/COMPACT_RENDERING_PLAYBOOK.md` — defines exact look/decompose/build/GAN/aesthetic workflow for every component and family.
 
 ## Problem Statement
 

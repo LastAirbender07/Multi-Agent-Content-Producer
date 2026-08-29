@@ -123,10 +123,12 @@ PHASE 6 ── Advanced Template Families (Weeks 5–8, phased incrementally)
              • Full AWS icon asset library (30+ services)
              → catalog: families/aurora-nextwork-*.md, families/aurora-nextwork-spotlight-*.md
 
-          Sub-phase 6D — aurora-carousel-cover-hero + supporting families
+          Sub-phase 6D — aurora-carousel-cover-hero + supporting families ✅ PARTIALLY BUILT
              • aurora-carousel-cover-hero (peach pill + display + mockup family)
-             • aurora-trend-brief, aurora-annotated-example
-             • Deferred until user demand emerges
+               → aurora-carousel-cover-hero-phone: BUILT (POC v2, 2026-08-28)
+               → aurora-carousel-cover-hero-images: BUILT (POC v2, 2026-08-28)
+               → Shared component library: shared/cover/ (7 components) — BUILT
+             • aurora-trend-brief, aurora-annotated-example — Deferred until user demand
              → catalog: families/aurora-carousel-cover-hero.md, families/aurora-trend-brief.md
 ```
 

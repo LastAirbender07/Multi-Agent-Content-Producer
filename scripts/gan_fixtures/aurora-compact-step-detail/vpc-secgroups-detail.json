@@ -1,0 +1,9 @@
+{
+  "canvas_template": "aurora-compact-step-detail",
+  "type": "content",
+  "compact_meta": {
+    "topicName": "Security groups",
+    "stepNumber": 5,
+    "explanation": "Security groups are stateful firewalls attached to individual resources. Every inbound rule you write is automatically mirrored for return traffic — you never need to write the inverse."
+  }
+}

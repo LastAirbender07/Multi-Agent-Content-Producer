@@ -1,0 +1,18 @@
+{
+  "canvas_template": "aurora-compact-fact-compare",
+  "type": "content",
+  "compact_meta": {
+    "stat_baseline": {
+      "value": "10–15%",
+      "caption": "Typical binding rate for the field"
+    },
+    "stat_featured": {
+      "value": "22–35%",
+      "caption": "Claude's protein designs"
+    },
+    "body_header": "Into the lab",
+    "body_copy": "Two independent labs built Claude's proteins and tested them. Designs bound at roughly double the rate typical for the field.",
+    "attribution": "Anthropic Research Report, 2024",
+    "brand_wordmark": "@claude"
+  }
+}

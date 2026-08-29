@@ -13,3 +13,9 @@ export type { MakeMixedWeightTextOpts, TextRun } from "./make-mixed-weight-text"
 
 export { makeDotProgressIndicator } from "./make-dot-progress-indicator";
 export type { MakeDotProgressIndicatorOpts } from "./make-dot-progress-indicator";
+
+export { makeNumberBadge } from "./make-number-badge";
+export type { MakeNumberBadgeOpts } from "./make-number-badge";
+
+export { makeEditorialHeaderBar } from "./make-editorial-header-bar";
+export type { MakeEditorialHeaderBarOpts } from "./make-editorial-header-bar";

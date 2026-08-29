@@ -1,0 +1,13 @@
+{
+  "canvas_template": "aurora-compact-stat-hero",
+  "type": "content",
+  "compact_meta": {
+    "accent": "yellow",
+    "headline": "Security is not a separate career",
+    "body_intro": "Most security roles are built on skills you already use — networking, identity, automation, and access control. The 7 that follow all pay above the average US tech salary.",
+    "stat_value": "$112,521",
+    "stat_explanation": "is what the average US tech professional earns, and every role ahead beats it.",
+    "attribution": "Dice 2025 Tech Salary Report",
+    "brand_wordmark": "@nextwork"
+  }
+}

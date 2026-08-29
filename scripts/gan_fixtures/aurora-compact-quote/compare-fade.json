@@ -1,0 +1,13 @@
+{
+  "canvas_template": "aurora-compact-quote",
+  "type": "content",
+  "title": "",
+  "image_url": "/assets/images/portrait-contrast.jpg",
+  "compact_meta": {
+    "intro_question": "If you can try 20 ideas at once, why pick one?",
+    "quote_body": "“It’s a bit like we got a more powerful telescope. You can map deeper or broader, but you’re still mapping an infinite space. You still need to know where to look.”",
+    "attribution_name": "Dan Alistarh",
+    "attribution_role": "Researcher, Anthropic",
+    "portrait_edge": "fade"
+  }
+}

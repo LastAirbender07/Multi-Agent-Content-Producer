@@ -1,16 +1,15 @@
 {
-  "title": "FAKE POST",
-  "type": "hook",
   "canvas_template": "aurora-compact-hook",
+  "type": "hook",
   "_theme": "aurora",
   "compact_meta": {
     "category_pill": "VIRAL REEL",
     "headline_runs": [
-      { "text": "FAKE POST", "weight": 900 }
+      { "text": "FAKE\nPOST", "weight": 900 }
     ],
     "brand_wordmark": "@nextwork",
     "dot_count": 5,
     "dot_active": 0,
-    "headline_size": 200
+    "headline_size": 140
   }
 }

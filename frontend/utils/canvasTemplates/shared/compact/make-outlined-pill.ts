@@ -19,6 +19,10 @@ export interface MakeOutlinedPillOpts {
 /**
  * ALL-CAPS letter-spaced pill (e.g. peach `VIRAL REEL` category pill).
  * Matches others/image copy 3.png top peach pill pattern.
+ *
+ * All children use originX/Y "center" to avoid Fabric v7 group bounding-box
+ * miscalculation from mixed origin modes. The group itself uses originX "left"
+ * so x/y map to the pill's top-left corner.
  */
 export function makeOutlinedPill(opts: MakeOutlinedPillOpts): fabric.Group {
   const {
@@ -33,20 +37,22 @@ export function makeOutlinedPill(opts: MakeOutlinedPillOpts): fabric.Group {
     letterSpacing = 100,
   } = opts;
 
-  const label = new fabric.Text(text.toUpperCase(), {
+  // Measure text width with a probe — initDimensions() is called in the
+  // Text constructor in browser context (after document.fonts.ready).
+  const probe = new fabric.Text(text.toUpperCase(), {
     fontFamily: tokens.fontBody,
     fontSize,
     fontWeight: 700,
-    fill: textColor,
     charSpacing: letterSpacing,
-    originX: "center",
-    originY: "center",
   });
-  const textW = label.width ?? 0;
+  const textW = probe.width ?? 0;
   const width = Math.round(padding * 2 + textW);
 
+  // Both children centered at the pill's geometric centre (width/2, height/2).
+  // Group originX "left" means group.left = left edge of pill.
   const bg = new fabric.Rect({
-    left: 0, top: 0,
+    left: width / 2, top: height / 2,
+    originX: "center", originY: "center",
     width, height,
     rx: height / 2, ry: height / 2,
     fill: fillColor,
@@ -55,12 +61,25 @@ export function makeOutlinedPill(opts: MakeOutlinedPillOpts): fabric.Group {
     selectable: false,
   });
 
-  label.set({ left: width / 2, top: height / 2 });
-
-  const group = new fabric.Group([bg, label], {
-    left: x, top: y,
-    originX: "left", originY: "top",
+  const label = new fabric.Text(text.toUpperCase(), {
+    left: width / 2, top: height / 2,
+    originX: "center", originY: "center",
+    fontFamily: tokens.fontBody,
+    fontSize,
+    fontWeight: 700,
+    fill: textColor,
+    charSpacing: letterSpacing,
     selectable: false,
   });
+
+  const group = new fabric.Group([bg, label], {
+    left: x,
+    top: y,
+    originX: "left",
+    originY: "top",
+    selectable: false,
+    subTargetCheck: false,
+  });
+  group.setCoords();
   return group;
 }

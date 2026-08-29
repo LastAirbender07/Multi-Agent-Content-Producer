@@ -9,7 +9,15 @@ import { buildAuroraStat }    from "./aurora_stat";
 import { buildAuroraQuote }   from "./aurora_quote";
 import { buildAuroraCta }     from "./aurora_cta";
 import { buildAuroraEngage }  from "./aurora_engage";
-import { buildAuroraCompactHook } from "./aurora_compact_hook";
+import { buildAuroraCompactHook }        from "./aurora_compact_hook";
+import { buildAuroraCompactFact }        from "./aurora_compact_fact";
+import { buildAuroraCompactFactCompare } from "./aurora_compact_fact_compare";
+import { buildAuroraCompactStep }        from "./aurora_compact_step";
+import { buildAuroraCompactStepIndex }   from "./aurora_compact_step_index";
+import { buildAuroraCompactStepDetail }  from "./aurora_compact_step_detail";
+import { buildAuroraCompactStatHero }    from "./aurora_compact_stat_hero";
+import { buildAuroraCompactListItem }    from "./aurora_compact_list_item";
+import { buildAuroraCompactQuote }       from "./aurora_compact_quote";
 import { buildAuroraCarouselCoverHeroPhone }  from "./aurora_carousel_cover_hero_phone";
 import { buildAuroraCarouselCoverHeroImages } from "./aurora_carousel_cover_hero_images";
 
@@ -44,7 +52,15 @@ export const REGISTRY: Record<string, TemplateBuilder> = {
   "aurora-cta":           buildAuroraCta,
   "aurora-engage":        buildAuroraEngage,
   // Phase 2 compact family (POC v2)
-  "aurora-compact-hook":  buildAuroraCompactHook,
+  "aurora-compact-hook":         buildAuroraCompactHook,
+  "aurora-compact-fact":         buildAuroraCompactFact,          // legacy — kept for backward compat
+  "aurora-compact-fact-compare": buildAuroraCompactFactCompare,   // notebook card, 2-stat compare
+  "aurora-compact-step":         buildAuroraCompactStep,          // legacy
+  "aurora-compact-step-index":   buildAuroraCompactStepIndex,     // scannable 6-item list + pipeline
+  "aurora-compact-step-detail":  buildAuroraCompactStepDetail,    // single-step deep-dive
+  "aurora-compact-stat-hero":    buildAuroraCompactStatHero,      // photo bg + headline + accent stat
+  "aurora-compact-list-item":    buildAuroraCompactListItem,
+  "aurora-compact-quote":        buildAuroraCompactQuote,
   // Phase 5 cover-hero family
   "aurora-carousel-cover-hero-phone":  buildAuroraCarouselCoverHeroPhone,
   "aurora-carousel-cover-hero-images": buildAuroraCarouselCoverHeroImages,
