@@ -212,7 +212,7 @@ function TemplateStrip({ onSelectTemplate }: { onSelectTemplate: (type: string) 
           <button
             key={t.type}
             onClick={() => onSelectTemplate(t.type)}
-            className="flex flex-col items-start gap-0.5 px-2 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all group"
+            className="flex flex-col items-start gap-0.5 px-2 py-1.5 rounded-lg bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 hover:scale-[1.03] active:scale-[0.97] transition-all duration-150 group"
           >
             <div className="w-full h-1 rounded-full mb-1" style={{ background: t.color, opacity: 0.7 }} />
             <span className="text-[10px] font-bold text-zinc-300 group-hover:text-white transition-colors">{t.label}</span>

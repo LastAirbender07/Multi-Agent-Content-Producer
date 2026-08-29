@@ -69,7 +69,7 @@ export function SlidePngPreview({
   if (hasCanvas) return null;
 
   return (
-    <div className="flex-1 bg-zinc-950 flex items-center justify-center relative overflow-hidden">
+    <div className="flex-1 bg-zinc-950 flex items-center justify-center relative overflow-hidden" style={{ backgroundImage: "radial-gradient(circle, #27272a 1px, transparent 1px)", backgroundSize: "24px 24px" }}>
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center">
           <Loader2 size={28} className="text-violet-400 animate-spin" />

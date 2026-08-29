@@ -50,7 +50,6 @@ export function makeEditorialHeaderBar(opts: MakeEditorialHeaderBarOpts): [
     fill: textColor,
     originX: "left",
     originY: "top",
-    selectable: false,
     width: canvasWidth / 2,  // enough width to not wrap
   });
 
@@ -65,7 +64,6 @@ export function makeEditorialHeaderBar(opts: MakeEditorialHeaderBarOpts): [
     originX: "right",   // right-align from left = end-x (Fabric's correct right-align pattern)
     originY: "top",
     textAlign: "right",
-    selectable: false,
     width: canvasWidth / 2,
   });
 

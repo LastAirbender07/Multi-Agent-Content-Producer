@@ -20,7 +20,14 @@ interface TemplateMeta {
   desc:    string;   // one-line description in the tile
   color:   string;   // accent colour (used for the tile's top stripe)
   emoji:   string;   // icon shown in the tile
-  starter: { title: string; body: string; stat_value?: string; stat_label?: string; bullets?: string[] };
+  starter: {
+    title: string;
+    body: string;
+    stat_value?: string;
+    stat_label?: string;
+    bullets?: string[];
+    compact_meta?: Record<string, unknown>;
+  };
 }
 
 const TEMPLATE_METADATA: Record<string, TemplateMeta> = {
@@ -73,6 +80,65 @@ const TEMPLATE_METADATA: Record<string, TemplateMeta> = {
     type: "engage", label: "Engage", desc: "Engagement",
     color: "#6366F1", emoji: "✨",
     starter: { title: "Did this surprise you? Follow for more.", body: "We publish research-backed insights every week." },
+  },
+
+  // ── Phase 2 Compact family ──────────────────────────────────────────────────
+  "aurora-compact-hook": {
+    type: "hook", label: "Compact Hook", desc: "Bold cover slide",
+    color: "#2DD4BF", emoji: "🎯",
+    starter: { title: "Your Big Idea", body: "", compact_meta: {} },
+  },
+  "aurora-compact-fact": {
+    type: "stat", label: "Fact Card", desc: "Single stat reveal",
+    color: "#E8B045", emoji: "⚡",
+    starter: { title: "", body: "", compact_meta: {} },
+  },
+  "aurora-compact-fact-compare": {
+    type: "stat", label: "Fact Compare", desc: "Side-by-side stats",
+    color: "#E8B045", emoji: "⚖️",
+    starter: { title: "", body: "", compact_meta: {} },
+  },
+  "aurora-compact-step": {
+    type: "content", label: "Step (Legacy)", desc: "Single tutorial step",
+    color: "#3B7EDC", emoji: "📋",
+    starter: { title: "", body: "", compact_meta: {} },
+  },
+  "aurora-compact-step-index": {
+    type: "content", label: "Step Index", desc: "Steps overview list",
+    color: "#3B7EDC", emoji: "🗺️",
+    starter: { title: "", body: "", compact_meta: {} },
+  },
+  "aurora-compact-step-detail": {
+    type: "content", label: "Step Detail", desc: "Deep-dive step card",
+    color: "#3B7EDC", emoji: "🔍",
+    starter: { title: "", body: "", compact_meta: {} },
+  },
+  "aurora-compact-stat-hero": {
+    type: "stat", label: "Stat Hero", desc: "Photo background + stat",
+    color: "#F08A3D", emoji: "📸",
+    starter: { title: "", body: "", compact_meta: {} },
+  },
+  "aurora-compact-list-item": {
+    type: "content", label: "List", desc: "Ranked list (SahilBloom)",
+    color: "#EC4899", emoji: "📝",
+    starter: { title: "", body: "", compact_meta: {} },
+  },
+  "aurora-compact-quote": {
+    type: "quote", label: "Compact Quote", desc: "Editorial pull-quote",
+    color: "#C47A3C", emoji: "💬",
+    starter: { title: "", body: "", compact_meta: {} },
+  },
+
+  // ── Phase 5 Cover-Hero family ──────────────────────────────────────────────
+  "aurora-carousel-cover-hero-phone": {
+    type: "hook", label: "Cover: Phone", desc: "Tilted phone mockup cover",
+    color: "#7C6EFA", emoji: "📱",
+    starter: { title: "", body: "", compact_meta: {} },
+  },
+  "aurora-carousel-cover-hero-images": {
+    type: "hook", label: "Cover: Images", desc: "Image collage cover",
+    color: "#7C6EFA", emoji: "🖼️",
+    starter: { title: "", body: "", compact_meta: {} },
   },
 };
 

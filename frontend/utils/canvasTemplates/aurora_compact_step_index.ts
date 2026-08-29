@@ -148,7 +148,6 @@ export async function buildAuroraCompactStepIndex(
     fontSize: 90, fontWeight: 700,
     fill: "#FFFFFF", lineHeight: 1.05,
     originX: "left", originY: "top",
-    selectable: false,
   });
   setData(heading, { role: "step_index_heading" });
   objects.push(heading);
@@ -184,7 +183,7 @@ export async function buildAuroraCompactStepIndex(
       left: 55, top: centerY,
       fontFamily: tokens.fontBody, fontSize: 18, fontWeight: 300,
       fill: "rgba(255,255,255,0.40)",
-      originX: "left", originY: "center", selectable: false,
+      originX: "left", originY: "center",
     }));
 
     // Connector dot on the pipeline line
@@ -200,7 +199,7 @@ export async function buildAuroraCompactStepIndex(
       left: PIPE_X + 22, top: nameY,
       fontFamily: tokens.fontBody, fontSize: 40, fontWeight: 600,
       fill: "#FFFFFF",
-      originX: "left", originY: "center", selectable: false,
+      originX: "left", originY: "center",
     }));
 
     // Sub-label below name
@@ -209,7 +208,7 @@ export async function buildAuroraCompactStepIndex(
         left: PIPE_X + 22, top: nameY + 26,
         fontFamily: tokens.fontBody, fontSize: 18, fontStyle: "italic",
         fill: "rgba(255,255,255,0.42)",
-        originX: "left", originY: "top", selectable: false,
+        originX: "left", originY: "top",
       }));
     }
   });

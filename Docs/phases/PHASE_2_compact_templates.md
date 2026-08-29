@@ -1,7 +1,7 @@
 # PHASE 2 — Compact Template Family (Sequential Build + GAN-Iterate)
 
 ## Status
-**IN PROGRESS (v3, 2026-08-29) — POC v2 COMPLETE. Stage A ✅ DONE. Stage B IN PROGRESS.**
+**IN PROGRESS (v3, 2026-08-29) — POC v2 COMPLETE. Stage A ✅ DONE. Stage B ✅ DONE. Stage D NEXT.**
 Supersedes v2 (batched work); v3 rewrites for strictly sequential per-component + per-template build with mandatory GAN verification against user-supplied reference PNGs.
 
 **Stage B progress (as of 2026-08-29):**
@@ -9,7 +9,8 @@ Supersedes v2 (batched work); v3 rewrites for strictly sequential per-component 
 - `aurora-compact-hook` ✅ DONE (POC v2)
 - `aurora-compact-fact` ✅ DONE — Compare variant (90pt muted baseline + 140pt coral featured, cream full-bleed, hairline rule, body section, brand pill) + Single variant (left-aligned outlined pill, 140pt coral stat, caption, rule, bold claim, italic attribution). GAN YELLOW (compare 13.3%, single 13.9%) — 13% floor is irreducible Instagram UI chrome in the reference screenshot. Both variants pass full aesthetic gate. Fixtures: compare-protein-design, single-salary-stat. No make-stat-callout-card needed (inline stats are simpler and match reference perfectly).
 - `aurora-compact-step` ✅ DONE — Index variant (90pt 2-line heading, 6-item pipeline list, coloured step dots, italic sub-labels, photo-bg + gradient overlay; optional `right_image` param adds a 440×960 rounded-rect clipped image panel on the right side, heading narrows to 490px) + Detail variant (full-bleed photo-bg, white "Preview" card with VPC selector panel + AZ subnet rows, large 96pt topic name, explanation copy). GAN FAIR floor: index 26.06%, detail 34.93% — photo-bg templates have irreducible ~25-35% diff when fixture photo (green rolling hills) doesn't match reference photo (warm amber vineyard). Card structure matches reference exactly. Both variants pass aesthetic gate. Fixtures: vpc-parts-index, vpc-parts-index-with-panel, vpc-subnets-detail, vpc-secgroups-detail.
-- Remaining: `aurora-compact-list-item`
+- `aurora-compact-list-item` ✅ DONE — White page, thick black border frame, 4-item list with outlined circle number badges, Playfair Display body text, dashed-outline illustration placeholders (real images loaded via `illustrationUrl` per item), footer handle + italic series title. GAN YELLOW (cloud-roles 14.4%, relationship-rules 11.5%) — floor is Instagram nav chrome + sketch illustrations vs dashed boxes. Passes aesthetic gate. Fixtures: cloud-roles, relationship-rules.
+- **Stage B COMPLETE. All 5 compact families shipped.**
 
 **POC v2:** APPROVED 2026-08-28. Two production templates shipped (`aurora-carousel-cover-hero-phone`, `aurora-carousel-cover-hero-images`). Shared component library at `shared/cover/` (7 components). GAN pipeline verified end-to-end.
 

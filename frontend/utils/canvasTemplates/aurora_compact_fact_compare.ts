@@ -88,7 +88,7 @@ export async function buildAuroraCompactFactCompare(
     fontFamily: tokens.fontDisplay,
     fontSize: 110, fontWeight: 900,
     fill: m.stat_baseline.color ?? STAT_MUTED,
-    originX: "left", originY: "top", selectable: false,
+    originX: "left", originY: "top",
   }));
 
   const cap1 = new fabric.Textbox(m.stat_baseline.caption, {
@@ -96,7 +96,7 @@ export async function buildAuroraCompactFactCompare(
     width: CARD_W - PAD_X * 2,
     fontFamily: tokens.fontBody, fontSize: 24, fontWeight: 400,
     fill: tokens.textDark,
-    originX: "left", originY: "top", selectable: false,
+    originX: "left", originY: "top",
   });
   setData(cap1, { role: "fact_caption_baseline" });
   objects.push(cap1);
@@ -109,7 +109,7 @@ export async function buildAuroraCompactFactCompare(
     fontFamily: tokens.fontDisplay,
     fontSize: 110, fontWeight: 900,
     fill: m.stat_featured.color ?? CORAL,
-    originX: "left", originY: "top", selectable: false,
+    originX: "left", originY: "top",
   }));
 
   const cap2 = new fabric.Textbox(m.stat_featured.caption, {
@@ -117,7 +117,7 @@ export async function buildAuroraCompactFactCompare(
     width: CARD_W - PAD_X * 2,
     fontFamily: tokens.fontBody, fontSize: 24, fontWeight: 400,
     fill: tokens.textDark,
-    originX: "left", originY: "top", selectable: false,
+    originX: "left", originY: "top",
   });
   setData(cap2, { role: "fact_caption_featured" });
   objects.push(cap2);
@@ -137,7 +137,7 @@ export async function buildAuroraCompactFactCompare(
     left: INNER_X, top: bodyHeaderY,
     fontFamily: tokens.fontBody, fontSize: 28, fontWeight: 700,
     fill: tokens.textDark,
-    originX: "left", originY: "top", selectable: false,
+    originX: "left", originY: "top",
   }));
 
   objects.push(new fabric.Textbox(m.body_copy, {
@@ -145,7 +145,7 @@ export async function buildAuroraCompactFactCompare(
     width: CARD_W - PAD_X * 2,
     fontFamily: tokens.fontBody, fontSize: 24, fontWeight: 400,
     fill: tokens.textDark, lineHeight: 1.5,
-    originX: "left", originY: "top", selectable: false,
+    originX: "left", originY: "top",
   }));
 
   // Attribution — bottom-right of the warm margin strip
@@ -153,7 +153,7 @@ export async function buildAuroraCompactFactCompare(
     left: CANVAS_SIZE - (CARD_PAD + 24), top: CANVAS_SIZE - 50,
     fontFamily: tokens.fontBody, fontSize: 16, fontStyle: "italic",
     fill: "#8A837A",
-    originX: "right", originY: "top", selectable: false,
+    originX: "right", originY: "top",
   }));
 
   // Brand pill (bottom-left, in the warm margin strip)

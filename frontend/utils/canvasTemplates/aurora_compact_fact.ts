@@ -88,7 +88,6 @@ export async function buildAuroraCompactFact(
       fontSize: STAT_BASELINE_SIZE, fontWeight: 900,
       fill: m.stat_baseline.color ?? STAT_MUTED,
       originX: "left", originY: "top",
-      selectable: false,
     });
     setData(stat1, { role: "fact_stat_baseline" });
     objects.push(stat1);
@@ -100,7 +99,6 @@ export async function buildAuroraCompactFact(
       fontSize: 22, fontWeight: 400,
       fill: STAT_MUTED,
       originX: "left", originY: "top",
-      selectable: false,
     });
     setData(cap1, { role: "fact_caption_baseline" });
     objects.push(cap1);
@@ -114,7 +112,6 @@ export async function buildAuroraCompactFact(
       fontSize: STAT_FEATURED_SIZE, fontWeight: 900,
       fill: m.stat_featured.color ?? CORAL,
       originX: "left", originY: "top",
-      selectable: false,
     });
     setData(stat2, { role: "fact_stat_featured" });
     objects.push(stat2);
@@ -126,7 +123,6 @@ export async function buildAuroraCompactFact(
       fontSize: 22, fontWeight: 400,
       fill: tokens.textDark,
       originX: "left", originY: "top",
-      selectable: false,
     });
     setData(cap2, { role: "fact_caption_featured" });
     objects.push(cap2);
@@ -151,7 +147,6 @@ export async function buildAuroraCompactFact(
       fontSize: 26, fontWeight: 700,
       fill: tokens.textDark,
       originX: "left", originY: "top",
-      selectable: false,
     });
     setData(bodyHeader, { role: "fact_body_header" });
     objects.push(bodyHeader);
@@ -164,7 +159,6 @@ export async function buildAuroraCompactFact(
       fill: tokens.textDark,
       lineHeight: 1.55,
       originX: "left", originY: "top",
-      selectable: false,
     });
     setData(bodyCopy, { role: "fact_body_copy" });
     objects.push(bodyCopy);
@@ -191,7 +185,6 @@ export async function buildAuroraCompactFact(
       fontSize: 140, fontWeight: 900,
       fill: m.stat.color ?? CORAL,
       originX: "left", originY: "top",
-      selectable: false,
     });
     setData(bigStat, { role: "fact_stat_single" });
     objects.push(bigStat);
@@ -203,7 +196,6 @@ export async function buildAuroraCompactFact(
       fontSize: 26, fontWeight: 400,
       fill: STAT_MUTED,
       originX: "left", originY: "top",
-      selectable: false,
     });
     setData(statCap, { role: "fact_stat_caption" });
     objects.push(statCap);
@@ -226,7 +218,6 @@ export async function buildAuroraCompactFact(
       fill: tokens.textDark,
       lineHeight: 1.35,
       originX: "left", originY: "top",
-      selectable: false,
     });
     setData(claim, { role: "fact_claim" });
     objects.push(claim);
@@ -239,7 +230,6 @@ export async function buildAuroraCompactFact(
       fontSize: 18, fontWeight: 300, fontStyle: "italic",
       fill: tokens.textMuted,
       originX: "left", originY: "top",
-      selectable: false,
     });
     setData(attr, { role: "fact_attribution" });
     objects.push(attr);

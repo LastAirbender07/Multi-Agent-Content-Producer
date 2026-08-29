@@ -75,7 +75,6 @@ export function makeMixedWeightText(opts: MakeMixedWeightTextOpts): fabric.Textb
     textAlign: align,
     originX: "left",
     originY: "top",
-    selectable: false,
     splitByGrapheme: false,
     styles,
   });

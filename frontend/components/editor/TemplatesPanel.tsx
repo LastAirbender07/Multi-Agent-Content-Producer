@@ -51,6 +51,7 @@ export function TemplatesPanel({ runId, angleIndex, onSlideCreated, onInsertChar
         stat_value:      starter.stat_value,
         stat_label:      starter.stat_label,
         canvas_template: canvasTemplate,
+        compact_meta:    starter.compact_meta,
       });
 
       if (onSlideCreated) {
@@ -136,11 +137,12 @@ export function TemplatesPanel({ runId, angleIndex, onSlideCreated, onInsertChar
               {SLIDE_TYPES.map((t, idx) => (
                 <button
                   key={t.template ?? `${t.type}-${idx}`}
+                  data-slide-type={t.template ?? t.type}
                   onClick={() => createSlideWithType(t.type, t.template)}
                   disabled={creating === t.type}
-                  className="flex flex-col items-start gap-1.5 p-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-600 transition-all group"
+                  className="flex flex-col items-start gap-1.5 p-3 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-600 hover:scale-[1.02] hover:shadow-lg hover:shadow-black/50 active:scale-[0.98] transition-all duration-150 group"
                 >
-                  <div className="w-full h-1 rounded-full" style={{ background: t.color, opacity: 0.8 }} />
+                  <div className="w-full h-1.5 rounded-full" style={{ background: t.color, opacity: 0.9 }} />
                   <div className="flex items-center gap-2">
                     <span className="text-base">{t.emoji}</span>
                     {creating === t.type

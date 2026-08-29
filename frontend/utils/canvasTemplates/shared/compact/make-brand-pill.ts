@@ -76,7 +76,6 @@ export function makeBrandPill(opts: MakeBrandPillOpts): fabric.Group {
     top: y,
     originX: "left",
     originY: "top",
-    selectable: false,
     subTargetCheck: false,
   });
   group.setCoords();

@@ -63,7 +63,6 @@ export function makeNumberBadge(opts: MakeNumberBadgeOpts): fabric.Group {
     top: cy,
     originX: "center",
     originY: "center",
-    selectable: false,
     subTargetCheck: false,
   });
   group.setCoords();

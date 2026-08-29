@@ -18,9 +18,26 @@ export function TextPropertyPanel({ obj, canvas, onChanged }: Props) {
     onChanged();
   }
 
+  function setTextContent(value: string) {
+    if (!obj || !canvas) return;
+    obj.set("text", value);
+    if (typeof obj.initDimensions === "function") obj.initDimensions();
+    canvas.renderAll();
+    onChanged();
+  }
+
   return (
     <div className="p-3 space-y-2.5">
       <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600">Text</p>
+
+      <Row label="Content">
+        <textarea
+          value={obj.text ?? ""}
+          rows={Math.max(2, ((obj.text ?? "").match(/\n/g) || []).length + 2)}
+          onChange={e => setTextContent(e.target.value)}
+          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-zinc-200 font-mono resize-none focus:outline-none focus:border-violet-500/50 leading-relaxed"
+        />
+      </Row>
 
       <Row label="Font family">
         <select value={(obj.fontFamily ?? "Plus Jakarta Sans").split(",")[0].trim()}

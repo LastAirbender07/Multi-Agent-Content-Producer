@@ -255,7 +255,7 @@ export async function buildAuroraCompactStepDetail(
     fontFamily: tokens.fontBody,
     fontSize: TOPIC_FONT, fontWeight: 700,
     fill: "#FFFFFF", lineHeight: 1.05,
-    originX: "left", originY: "top", selectable: false,
+    originX: "left", originY: "top",
   });
   setData(topicText, { role: "step_topic_name" });
   objects.push(topicText);
@@ -266,7 +266,7 @@ export async function buildAuroraCompactStepDetail(
     fontFamily: tokens.fontBody,
     fontSize: 28, fontWeight: 600,
     fill: "#FFFFFF", lineHeight: 1.55,
-    originX: "left", originY: "top", selectable: false,
+    originX: "left", originY: "top",
   });
   setData(explanation, { role: "step_explanation" });
   objects.push(explanation);

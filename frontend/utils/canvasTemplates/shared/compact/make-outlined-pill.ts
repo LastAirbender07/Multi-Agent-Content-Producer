@@ -77,7 +77,6 @@ export function makeOutlinedPill(opts: MakeOutlinedPillOpts): fabric.Group {
     top: y,
     originX: "left",
     originY: "top",
-    selectable: false,
     subTargetCheck: false,
   });
   group.setCoords();

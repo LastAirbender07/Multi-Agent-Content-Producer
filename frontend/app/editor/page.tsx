@@ -294,14 +294,21 @@ function EditorContent() {
         {/* Content area */}
         <div className="flex-1 overflow-hidden flex">
           {showIdle && (
-            <div className="flex-1 flex flex-col items-center justify-center text-center">
-              <div className="w-16 h-16 rounded-3xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-5">
-                <Zap size={28} className="text-zinc-700" />
+            <div className="flex-1 flex flex-col items-center justify-center text-center px-8" style={{ backgroundImage: "radial-gradient(circle, #27272a 1px, transparent 1px)", backgroundSize: "24px 24px" }}>
+              <div className="w-20 h-20 rounded-3xl bg-linear-to-br from-violet-500/20 to-fuchsia-600/20 border border-violet-500/20 flex items-center justify-center mb-6 shadow-2xl shadow-violet-500/10">
+                <Zap size={32} className="text-violet-400" fill="rgba(139,92,246,0.25)" />
               </div>
-              <h2 className="text-lg font-black text-white tracking-tight mb-2">Select a file</h2>
-              <p className="text-zinc-600 text-sm max-w-xs leading-relaxed">
-                Browse your runs in the panel on the left, then click a slide or blog post to edit it.
+              <h2 className="text-xl font-black text-white tracking-tight mb-2">Start creating</h2>
+              <p className="text-zinc-500 text-sm max-w-65 leading-relaxed mb-6">
+                Open a run from the panel on the left, or click <span className="text-zinc-300 font-semibold">Templates</span> to add a new slide.
               </p>
+              <div className="flex items-center gap-2 text-[10px] text-zinc-600">
+                <span className="px-2 py-1 rounded-md bg-zinc-900 border border-zinc-800">Files</span>
+                <span className="text-zinc-700">→</span>
+                <span className="px-2 py-1 rounded-md bg-zinc-900 border border-zinc-800">Pick a run</span>
+                <span className="text-zinc-700">→</span>
+                <span className="px-2 py-1 rounded-md bg-zinc-900 border border-zinc-800">Click a slide</span>
+              </div>
             </div>
           )}
 

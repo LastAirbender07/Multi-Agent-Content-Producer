@@ -92,7 +92,7 @@ export async function buildAuroraCompactQuote(
       img.set({
         left: IMG_X, top: IMG_TOP,
         scaleX: scale, scaleY: scale,
-        originX: "left", originY: "top", selectable: false,
+        originX: "left", originY: "top",
       });
 
       // Straight rectangular clip — bleeds to card edges (no rounded corners, no frame)
@@ -154,7 +154,7 @@ export async function buildAuroraCompactQuote(
       fontFamily: tokens.fontBody,
       fontSize: introFontSize, fontWeight: 400, fontStyle: "normal",
       fill: TEXT_INK, lineHeight: 1.4,
-      originX: "left", originY: "top", selectable: false,
+      originX: "left", originY: "top",
     });
     setData(intro, { role: "quote_intro" });
     objects.push(intro);
@@ -184,7 +184,7 @@ export async function buildAuroraCompactQuote(
     fontFamily: tokens.fontSerif,
     fontSize: quoteFontSize, fontWeight: 400, fontStyle: "normal",
     fill: TEXT_INK, lineHeight: 1.22,
-    originX: "left", originY: "top", selectable: false,
+    originX: "left", originY: "top",
   });
   setData(quoteText, { role: "quote_body" });
   objects.push(quoteText);
@@ -199,7 +199,7 @@ export async function buildAuroraCompactQuote(
     fontFamily: tokens.fontBody,
     fontSize: attrNameSize, fontWeight: 700,
     fill: TEXT_INK,
-    originX: "left", originY: "top", selectable: false,
+    originX: "left", originY: "top",
   }));
 
   objects.push(new fabric.Text(m.attribution_role, {
@@ -207,7 +207,7 @@ export async function buildAuroraCompactQuote(
     fontFamily: tokens.fontBody,
     fontSize: attrRoleSize, fontWeight: 400,
     fill: "rgba(0,0,0,0.65)",
-    originX: "left", originY: "top", selectable: false,
+    originX: "left", originY: "top",
   }));
 
   return objects;

@@ -25,10 +25,10 @@ const COL_C_X        = 740;   // illustration left edge (right 1/3 zone)
 const ILLUS_SIZE     = 130;   // illustration square px — drives MIN_ROW_H
 const COL_B_W        = COL_C_X - COL_B_X - 28; // 606px — body text always leaves room for illus
 const BADGE_RADIUS   = 26;    // 52px diameter — number fills circle
-const BODY_FONT_SIZE = 24;    // Playfair Display Regular
-const ROW_GAP        = 24;
+const BODY_FONT_SIZE = 26;    // Playfair Display Regular — serif, matches reference
+const ROW_GAP        = 28;
 const MIN_ROW_H      = ILLUS_SIZE;  // 130px — illustration anchors row height
-const LIST_TOP       = BORDER_INSET + BORDER_WIDTH + 32;  // ~45px — just inside border
+const LIST_TOP       = 130;  // generous top padding before first item
 
 // Footer (bottom handle + series title) — sits just above border inset
 const FOOTER_Y        = CANVAS_SIZE - BORDER_INSET - BORDER_WIDTH - 36; // ~1031
@@ -109,7 +109,7 @@ export async function buildAuroraCompactListItem(
   const textHeights = items.map(item => {
     const probe = new fabric.Textbox(item.body, {
       width: COL_B_W,
-      fontFamily: tokens.fontBody,
+      fontFamily: tokens.fontSerif,
       fontSize: BODY_FONT_SIZE,
       fontWeight: 400,
       lineHeight: 1.5,
@@ -150,24 +150,23 @@ export async function buildAuroraCompactListItem(
     setData(badge, { role: `list_badge_${item.number}` });
     objects.push(badge);
 
-    // Body text — vertically centred within row, Inter Regular (serif not loaded in renderer)
+    // Body text — Playfair Display, left-aligned (Fabric justify forces all lines including last)
     const bodyText = new fabric.Textbox(item.body, {
       left: COL_B_X,
       top: yCursor + (rowH - textHeights[i]) / 2,
       width: COL_B_W,
-      fontFamily: tokens.fontBody,
+      fontFamily: tokens.fontSerif,
       fontSize: BODY_FONT_SIZE,
       fontWeight: 400,
       fill: INK_PRIMARY,
       lineHeight: 1.5,
       textAlign: "left",
       originX: "left", originY: "top",
-      selectable: false,
     });
     setData(bodyText, { role: `list_body_${item.number}` });
     objects.push(bodyText);
 
-    // Illustration — real image or warm-grey placeholder
+    // Illustration — real image or dashed-outline placeholder
     const illusTop = badgeCY - ILLUS_SIZE / 2;
     if (item.illustrationUrl) {
       try {
@@ -178,7 +177,6 @@ export async function buildAuroraCompactListItem(
           top: illusTop,
           scaleX: scale, scaleY: scale,
           originX: "left", originY: "top",
-          selectable: false,
         });
         setData(img, { role: `list_illus_${item.number}` });
         objects.push(img);
@@ -186,15 +184,18 @@ export async function buildAuroraCompactListItem(
         // fall through to placeholder below
       }
     }
-    // Always render placeholder (either as fallback or as the designed grey box)
     if (!item.illustrationUrl) {
+      // Dashed-outline placeholder — signals "illustration goes here" without visual noise
       const placeholder = new fabric.Rect({
         left: COL_C_X,
         top: illusTop,
         width: ILLUS_SIZE,
         height: ILLUS_SIZE,
-        fill: ILLUS_PLACEHOLDER,
-        rx: 8, ry: 8,
+        fill: "transparent",
+        stroke: "#C8C2BA",
+        strokeWidth: 1.5,
+        strokeDashArray: [6, 4],
+        rx: 6, ry: 6,
         originX: "left", originY: "top",
         selectable: false,
       });
@@ -202,19 +203,7 @@ export async function buildAuroraCompactListItem(
       objects.push(placeholder);
     }
 
-    // Row separator hairline (between rows, not after last)
-    if (i < items.length - 1) {
-      const rowRule = new fabric.Rect({
-        left: PAD_X,
-        top: yCursor + rowH + ROW_GAP / 2,
-        width: CANVAS_SIZE - PAD_X * 2,
-        height: 1,
-        fill: ROW_RULE_COLOR,
-        originX: "left", originY: "top",
-        selectable: false,
-      });
-      objects.push(rowRule);
-    }
+    // No row separator — reference uses whitespace between items, not hairlines
 
     yCursor += rowH + dynamicGap;
   }
@@ -227,7 +216,6 @@ export async function buildAuroraCompactListItem(
     fontWeight: 400,
     fill: INK_MUTED,
     originX: "left", originY: "top",
-    selectable: false,
   });
   setData(handleText, { role: "list_handle" });
   objects.push(handleText);
@@ -240,7 +228,6 @@ export async function buildAuroraCompactListItem(
     fontWeight: 400,
     fill: INK_MUTED,
     originX: "right", originY: "top",
-    selectable: false,
   });
   setData(seriesText, { role: "list_series_title" });
   objects.push(seriesText);

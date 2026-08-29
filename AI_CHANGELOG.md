@@ -6,7 +6,60 @@
 
 ---
 
-## 2026-08-29 — aurora-compact-step: Index + Detail Variants
+## 2026-08-29 — Phase 2 Stage D: Compact Template Editor Visibility
+
+**What was built / improved:**
+- All 11 `aurora-compact-*` + `aurora-carousel-cover-hero-*` templates now appear in the editor Slides tab with proper labels/colours/emojis (previously grey with 🗂 fallback).
+- Clicking any compact tile creates a slide **without a 422 error** — root cause was `autoMeta()` deriving `type="compact-hook"` which isn't in the `SlideType` enum. Fix: explicit `type` field in each of the 11 TEMPLATE_METADATA entries mapped to a valid enum value (`hook`, `content`, `stat`, or `quote`).
+- Compact slides render the builder's DEFAULTS on creation — starter uses `compact_meta: {}` so `{ ...DEFAULTS, ...{} } = DEFAULTS`. Users see meaningful demo content immediately (VPC/Nextwork content, SahilBloom "5 Types of Wealth", etc.) and can edit from there.
+- `compact_meta` propagates end-to-end: `TEMPLATE_METADATA.starter.compact_meta` → `TemplatesPanel.editSlide()` → `SlideEditRequest` → `slide_editor_service.edit_slide()` → `slide_data["compact_meta"]` → written to slides.json → read by Fabric builder.
+
+**Architectural decisions:**
+- **`compact_meta` is `Optional[dict]`, not typed** — deliberate escape hatch. Each builder has its own meta shape (headline_runs, step items, list items, etc.) and typing this at the API boundary would require 11 separate schemas. Pydantic silently accepts extra keys on the `Slide` model (no `extra='forbid'` config), and rendering uses the raw `slide_data` dict, not the typed model.
+- **No SlideType enum change** — compact templates are visually distinct but still map to existing enum values (`hook`/`content`/`stat`/`quote`). Adding new enum values would require migration.
+- **No compact_meta editor panel yet** — Phase 5 scope. Stage D only covers creation + initial render.
+- **SLIDE_TEMPLATES quick-strip unchanged** — that's the compact 6-slot picker in `EditorLeftPanel`, kept curated. Only the `TemplatesPanel` gallery (auto-derived from REGISTRY) shows all 11.
+
+**Files touched (5, ~20 lines):**
+- `frontend/constants/slideTemplates.ts` — TemplateMeta.starter interface + 11 entries after `aurora-engage`
+- `frontend/lib/api/types.ts` — `compact_meta` on `SlideData` and `SlideEditRequest`
+- `backend/apps/api/v1/schemas.py` — `compact_meta: Optional[dict] = None` on `SlideEditRequest`
+- `backend/core/services/slide_editor_service.py` — 2-line guard in `edit_slide()` mirroring `canvas_template`
+- `frontend/components/editor/TemplatesPanel.tsx` — `compact_meta: starter.compact_meta` in `editSlide` call
+
+**Verification:**
+- Backend roundtrip: `SlideEditRequest(compact_meta={"foo": "bar"}).model_dump(exclude_none=True)` preserves `compact_meta` intact ✅
+- `SlideEditRequest().compact_meta` → `None` (backward compatible) ✅
+- `npx tsc --noEmit` — 0 new errors (3 pre-existing errors in `aurora_carousel_cover_hero.ts` from Phase 5 POC are unrelated and predate Stage D)
+
+**Rollback:** clean 5-file `git revert` — no data migrations, `compact_meta` is additive optional at every layer.
+
+**Plan doc:** `Docs/phases/PHASE_2_stage_d_editor_visibility.md` (Loop 1 approved + Loop 2 verification log inline).
+
+---
+
+## 2026-08-29 — aurora-compact-list-item: Notebook List Template
+
+**What was built / improved:**
+- White page background, thick black border frame (5px stroke, 8px inset)
+- 4-item list, each row: outlined circle number badge (r=26) + Playfair Display body text + dashed illustration placeholder
+- Pass 1 probes each item's text height (using serif font for accuracy); Pass 2 distributes rows evenly across available vertical space
+- `illustrationUrl` per item: loads real image if provided, falls back to dashed-outline placeholder `rx=6` box
+- Footer: `@handle` left, italic serif series title right
+- Left-align chosen over justify — Fabric's `textAlign: "justify"` forces all lines including the last, causing ugly wide gaps on short lines ("Never keep score in love." → "Never  keep  score  in  love." stretched across 606px)
+- Removed row separator hairlines — reference uses whitespace only between items
+
+**GAN results:**
+- cloud-roles: 14.44% YELLOW. relationship-rules: 11.48% YELLOW.
+- Floor from: Instagram nav chrome + real sketch illustrations vs dashed boxes (irreducible without actual artwork). Template structure matches reference exactly.
+
+**Lessons learned:**
+- Fabric `textAlign: "justify"` has no `text-align-last: left` equivalent — every line including single-word last lines gets full-width spacing. Use left-align and accept the delta vs a justified reference.
+- Height probe in Pass 1 must use the same font family as the actual render — otherwise row heights are wrong (Inter vs Playfair have different metrics at same size).
+
+---
+
+
 
 **What was built:**
 - `aurora-compact-step_index.ts` — photo-background slide listing all 6 VPC components on a vertical pipeline. 90pt 2-line heading (Textbox, width=680), coloured step dots on pipeline line, 40pt step name + italic sub-label per row. Dark gradient overlay (0.22→0.55→0.88).

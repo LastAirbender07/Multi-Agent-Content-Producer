@@ -142,6 +142,8 @@ async def edit_slide(
         slide_data["_theme"] = request.theme
     if request.canvas_template is not None:
         slide_data["canvas_template"] = request.canvas_template
+    if request.compact_meta is not None:
+        slide_data["compact_meta"] = request.compact_meta
 
     write_slides(path, slides_raw)
 

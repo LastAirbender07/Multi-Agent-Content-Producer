@@ -128,7 +128,6 @@ export async function buildAuroraCompactStep(
       fontSize: 64, fontWeight: 700,
       fill: "#FFFFFF",
       originX: "left", originY: "top",
-      selectable: false,
     });
     setData(heading, { role: "step_index_heading" });
     objects.push(heading);
@@ -150,7 +149,6 @@ export async function buildAuroraCompactStep(
         fontSize: 20, fontWeight: 300,
         fill: "rgba(255,255,255,0.45)",
         originX: "left", originY: "center",
-        selectable: false,
       }));
 
       // Colour dot
@@ -168,7 +166,6 @@ export async function buildAuroraCompactStep(
         fontSize: 44, fontWeight: 600,
         fill: "#FFFFFF",
         originX: "left", originY: "center",
-        selectable: false,
       }));
 
       // Sub-label
@@ -179,7 +176,6 @@ export async function buildAuroraCompactStep(
           fontSize: 20, fontStyle: "italic",
           fill: "rgba(255,255,255,0.45)",
           originX: "left", originY: "top",
-          selectable: false,
         }));
       }
     });
@@ -220,7 +216,6 @@ export async function buildAuroraCompactStep(
       fill: "#FFFFFF",
       lineHeight: 1.05,
       originX: "left", originY: "top",
-      selectable: false,
     });
     setData(topicText, { role: "step_topic_name" });
     objects.push(topicText);
@@ -235,7 +230,6 @@ export async function buildAuroraCompactStep(
       fill: "#FFFFFF",
       lineHeight: 1.55,
       originX: "left", originY: "top",
-      selectable: false,
     });
     setData(explanation, { role: "step_explanation" });
     objects.push(explanation);

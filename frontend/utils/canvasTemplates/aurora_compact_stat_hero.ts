@@ -117,7 +117,7 @@ export async function buildAuroraCompactStatHero(
     fontFamily: tokens.fontBody,
     fontSize: 80, fontWeight: 700,
     fill: "#FFFFFF", lineHeight: 1.12,
-    originX: "left", originY: "top", selectable: false,
+    originX: "left", originY: "top",
   });
   setData(headline, { role: "stat_headline" });
   objects.push(headline);
@@ -135,7 +135,7 @@ export async function buildAuroraCompactStatHero(
     fontFamily: tokens.fontBody,
     fontSize: 22, fontWeight: 400,
     fill: "rgba(255,255,255,0.88)", lineHeight: 1.55,
-    originX: "left", originY: "top", selectable: false,
+    originX: "left", originY: "top",
   });
   setData(bodyIntro, { role: "stat_body_intro" });
   objects.push(bodyIntro);
@@ -157,7 +157,7 @@ export async function buildAuroraCompactStatHero(
     fontFamily: tokens.fontBody,
     fontSize: 96, fontWeight: 700,
     fill: accentColor,
-    originX: "left", originY: "top", selectable: false,
+    originX: "left", originY: "top",
   });
   setData(statValue, { role: "stat_value" });
   objects.push(statValue);
@@ -173,7 +173,7 @@ export async function buildAuroraCompactStatHero(
     fontFamily: tokens.fontBody,
     fontSize: 26, fontWeight: 700,
     fill: "#FFFFFF", lineHeight: 1.4,
-    originX: "left", originY: "top", selectable: false,
+    originX: "left", originY: "top",
   });
   setData(statExpl, { role: "stat_explanation" });
   objects.push(statExpl);
@@ -189,7 +189,7 @@ export async function buildAuroraCompactStatHero(
     fontFamily: tokens.fontBody,
     fontSize: 16, fontWeight: 400,
     fill: "rgba(255,255,255,0.52)",
-    originX: "left", originY: "top", selectable: false,
+    originX: "left", originY: "top",
   });
   setData(attribution, { role: "stat_attribution" });
   objects.push(attribution);

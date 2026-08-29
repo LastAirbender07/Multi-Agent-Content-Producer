@@ -128,6 +128,7 @@ class SlideEditRequest(BaseModel):
     template_type: Optional[str] = None      # change slide type: hook|content|stat|quote|cta|engage
     theme: Optional[str] = None              # "aurora" | "lumina"
     canvas_template: Optional[str] = None    # e.g. "aurora-content-2", "aurora-hook"
+    compact_meta: Optional[dict] = None      # Phase 2 compact family — merged into slide_data as-is
 
 
 class SlideEditResponse(BaseModel):

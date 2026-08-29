@@ -192,6 +192,7 @@ export interface SlideData {
   image_query?: string;
   slide_overrides: Record<string, string>;
   _theme?: string;
+  compact_meta?: Record<string, unknown>;
 }
 
 export interface SlideEditRequest {
@@ -206,6 +207,7 @@ export interface SlideEditRequest {
   template_type?: string;
   theme?: string;
   canvas_template?: string;
+  compact_meta?: Record<string, unknown>;
 }
 
 export interface SlideEditResponse {

@@ -164,7 +164,7 @@ export function FabricCanvas({
       const br = obj.getBoundingRect();
       const s = currentScale();
       onObjectSelected({
-        type: obj.type === "textbox" ? "textbox" : obj.type === "image" ? "image" : "other",
+        type: (obj.type === "textbox" || obj.type === "text") ? "textbox" : obj.type === "image" ? "image" : "other",
         role: (obj as fabric.Object & { data?: { role?: string } }).data?.role ?? "",
         fabricType: obj.type ?? "unknown",
         canvasBoundingRect: { left: br.left, top: br.top, width: br.width, height: br.height },
@@ -379,7 +379,7 @@ export function FabricCanvas({
   const scaledSize = CANVAS_SIZE * scale;
 
   return (
-    <div ref={outerRef} className="flex-1 bg-zinc-950 overflow-hidden flex items-center justify-center relative">
+    <div ref={outerRef} className="flex-1 bg-zinc-950 overflow-hidden flex items-center justify-center relative" style={{ backgroundImage: "radial-gradient(circle, #27272a 1px, transparent 1px)", backgroundSize: "24px 24px" }}>
       {restoreBanner && (
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 bg-zinc-800 border border-zinc-600 rounded-xl px-4 py-2.5 flex items-center gap-3 shadow-xl text-xs">
           <span className="text-zinc-300">Unsaved session found —</span>
