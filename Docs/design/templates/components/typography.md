@@ -168,6 +168,45 @@ Text-styling primitives for Fabric.js templates. Each entry: what it does, prop 
 
 ---
 
+## make-editorial-header-bar
+
+**Status:** NEW.
+
+**What:** The two-line brand header that sits at the very top of SahilBloom-style editorial slides: `@handle` text on the left, italic series title on the right, with a hairline rule below. Always rendered as the first element after the background rect — it defines the "printed page" aesthetic of the compact-list-item family.
+
+**Props:**
+```ts
+{
+  handle: string,           // e.g. "@SahilBloom"
+  seriesTitle: string,      // e.g. "The 5 Types of Wealth."
+  y: number,                // top of the text line (default: 50)
+  ruleY: number,            // y of the hairline rule (default: 82)
+  canvasWidth: number,      // needed for right-align + full-width rule
+  handleFont: "Inter",      // weight 300 (Light)
+  seriesFont: "Playfair Display Italic",
+  fontSize: 20,
+  textColor: "#3D3D3D",
+  ruleColor: "#C8C2BA",     // warm grey — not pure #CCC
+  ruleHeight: 1,
+  paddingX: 55,             // left/right inset for text
+}
+```
+
+**Return:** Three Fabric objects — `[handleTextbox, seriesTitleTextbox, ruleRect]` — NOT grouped (each is independently positioned so Y can be controlled by the template).
+
+**Fabric detail:**
+- `handleTextbox`: `left=paddingX, top=y, fontFamily="Inter", fontWeight=300, fontSize=20`
+- `seriesTitleTextbox`: `left=canvasWidth-paddingX, top=y, textAlign="right", originX="right"` (Fabric's `originX:"right"` with `left` = end-x is the correct right-align pattern)
+- `ruleRect`: `left=0, top=ruleY, width=canvasWidth, height=1, fill=ruleColor`
+
+**Ref PNGs:**
+- `backend/outputs/slide-references/SahilBloom/image copy.png` — full editorial header visible at top
+- `backend/outputs/slide-references/SahilBloom/image copy 2.png` — same header on a later slide
+
+**Used by:** aurora-compact-list-item, aurora-essay-body, aurora-editorial-list-item.
+
+---
+
 ## make-monospace-label
 
 **Status:** NEW.
