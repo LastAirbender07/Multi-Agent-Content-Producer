@@ -4,6 +4,7 @@
   "image_url": "/assets/images/step-bg-terrain.jpg",
   "compact_meta": {
     "heading": "The parts of a VPC",
+    "right_image": "/assets/images/step-bg-terrain.jpg",
     "steps": [
       { "name": "Subnets",          "subLabel": "split",  "stepNumber": 1 },
       { "name": "Route tables",     "subLabel": "direct", "stepNumber": 2 },

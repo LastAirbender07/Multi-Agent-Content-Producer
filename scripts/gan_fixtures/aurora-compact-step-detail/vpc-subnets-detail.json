@@ -1,6 +1,7 @@
 {
   "canvas_template": "aurora-compact-step-detail",
   "type": "content",
+  "image_url": "/assets/images/step-bg-terrain.jpg",
   "compact_meta": {
     "topicName": "Subnets",
     "stepNumber": 1,

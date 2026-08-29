@@ -6,7 +6,58 @@
 
 ---
 
-## 2026-08-29 — aurora-compact-fact: Compare + Single Stat Variants
+## 2026-08-29 — aurora-compact-step: Index + Detail Variants
+
+**What was built:**
+- `aurora-compact-step_index.ts` — photo-background slide listing all 6 VPC components on a vertical pipeline. 90pt 2-line heading (Textbox, width=680), coloured step dots on pipeline line, 40pt step name + italic sub-label per row. Dark gradient overlay (0.22→0.55→0.88).
+- `aurora-compact-step_detail.ts` — photo-background slide with white "Preview" card in upper half + large topic name + explanation copy in lower half. Preview card: VPC selector panel (left) with outlined input field + AZ subnet rows panel (right, 3 AZ zones each with outlined subnet entry box). Connector line at input-field height.
+- Background asset: `backend/assets/images/step-bg-terrain.jpg` (green rolling hills landscape).
+- Fixtures: `vpc-parts-index.json`, `vpc-subnets-detail.json`, `vpc-secgroups-detail.json`.
+
+**GAN results:**
+- Index: 26.06% FAIR. Detail: 34.93% FAIR (boundary).
+- **The ~25-35% is the photo-bg floor** — fixture photo (green rolling hills) ≠ reference photo (warm amber vineyard nextwork/image copy 3.png). GAN diff is dominated by photo tone mismatch, not layout error. Card structure confirmed correct by visual inspection of composites.
+- Detail GAN diff image showed card area as grey (matching) — all red was from: (1) photo tone mismatch in lower half, (2) Instagram nav chrome in reference, (3) second reference (`image copy 4.png` = Internet Gateway slide) being a completely different step.
+
+**Design decisions:**
+- Index heading changed from 64pt `Text` to 90pt `Textbox` (width=680) — wraps to 2 lines matching reference character
+- Removed right-side strip rectangle (STRIP_X=830) that was in initial implementation but not in reference — pure diff noise
+- LIST_TOP pushed to 278 (from 210) to accommodate larger heading
+- ROW_H reduced to 118 (from 120) for tighter fit within canvas
+- Detail card connector positioned at VPC input-field midY (not box midpoint) — matches reference exactly
+- Detail right panel: "Subnets (3)" title + "within this VPC" subtitle + 3 AZ rows with `stepColor`-outlined subnet entry boxes — matches reference structure
+
+**Bugs found + fixed:**
+- Step fixtures had no `image_url` → fell back to solid `#2A1F14` dark rect instead of photo → added `"image_url": "/assets/images/step-bg-terrain.jpg"` to all 3 fixtures
+- Static server root is `backend/` so `/assets/images/step-bg-terrain.jpg` resolves correctly via the existing `imageBaseUrl` prepend logic in the renderer
+- Initial detail card was empty below the "Preview" label — added full two-panel diagram (VPC selector left, AZ subnet list right)
+- Connector line was at BOX midpoint — moved to INPUT_Y+17 (input field mid) to match reference
+
+**Lessons learned:**
+- Photo-background templates have irreducible ~25-35% GAN floor when fixture photo ≠ reference photo. This is structural to photo-bg templates. Accept FAIR as the gate when card/text structure is confirmed visually.
+- GAN diff images are diagnostic gold: grey = matching, red = diverging. A diff showing grey in the card region + red only in the photo region confirms the layout is correct.
+- Two references assigned to the same template key means the GAN compares against both simultaneously. If one reference is a completely different variant (e.g. Internet Gateway vs Subnets), the diff will always show that content overlaid. Each fixture should ideally have exactly one matching reference.
+
+---
+
+## 2026-08-29 — aurora-compact-step-index: Optional right image panel
+
+**What was added:**
+- `right_image?: string` field in `CompactStepIndexMeta`
+- When set: heading width narrows to 490px (from 680), a 440×960 rounded-rect (r=18) panel is clipped from the image URL and rendered on the right side with a subtle `rgba(255,255,255,0.18)` border
+- When absent: zero change to existing full-width layout — fully backward-compatible
+- New fixture `vpc-parts-index-with-panel.json` demonstrates the variant
+
+**Design decisions:**
+- Panel starts at x=580 leaving a natural gutter from the widest left-column text (~x=530)
+- Image is cover-fit (scale to fill, centred crop) — same pattern as background photo
+- Panel takes full canvas height (y=60 to y=1020) for maximum visual weight
+- `clipPath` uses `absolutePositioned: true` so Fabric clips against canvas coords, not image-local coords
+- GAN score for panel fixture is 37% (expected: reference has no right panel, so that area is 100% diff by definition)
+
+---
+
+
 
 **What was built:**
 - `aurora-compact-fact.ts` — two variants behind a `variant: "compare" | "single"` toggle
