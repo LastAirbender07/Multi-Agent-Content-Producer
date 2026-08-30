@@ -3,6 +3,8 @@ export { makeWhiteCardWithStraddlingTitle }          from "./makeWhiteCardWithSt
 export { makeDisplayHeadline }                       from "./makeDisplayHeadline";
 export { makeBodyText }                              from "./makeBodyText";
 export { makeTiltedPhoneMockup }                     from "./makeTiltedPhoneMockup";
-export type { OverlayCardDef, TiltedPhoneMockupOpts } from "./makeTiltedPhoneMockup";
+export type { TiltedPhoneMockupOpts }                from "./makeTiltedPhoneMockup";
 export { makeTiltedImagePair }                       from "./makeTiltedImagePair";
 export { makeItalicCtaLine }                         from "./makeItalicCtaLine";
+export { makeOverlayCards }                          from "./makeOverlayCards";
+export type { OverlayCardDef }                       from "./makeOverlayCards";

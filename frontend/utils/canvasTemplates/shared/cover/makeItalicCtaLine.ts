@@ -35,8 +35,6 @@ export function makeItalicCtaLine(opts: ItalicCtaLineOpts): fabric.Textbox {
     fill: color,
     textAlign: align,
     lineHeight: 1.3,
-    selectable: false,
-    evented: false,
     originX: "left" as const,
     originY: "top" as const,
   });

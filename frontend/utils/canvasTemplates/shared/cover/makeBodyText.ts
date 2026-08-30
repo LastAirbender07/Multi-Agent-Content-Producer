@@ -37,7 +37,6 @@ export function makeBodyText(opts: BodyTextOpts): fabric.Textbox {
     fill: color,
     lineHeight,
     textAlign: align,
-    selectable: false, evented: false,
     originX: "left" as const, originY: "top" as const,
   });
 }

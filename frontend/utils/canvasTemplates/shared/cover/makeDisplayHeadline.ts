@@ -37,7 +37,6 @@ export function makeDisplayHeadline(opts: DisplayHeadlineOpts): fabric.Textbox {
     fill: color,
     textAlign: align,
     lineHeight,
-    selectable: false, evented: false,
     originX: "left" as const, originY: "top" as const,
   });
 }

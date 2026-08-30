@@ -6,6 +6,8 @@ import {
   makeTiltedPhoneMockup,
   makeTiltedImagePair,
   makeItalicCtaLine,
+  makeOverlayCards,
+  type OverlayCardDef,
 } from "./shared/cover";
 
 // ── Canvas constants ──────────────────────────────────────────────────────────
@@ -24,11 +26,7 @@ export type CarouselCoverHeroOpts = {
   outerBg?: "metallic-peach" | "metallic-cream" | { stops: string[] };
   chipText: string;
   mockup:
-    | {
-        type: "phone-post";
-        screenImageUrl: string;
-        overlayCards?: Array<{ author: string; body: string; avatarColor: string }>;
-      }
+    | { type: "phone-post"; screenImageUrl: string; overlayCards?: OverlayCardDef[] }
     | { type: "image-pair"; imageUrls: [string, string] }
     | { type: "none" };
   bodyText: string;
@@ -61,7 +59,10 @@ export async function makeCarouselCoverHero(
       ? ["#E8DBC8", "#EDE4D5", "#D8CCBA"]
       : opts.outerBg.stops;
 
-  makeMetallicGradient(canvas, { stops: bgStops });
+  // makeMetallicGradient returns a Rect — add it like every other helper (Option B)
+  const bgRect = makeMetallicGradient(CANVAS_W, CANVAS_H, { stops: bgStops });
+  canvas.add(bgRect);
+  canvas.sendObjectToBack(bgRect);
 
   // ── 2. White card + straddling chip ─────────────────────────────────────────
   const cardGroup = makeWhiteCardWithStraddlingTitle({
@@ -82,7 +83,6 @@ export async function makeCarouselCoverHero(
   if (opts.mockup.type === "phone-post") {
     const phoneGroup = await makeTiltedPhoneMockup({
       screenImageUrl: opts.mockup.screenImageUrl,
-      overlayCards: opts.mockup.overlayCards ?? [],
       tilt: -6,
       width: MOCK_W,
       height: MOCK_H,
@@ -90,6 +90,14 @@ export async function makeCarouselCoverHero(
       y: MOCK_Y,
     });
     canvas.add(phoneGroup);
+
+    // Overlay stat cards on top of the phone — default pair if caller provides none
+    const cardDefs: OverlayCardDef[] = opts.mockup.overlayCards ?? [
+      { value: "22–35%",       label: "organic reach",   x: MOCK_X + 20,  y: MOCK_Y + MOCK_H * 0.32 },
+      { value: "4.2k",         label: "new followers",   x: MOCK_X + 20,  y: MOCK_Y + MOCK_H * 0.52 },
+    ];
+    const overlayGroups = makeOverlayCards(cardDefs);
+    overlayGroups.forEach(g => canvas.add(g));
 
   } else if (opts.mockup.type === "image-pair") {
     const pairW = Math.round(MOCK_W * 0.55);
@@ -124,7 +132,6 @@ export async function makeCarouselCoverHero(
     fill: "#1B1B1B",
     textAlign: "left",
     lineHeight: 1.35,
-    selectable: false, evented: false,
     originX: "left" as const, originY: "top" as const,
   });
   canvas.add(bodyText);
