@@ -29,7 +29,7 @@ export function TemplatesPanel({ runId, angleIndex, onSlideCreated, onInsertChar
   const { createRun } = useBlankRunCreation();
 
   async function createSlideWithType(slideType: string, canvasTemplate?: string) {
-    setCreating(slideType);
+    setCreating(canvasTemplate ?? slideType);
     try {
       let targetRunId = runId;
       let targetAngle = angleIndex ?? 0;
@@ -39,19 +39,22 @@ export function TemplatesPanel({ runId, angleIndex, onSlideCreated, onInsertChar
         targetRunId = newRunId;
         targetAngle = 0;
       }
-      const { slide } = await api.newSlide(targetRunId, targetAngle, slideType, "aurora");
+      // Pass canvas_template to newSlide so the record is set immediately —
+      // eliminates the race where SlidePngPreview didn't show "Edit in canvas"
+      // between the newSlide and editSlide calls.
+      const { slide } = await api.newSlide(targetRunId, targetAngle, slideType, "aurora", canvasTemplate);
       const slideNum = (slide as { slide_number?: number }).slide_number ?? 1;
 
       // Prefer template-specific starter content (e.g. "aurora-stat"),
       // fall back to slide-type starter (e.g. "stat"), then a blank default
       const starter = STARTER_CONTENT[canvasTemplate ?? ""] ?? STARTER_CONTENT[slideType] ?? { title: "New Slide", body: "" };
       await api.editSlide(targetRunId, targetAngle, slideNum, {
-        title:           starter.title,
-        body:            starter.body,
-        stat_value:      starter.stat_value,
-        stat_label:      starter.stat_label,
-        canvas_template: canvasTemplate,
-        compact_meta:    starter.compact_meta,
+        title:        starter.title,
+        body:         starter.body,
+        stat_value:   starter.stat_value,
+        stat_label:   starter.stat_label,
+        // canvas_template already written by newSlide — no need to repeat it
+        compact_meta: starter.compact_meta,
       });
 
       if (onSlideCreated) {
@@ -139,13 +142,13 @@ export function TemplatesPanel({ runId, angleIndex, onSlideCreated, onInsertChar
                   key={t.template ?? `${t.type}-${idx}`}
                   data-slide-type={t.template ?? t.type}
                   onClick={() => createSlideWithType(t.type, t.template)}
-                  disabled={creating === t.type}
+                  disabled={creating === (t.template ?? t.type)}
                   className="flex flex-col items-start gap-1.5 p-3 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-600 hover:scale-[1.02] hover:shadow-lg hover:shadow-black/50 active:scale-[0.98] transition-all duration-150 group"
                 >
                   <div className="w-full h-1.5 rounded-full" style={{ background: t.color, opacity: 0.9 }} />
                   <div className="flex items-center gap-2">
                     <span className="text-base">{t.emoji}</span>
-                    {creating === t.type
+                    {creating === (t.template ?? t.type)
                       ? <Loader2 size={11} className="animate-spin text-zinc-500" />
                       : null
                     }

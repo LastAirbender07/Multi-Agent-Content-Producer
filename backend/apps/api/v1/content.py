@@ -311,7 +311,13 @@ async def swap_slide_image(run_id: str, angle_index: int, slide_number: int, bod
 
 @router.post("/{run_id}/slides/{angle_index}/new")
 async def new_slide(run_id: str, angle_index: int, body: dict) -> dict:
-    return svc_create_slide(run_id, angle_index, body.get("type", "content"), body.get("theme", "aurora"))
+    return svc_create_slide(
+        run_id,
+        angle_index,
+        body.get("type", "content"),
+        body.get("theme", "aurora"),
+        canvas_template=body.get("canvas_template"),
+    )
 
 
 @router.post("/{run_id}/slides/{angle_index}/{slide_number}/upload-image")

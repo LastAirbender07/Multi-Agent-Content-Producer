@@ -28,8 +28,12 @@ export const editor = {
   swapSlideImageUrl: (runId: string, angleIndex: number, slideNumber: number, url: string): Promise<{ png_url: string }> =>
     post(`/content/${runId}/slides/${angleIndex}/${slideNumber}/swap-image-url`, { url }),
 
-  newSlide: (runId: string, angleIndex: number, type: string, theme: string) =>
-    post<{ slide: SlideData }>(`/content/${runId}/slides/${angleIndex}/new`, { type, theme }),
+  newSlide: (runId: string, angleIndex: number, type: string, theme: string, canvasTemplate?: string) =>
+    post<{ slide: SlideData }>(`/content/${runId}/slides/${angleIndex}/new`, {
+      type,
+      theme,
+      ...(canvasTemplate ? { canvas_template: canvasTemplate } : {}),
+    }),
 
   uploadSlideImage: (runId: string, angleIndex: number, slideNumber: number, file: File): Promise<{ png_url: string }> =>
     postMultipart(`/content/${runId}/slides/${angleIndex}/${slideNumber}/upload-image`, file),

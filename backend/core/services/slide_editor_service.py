@@ -263,8 +263,19 @@ async def swap_slide_image(run_id: str, angle_index: int, slide_number: int, que
     return {"png_url": png_url}
 
 
-def create_slide(run_id: str, angle_index: int, slide_type: str, theme: str) -> dict:
-    """Append a blank slide to slides.json and return it."""
+def create_slide(
+    run_id: str,
+    angle_index: int,
+    slide_type: str,
+    theme: str,
+    canvas_template: str | None = None,
+) -> dict:
+    """Append a blank slide to slides.json and return it.
+
+    ``canvas_template`` is written immediately so that ``SlidePngPreview``
+    can show "Edit in canvas" without waiting for a subsequent ``edit_slide``
+    call — eliminating the race window that caused the button to be absent.
+    """
     try:
         SlideType(slide_type)
     except ValueError:
@@ -273,7 +284,7 @@ def create_slide(run_id: str, angle_index: int, slide_type: str, theme: str) -> 
     slides_path = _OUTPUTS_ROOT / run_id / "content" / f"angle_{angle_index}" / "slides.json"
     slides_raw = read_slides(slides_path) if slides_path.exists() else []
     new_num = max((s["slide_number"] for s in slides_raw), default=0) + 1
-    new_slide_data = {
+    new_slide_data: dict = {
         "slide_number": new_num,
         "type": slide_type,
         "title": "New Slide",
@@ -282,6 +293,8 @@ def create_slide(run_id: str, angle_index: int, slide_type: str, theme: str) -> 
         "slide_overrides": {},
         "_theme": theme,
     }
+    if canvas_template is not None:
+        new_slide_data["canvas_template"] = canvas_template
     slides_raw.append(new_slide_data)
     write_slides(slides_path, slides_raw)
     return {"slide": new_slide_data}
