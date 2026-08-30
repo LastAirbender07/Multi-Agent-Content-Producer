@@ -74,7 +74,7 @@ PHASE 2 ── Compact Template Family — 5 core builders (Week 1)          ✅
    │
    │  Templates exist, editable, screenshottable — pipeline still emits extended defaults
    ↓
-PHASE 3 ── Format Plumbing (Week 2)
+PHASE 3 ── Format Plumbing (Week 2)                                     🟡 APPROVED — ready to implement
    │      ├── PostFormat + TemplateFamily enums (Pydantic)
    │      ├── format_selection_node — ONLY runs in auto mode
    │      ├── Manual angle-mode: user picks format in the same modal as angles

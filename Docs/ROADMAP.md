@@ -15,7 +15,7 @@
 |---|---|---|---|
 | 1 | Editor Canvas Save | ✅ SHIPPED | `PHASE_1_editor_canvas_save.md` |
 | 2 | Compact Template Family (5 core, sequential + GAN-iterate) | ✅ **COMPLETE (2026-08-30)** | [`PHASE_2_compact_templates.md`](phases/PHASE_2_compact_templates.md) |
-| 3 | Format Plumbing (auto template selection LLM) | 📝 OUTLINE — needs Loop-1 | `PHASE_3_format_plumbing.md` |
+| 3 | Format Plumbing (auto template selection LLM) | 🟡 **APPROVED — Loop 1 complete, ready to implement** | [`PHASE_3_format_plumbing.md`](phases/PHASE_3_format_plumbing.md) |
 | 4 | Remaining 5 Compact Families | 📝 OUTLINE — needs Loop-1 | `PHASE_4_remaining_compact_formats.md` |
 | 5 | UI (format chip) & Analytics | 📝 OUTLINE — needs Loop-1 | `PHASE_5_ui_and_analytics.md` |
 | 6A | aurora-editorial-* (SahilBloom style) | ⏸ NOT DRAFTED — family MDs are spec | *(pending Phase 5)* |
@@ -37,7 +37,7 @@
 2. ~~**`frontend/e2e/compact-templates.spec.ts`**~~ — **DEFERRED**: `playwright_full_audit.cjs` (21/21 ✅) covers this. Formal spec is a CI nicety, not a correctness gate.
 3. ~~**Full Playwright regression**~~ — ✅ **CONFIRMED (2026-08-30)**: 111/125 passed, **0 new regressions** from Phase 2 work. 13 failures are all pre-existing (live backend tests, UI rename, pixel-sample test needing backend assets).
 
-**Next: Phase 3 Loop 1 — Format Plumbing architect review.**
+**Phase 3 Loop 1 APPROVED (2026-08-30). Next: implement Phase 3 (19 files, 6 scenarios).**
 
 ---
 
