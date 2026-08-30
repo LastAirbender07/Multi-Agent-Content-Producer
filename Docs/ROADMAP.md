@@ -9,19 +9,39 @@
 
 ---
 
-## Where we are now (2026-08-28)
+## Where we are now (2026-08-30)
 
 | # | Phase | Status | Detail plan |
 |---|---|---|---|
 | 1 | Editor Canvas Save | ✅ SHIPPED | `PHASE_1_editor_canvas_save.md` |
-| 2 | Compact Template Family (5 core, sequential + GAN-iterate) | 🟢 **IN PROGRESS** — Stage A.1 done | [`PHASE_2_compact_templates.md`](phases/PHASE_2_compact_templates.md) |
+| 2 | Compact Template Family (5 core, sequential + GAN-iterate) | 🟡 **IN PROGRESS — Stage D partial** | [`PHASE_2_compact_templates.md`](phases/PHASE_2_compact_templates.md) |
 | 3 | Format Plumbing (auto template selection LLM) | 📝 OUTLINE — needs Loop-1 | `PHASE_3_format_plumbing.md` |
 | 4 | Remaining 5 Compact Families | 📝 OUTLINE — needs Loop-1 | `PHASE_4_remaining_compact_formats.md` |
 | 5 | UI (format chip) & Analytics | 📝 OUTLINE — needs Loop-1 | `PHASE_5_ui_and_analytics.md` |
 | 6A | aurora-editorial-* (SahilBloom style) | ⏸ NOT DRAFTED — family MDs are spec | *(pending Phase 5)* |
 | 6B | aurora-product-* (Anthropic style) | ⏸ NOT DRAFTED — family MDs are spec | *(pending Phase 5)* |
 | 6C | aurora-nextwork-* (dark cinematic) | ⏸ NOT DRAFTED — family MDs are spec | *(pending Phase 5)* |
-| 6D | aurora-carousel-cover-hero | ⏸ DEFERRED — depends on user demand | — |
+| 6D | aurora-carousel-cover-hero | 🟡 PARTIALLY BUILT — 2 variants shipped, overlay cards restored | — |
+
+### Phase 2 actual state (2026-08-30)
+
+**What is done:**
+- Stage A ✅ — fonts, tokens, GAN scripts, POC gates all green
+- Stage A.5 ✅ — POC v2 complete (aurora-compact-hook + cover-hero-phone/images built)
+- Stage B/C ✅ — All 9 aurora-compact-* builders shipped and registered:
+  `hook`, `fact`, `fact-compare`, `step`, `step-index`, `step-detail`, `stat-hero`, `list-item`, `quote`
+- Stage D (partial) ✅ — Editor Templates panel shows all 11 tiles; starter content wired; `canvas_template` race fixed; all 21 templates pass Playwright audit (21/21 ✅); 0 TypeScript errors
+
+**What is NOT done (Phase 2 is not COMPLETE until these ship):**
+1. **Lumina compact wrappers** — `lumina-compact-{hook,fact,step,list-item,quote}` not yet in REGISTRY
+2. **`frontend/e2e/compact-templates.spec.ts`** — does not exist (Step 2.D.4)
+3. **Full Playwright regression** — `npx playwright test --project=chromium` not re-verified post Stage B/D
+
+**Next immediate steps:**
+1. Add 5 Lumina wrappers to `frontend/utils/canvasTemplates/index.ts`
+2. Write `frontend/e2e/compact-templates.spec.ts` (5 families × smoke render)
+3. Run full Playwright suite; verify ≥ 45/47 legacy baseline still passes
+4. Update PHASE_2 status to COMPLETE
 
 ---
 
@@ -64,35 +84,37 @@ The 2 user reference PNGs (`others/image copy 3.png`, `others/image copy 4.png`)
 
 **Decision point:** the POC v2 has served its purpose — it proved the pipeline works AND caught a real Loop-1-missed assumption (that user PNGs were clean design refs). Stage B needs a design-input clarification before starting.
 
-### Stage B — Build 6 components sequentially
-_Each component: write TS → hand-crop reference PNG → GAN-iterate → ≤ 3 % → commit → next._
+### Stage B/C — Components + Families ✅ COMPLETE 2026-08-29
 
-| # | Component | Iter budget | Status |
-|---|---|---|---|
-| 1 | `make-brand-pill` | 5 | pending |
-| 2 | `make-dot-progress-indicator` | 5 | pending |
-| 3 | `make-outlined-pill` | 5 | pending |
-| 4 | `make-mixed-weight-text` | 8 (hardest) | pending |
-| 5 | `make-number-badge` | 3 | pending |
-| 6 | `make-circular-nav-arrow` | 3 (optional) | pending |
+All 6 shared primitives shipped in `frontend/utils/canvasTemplates/shared/compact/`:
+`make-brand-pill`, `make-outlined-pill`, `make-mixed-weight-text`, `make-dot-progress-indicator`, `make-number-badge`, `make-editorial-header-bar`
 
-### Stage C — Build 5 families sequentially
-_Each family: write TS + fixtures → register → GAN-iterate → ≤ 5 % → commit → next._
+All 9 compact family builders shipped and in REGISTRY:
 
-| # | Family | Iter budget | Status |
-|---|---|---|---|
-| 1 | `aurora-compact-hook` | 8 | pending |
-| 2 | `aurora-compact-fact` | 8 | pending |
-| 3 | `aurora-compact-step` | 10 | pending |
-| 4 | `aurora-compact-list-item` | 10 | pending |
-| 5 | `aurora-compact-quote` (terracotta) | 12 (hardest) | pending |
+| # | Family / Variant | REGISTRY key | GAN score | Status |
+|---|---|---|---|---|
+| 1 | Hook | `aurora-compact-hook` | POC v2 PASS | ✅ DONE |
+| 2 | Fact (single stat) | `aurora-compact-fact` | YELLOW 13.9% (chrome floor) | ✅ DONE |
+| 3 | Fact (compare) | `aurora-compact-fact-compare` | YELLOW 13.3% (chrome floor) | ✅ DONE |
+| 4 | Step (stat-hero variant) | `aurora-compact-stat-hero` | — | ✅ DONE |
+| 5 | Step (index list) | `aurora-compact-step-index` | FAIR 26% (photo-bg floor) | ✅ DONE |
+| 6 | Step (detail) | `aurora-compact-step-detail` | FAIR 35% (photo-bg floor) | ✅ DONE |
+| 7 | Step (legacy) | `aurora-compact-step` | — | ✅ DONE |
+| 8 | List item | `aurora-compact-list-item` | YELLOW 14% (chrome floor) | ✅ DONE |
+| 9 | Quote | `aurora-compact-quote` | YELLOW 55% (portrait vs editorial ref) | ✅ DONE |
 
-### Stage D — Wiring & regression
-- Add Lumina wrappers
-- Add starter content
-- Update `_canvas_template_id()` signature (non-breaking)
-- Full E2E regression: `pnpm playwright test` + `pytest tests/`
-- Loop 2 + Loop 3 review
+### Stage D — Wiring & regression 🟡 PARTIAL (2026-08-30)
+
+| Item | Status |
+|---|---|
+| Editor Templates panel — all 11 tiles visible with correct labels | ✅ Done |
+| Starter content (`compact_meta: {}` triggers builder DEFAULTS) | ✅ Done |
+| `canvas_template` race condition eliminated | ✅ Done |
+| All 21 templates pass Playwright audit | ✅ Done (21/21) |
+| TypeScript — 0 errors | ✅ Done |
+| **Lumina compact wrappers** (5 × `lumina-compact-*` in REGISTRY) | ❌ Not done |
+| **`frontend/e2e/compact-templates.spec.ts`** | ❌ Not done |
+| **Full Playwright regression** (≥ 45/47 legacy baseline) | ❌ Not verified |
 
 ---
 

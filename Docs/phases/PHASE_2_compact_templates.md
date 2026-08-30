@@ -1,8 +1,31 @@
 # PHASE 2 — Compact Template Family (Sequential Build + GAN-Iterate)
 
 ## Status
-**IN PROGRESS (v3, 2026-08-29) — POC v2 COMPLETE. Stage A ✅ DONE. Stage B ✅ DONE. Stage D NEXT.**
+**IN PROGRESS (v4, 2026-08-30) — POC v2 COMPLETE. Stage A ✅ DONE. Stage B ✅ DONE. Stage D 🟡 PARTIAL.**
 Supersedes v2 (batched work); v3 rewrites for strictly sequential per-component + per-template build with mandatory GAN verification against user-supplied reference PNGs.
+
+### Stage D — What's done vs still open (as of 2026-08-30)
+
+**Done:**
+- Editor Templates panel (`TemplatesPanel.tsx`) — all 11 compact tiles appear with labels/colours/emojis ✅
+- Starter content in `frontend/constants/slideTemplates.ts` — `compact_meta: {}` triggers builder DEFAULTS ✅
+- `canvas_template` written on `POST /new` (race condition eliminated) ✅
+- All content objects selectable/editable in Fabric canvas ✅
+- `npx tsc --noEmit` — 0 errors ✅
+- Playwright audit: **21/21 templates render, selectable, right-panel active, 0 API errors** ✅
+
+**Still open (Stage D is not COMPLETE until these are done):**
+1. **Lumina wrappers** — `lumina-compact-hook`, `lumina-compact-fact`, `lumina-compact-step`, `lumina-compact-list-item`, `lumina-compact-quote` not yet in `index.ts` REGISTRY (Phase 2 spec requires 5 wrappers via `lw()`)
+2. **E2E spec** — `frontend/e2e/compact-templates.spec.ts` does not exist (Step 2.D.4 in Stage D plan)
+3. **Full Playwright regression** — `npx playwright test --project=chromium` baseline not re-verified post Stage B/D work
+
+### North star for Phase 2 completion
+Phase 2 is COMPLETE when ALL of the following are true:
+- [ ] 5 Lumina wrappers added to REGISTRY (`lumina-compact-{hook,fact,step,list-item,quote}`)
+- [ ] `frontend/e2e/compact-templates.spec.ts` exists and passes (5 families × 2 fixtures = 10 scenarios)
+- [ ] `npx playwright test --project=chromium` ≥ 45/47 legacy baseline + new compact spec
+- [ ] `npx tsc --noEmit` → 0 errors
+- [ ] `node playwright_full_audit.cjs` → 21/21 PASS
 
 **Stage B progress (as of 2026-08-29):**
 - `aurora-compact-quote` ✅ DONE — B&W editorial portrait, hard-cut edge, Playfair Display serif quote, terracotta card on cream canvas. GAN YELLOW (~55%). Fixtures: community-quote, telescope-quote. Default portrait_edge: "hard".

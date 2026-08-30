@@ -1,6 +1,7 @@
-# MASTER PLAN — Multi-Format Content Strategy (v3)
+# MASTER PLAN — Multi-Format Content Strategy (v4)
 
-> **Status:** APPROVED (Loop 1 — 2 clean passes) — sub-phase plans linked below
+> **Status:** APPROVED — actively executing Phase 2 Stage D (final wiring)
+> **Last synced with reality:** 2026-08-30
 > **Revised on:** 2026-08-23 based on two user course corrections:
 >   1. **Slides first, plumbing second** — the visible template design is the highest-leverage change; format-selection plumbing lands after.
 >   2. **Don't waste tokens on format-selection in manual mode** — user's angle choice already signals format intent. Only auto mode runs the LLM.
@@ -50,23 +51,28 @@ Rationale:
 ## Phase Breakdown
 
 ```
-PHASE 2 ── Compact Template Family — 5 core builders (Week 1)
-   │      ├── aurora-compact-hook       (cover)               → Docs/design/templates/families/aurora-compact-hook.md
-   │      ├── aurora-compact-fact       (revelation / stat)   → aurora-compact-fact.md
-   │      ├── aurora-compact-step       (tutorial step)       → aurora-compact-step.md
-   │      ├── aurora-compact-list-item  (ranked list row)     → aurora-compact-list-item.md
-   │      ├── aurora-compact-quote      (terracotta quote)    → aurora-compact-quote.md
-   │      ├── Compact design tokens + Playfair Display Italic Bold + Inter Black
-   │      ├── Lumina wrappers via lw() → 10 REGISTRY entries
-   │      ├── Editor Template panel picks up all 5 automatically
-   │      ├── User can manually pick them via editor's Slides tab
-   │      ├── Ship the following components (per Docs/design/templates/components/):
-   │      │   • typography.md → make-mixed-weight-text, make-outlined-pill
-   │      │   • cards.md → make-brand-pill
-   │      │   • decorative.md → make-dot-progress-indicator, make-circular-nav-arrow
-   │      │   • icons.md → make-number-badge
-   │      └── GAN reference PNGs from Phase 2 families listed in each family MD
-   │      Templates exist, editable, screenshottable — pipeline still emits extended defaults
+PHASE 2 ── Compact Template Family — 5 core builders (Week 1)          🟡 STAGE D PARTIAL
+   │
+   │  ✅ SHIPPED (2026-08-29):
+   │      ├── aurora-compact-hook       ✅ REGISTRY + builder + fixtures + GAN PASS
+   │      ├── aurora-compact-fact       ✅ (2 variants: fact, fact-compare) GAN YELLOW 13%
+   │      ├── aurora-compact-step       ✅ (3 variants: step, step-index, step-detail + stat-hero) GAN FAIR 26-35%
+   │      ├── aurora-compact-list-item  ✅ GAN YELLOW 14%
+   │      ├── aurora-compact-quote      ✅ GAN YELLOW 55% (portrait ref mismatch — acceptable)
+   │      ├── Compact design tokens ✅ + Playfair Display Italic Bold ✅ + Inter Black ✅
+   │      ├── Shared compact primitives ✅ (make-brand-pill, make-outlined-pill, make-mixed-weight-text,
+   │      │   make-dot-progress-indicator, make-number-badge, make-editorial-header-bar)
+   │      ├── Editor Templates panel — all 11 compact tiles visible ✅
+   │      ├── Starter content wired ✅
+   │      ├── canvas_template race eliminated ✅
+   │      └── 21/21 templates pass Playwright audit ✅
+   │
+   │  ❌ NOT YET SHIPPED (Stage D remaining):
+   │      ├── Lumina wrappers via lw() — lumina-compact-{hook,fact,step,list-item,quote} NOT in REGISTRY
+   │      ├── frontend/e2e/compact-templates.spec.ts — NOT written
+   │      └── Full Playwright regression (≥ 45/47 baseline) — NOT re-verified
+   │
+   │  Templates exist, editable, screenshottable — pipeline still emits extended defaults
    ↓
 PHASE 3 ── Format Plumbing (Week 2)
    │      ├── PostFormat + TemplateFamily enums (Pydantic)
@@ -216,14 +222,19 @@ Key expanded takeaways vs the v1 sample analysis:
 
 | Phase | Status | Plan file |
 |-------|--------|-----------|
-| 2 — Compact Template Family (5 core, sequential + GAN-iterate) | APPROVED (v3, Loop 1, 2 clean passes) | `Docs/phases/PHASE_2_compact_templates.md` |
-| 3 — Format Plumbing (smart) | OUTLINE — Loop 1 at start | `Docs/phases/PHASE_3_format_plumbing.md` |
-| 4 — Remaining 5 Compact Builders + Format Fill-in | OUTLINE — Loop 1 at start | `Docs/phases/PHASE_4_remaining_compact_formats.md` |
-| 5 — UI & Analytics | OUTLINE — Loop 1 at start | `Docs/phases/PHASE_5_ui_and_analytics.md` |
+| 2 — Compact Template Family (5 core, sequential + GAN-iterate) | 🟡 IN PROGRESS — Stage D partial (3 items remain) | `Docs/phases/PHASE_2_compact_templates.md` |
+| 3 — Format Plumbing (smart) | OUTLINE — Loop 1 needed before start | `Docs/phases/PHASE_3_format_plumbing.md` |
+| 4 — Remaining 5 Compact Builders + Format Fill-in | OUTLINE — Loop 1 needed before start | `Docs/phases/PHASE_4_remaining_compact_formats.md` |
+| 5 — UI & Analytics | OUTLINE — Loop 1 needed before start | `Docs/phases/PHASE_5_ui_and_analytics.md` |
 | 6A — aurora-editorial-* family (SahilBloom style) | NOT STARTED — spec ready in template catalog | *(sub-phase plan not yet drafted)* |
 | 6B — aurora-product-* family (Anthropic style) | NOT STARTED — spec ready in template catalog | *(sub-phase plan not yet drafted)* |
 | 6C — aurora-nextwork-* family (dark cinematic + spotlight) | NOT STARTED — spec ready in template catalog | *(sub-phase plan not yet drafted)* |
-| 6D — aurora-carousel-cover-hero + companions | DEFERRED — depends on user demand | *(sub-phase plan not yet drafted)* |
+| 6D — aurora-carousel-cover-hero + companions | 🟡 PARTIALLY BUILT — phone + images variants shipped; overlay cards restored | *(no standalone plan — tracked in PHASE_2)* |
+
+**What to work on next (in order):**
+1. **Finish Phase 2 Stage D** — add 5 Lumina wrappers + write compact-templates E2E spec + run full regression → mark Phase 2 COMPLETE
+2. **Start Phase 3 Loop 1** — run architect review, write `PHASE_3_format_plumbing.md`, 2 clean passes → then implement
+3. **Phase 4** follows Phase 3 automatically
 
 **Note:** The old Phase 2 and Phase 3 plans (format-selection-first ordering) are **retired**. Phase 2 is now Compact Templates. Phase 3 is now Format Plumbing.
 
