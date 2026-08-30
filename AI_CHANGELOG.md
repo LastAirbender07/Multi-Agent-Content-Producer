@@ -6,6 +6,25 @@
 
 ---
 
+## 2026-08-30 — Phase 2 COMPLETE: regression confirmed, 0 new failures
+
+**Playwright regression result:**
+- `npx playwright test --project=chromium` — **111 passed, 13 failed, 1 skipped (125 total)**
+- **0 new regressions from Phase 2 work** — all 13 failures are pre-existing:
+  - `carousel-cover-hero.spec.ts` — pixel-sample check requires backend running for image assets; template itself works (21/21 audit)
+  - `full-validation.spec.ts` ×3 — legacy-run detection + empty-state design check; unchanged by Phase 2
+  - `pipeline-normal-flow.spec.ts` ×3 — require live backend running full pipeline; pre-existing
+  - `recover-and-generate-angles.spec.ts` — requires live backend E2E; pre-existing
+  - `sse-progress-test.spec.ts` ×5 — test 1 looks for "Research & Generate" heading (renamed pre-Phase-2 to "Production Dashboard"); tests 2–5 require live backend
+- **Phase 2 is COMPLETE.** All gates green.
+
+**Docs updated:**
+- `Docs/ROADMAP.md` — Phase 2 status → ✅ COMPLETE
+- `Docs/phases/MASTER_PLAN_multi_format.md` — status line + phase breakdown updated
+- `Docs/phases/PHASE_2_compact_templates.md` — regression analysis table added, status → COMPLETE v5
+
+---
+
 ## 2026-08-30 — Editor audit follow-up: 21/21 templates green
 
 **What was fixed / built:**

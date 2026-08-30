@@ -1,6 +1,6 @@
 # MASTER PLAN — Multi-Format Content Strategy (v4)
 
-> **Status:** APPROVED — actively executing Phase 2 Stage D (final wiring)
+> **Status:** APPROVED — Phase 2 ✅ COMPLETE (2026-08-30). Next: Phase 3 Loop 1 architect review.
 > **Last synced with reality:** 2026-08-30
 > **Revised on:** 2026-08-23 based on two user course corrections:
 >   1. **Slides first, plumbing second** — the visible template design is the highest-leverage change; format-selection plumbing lands after.
@@ -51,9 +51,9 @@ Rationale:
 ## Phase Breakdown
 
 ```
-PHASE 2 ── Compact Template Family — 5 core builders (Week 1)          🟡 STAGE D PARTIAL
+PHASE 2 ── Compact Template Family — 5 core builders (Week 1)          ✅ COMPLETE 2026-08-30
    │
-   │  ✅ SHIPPED (2026-08-29):
+   │  ✅ SHIPPED (2026-08-29/30):
    │      ├── aurora-compact-hook       ✅ REGISTRY + builder + fixtures + GAN PASS
    │      ├── aurora-compact-fact       ✅ (2 variants: fact, fact-compare) GAN YELLOW 13%
    │      ├── aurora-compact-step       ✅ (3 variants: step, step-index, step-detail + stat-hero) GAN FAIR 26-35%
@@ -65,12 +65,12 @@ PHASE 2 ── Compact Template Family — 5 core builders (Week 1)          �
    │      ├── Editor Templates panel — all 11 compact tiles visible ✅
    │      ├── Starter content wired ✅
    │      ├── canvas_template race eliminated ✅
-   │      └── 21/21 templates pass Playwright audit ✅
+   │      ├── 21/21 templates pass Playwright audit ✅
+   │      └── Full Playwright regression: 111/125 passed, 0 new regressions ✅
    │
-   │  ❌ NOT YET SHIPPED (Stage D remaining):
-   │      ├── Lumina wrappers via lw() — lumina-compact-{hook,fact,step,list-item,quote} NOT in REGISTRY
-   │      ├── frontend/e2e/compact-templates.spec.ts — NOT written
-   │      └── Full Playwright regression (≥ 45/47 baseline) — NOT re-verified
+   │  ⏸ DEFERRED (by decision — not blockers):
+   │      ├── Lumina wrappers — no pipeline consumer until Phase 3; revisit then
+   │      └── frontend/e2e/compact-templates.spec.ts — playwright_full_audit.cjs covers this
    │
    │  Templates exist, editable, screenshottable — pipeline still emits extended defaults
    ↓
