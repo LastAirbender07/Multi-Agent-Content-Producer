@@ -6,6 +6,62 @@
 
 ---
 
+## 2026-08-30 — Editor audit follow-up: 21/21 templates green
+
+**What was fixed / built:**
+
+- **Cover-Hero TypeScript debt (3 errors → 0):**
+  - `makeMetallicGradient` call site: was passing `(canvas, {stops})`, now passes `(CANVAS_W, CANVAS_H, {stops})` matching signature
+  - `OverlayCardDef` re-export removed from `shared/cover/index.ts` (type was stripped from `makeTiltedPhoneMockup` in a prior session)
+  - Inline `bodyText` Textbox in `aurora_carousel_cover_hero.ts` had stale `selectable:false, evented:false` removed
+
+- **Content objects unlocked across shared helpers:**
+  - `makeBodyText.ts`, `makeDisplayHeadline.ts`, `makeItalicCtaLine.ts` — all had `selectable:false, evented:false` removed. Decorative rects (bg fills, overlay gradients, hairline rules, dots) still lock correctly.
+
+- **`fabric.Text` objects now show Text panel:**
+  - `FabricCanvas.tsx` type routing: `obj.type === "text"` now maps to `"textbox"` for panel routing (same as `fabric.Textbox`). `TextPropertyPanel` gained a "Content" textarea for editing `fabric.Text` values without double-click.
+
+- **`canvas_template` race condition eliminated (Option A):**
+  - `create_slide()` in `slide_editor_service.py` now accepts optional `canvas_template: str | None` and writes it immediately to the slide record.
+  - API endpoint `content.py` passes `body.get("canvas_template")` through.
+  - Frontend `api.newSlide()` in `lib/api/editor.ts` accepts optional `canvasTemplate` and sends it in the POST body.
+  - `TemplatesPanel` passes `canvasTemplate` to `newSlide()` — slide is editable the moment it's created, no second-call race window.
+
+- **Cover-Hero phone overlay cards restored:**
+  - New `makeOverlayCards.ts` helper: frosted-glass dark rounded-rect cards (semi-transparent `rgba(15,12,10,0.72)` bg, bold white value, muted label, border `rgba(255,255,255,0.12)`). Each card is a selectable `fabric.Group` so users can drag and reposition.
+  - Exported from `shared/cover/index.ts` as `makeOverlayCards` + `OverlayCardDef`.
+  - `aurora_carousel_cover_hero.ts` renders two default cards ("22–35% / organic reach", "4.2k / new followers") over the phone, or caller-supplied `opts.mockup.overlayCards`.
+
+- **`playwright_full_audit.cjs` hardened:**
+  - `waitForTimeout(2000)` after tile click → `waitForURL(url => url.includes("slide="), {timeout:15000})` + `waitForLoadState("networkidle")`
+  - `waitForTimeout(2500)` after edit-button click → `waitForLoadState("networkidle")` + 600ms settle
+  - Added `page.goto("/editor")` at start of each iteration for clean Templates panel state
+  - Click spots expanded from 4 → 9 (added `top-left`, `left-upper`, `right-upper`, `right-center`, `very-top-center`)
+
+**Verification:**
+- `npx tsc --noEmit` — **0 errors**
+- `node playwright_full_audit.cjs` — **21/21 templates pass** (render, selectable, right panel active, zero API errors)
+
+**Files touched (12):**
+- `backend/apps/api/v1/content.py` — `canvas_template` passthrough in `new_slide` endpoint
+- `backend/core/services/slide_editor_service.py` — `canvas_template` param on `create_slide()`
+- `frontend/components/editor/TemplatesPanel.tsx` — pass `canvasTemplate` to `newSlide()`
+- `frontend/lib/api/editor.ts` — `newSlide()` signature + body
+- `frontend/utils/canvasTemplates/aurora_carousel_cover_hero.ts` — TS fixes + overlay cards wired
+- `frontend/utils/canvasTemplates/shared/cover/index.ts` — overlay exports added
+- `frontend/utils/canvasTemplates/shared/cover/makeBodyText.ts` — selectable unlocked
+- `frontend/utils/canvasTemplates/shared/cover/makeDisplayHeadline.ts` — selectable unlocked
+- `frontend/utils/canvasTemplates/shared/cover/makeItalicCtaLine.ts` — selectable unlocked
+- `frontend/utils/canvasTemplates/shared/cover/makeOverlayCards.ts` — new file
+- `frontend/playwright_full_audit.cjs` — timing + click spot fixes
+- `frontend/playwright_targeted_audit.cjs` — new targeted audit helper
+
+**Rollback:** all changes are additive or bug-fixes; `canvas_template` in `create_slide` is optional with `None` default — fully backward compatible.
+
+---
+
+---
+
 ## 2026-08-29 — Phase 2 Stage D: Compact Template Editor Visibility
 
 **What was built / improved:**
