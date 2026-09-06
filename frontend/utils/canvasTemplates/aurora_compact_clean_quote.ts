@@ -83,7 +83,7 @@ export async function buildAuroraCompactCleanQuote(
     lineHeight: 1,
     originX:    "left" as const,
     originY:    "top" as const,
-    selectable: true,
+    selectable: false, evented: false,   // decorative glyph — not user-editable
   });
   setData(decoQuote, { role: "compact_deco_quote" });
   objects.push(decoQuote);

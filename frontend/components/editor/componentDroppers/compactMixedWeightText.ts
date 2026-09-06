@@ -26,6 +26,7 @@ export async function dropCompactMixedWeightText(
   });
 
   tb.set({ selectable: true, evented: true });
+  (tb as fabric.Textbox & { data?: unknown }).data = { role: "compact_mixed_weight_text" };
   canvas.add(tb);
   canvas.setActiveObject(tb);
 }

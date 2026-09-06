@@ -102,7 +102,9 @@ export async function buildAuroraEditorialCta(
     paddingX:    PAD_X,
     fontSize:    20,
   });
-  [handle, series, rule].forEach(o => setData(o, { role: "editorial_header" }));
+  setData(handle, { role: "editorial_handle" });   // selectable — @handle text
+  setData(series, { role: "editorial_series" });   // selectable — series title text
+  setData(rule,   { role: "editorial_rule"   });   // decorative — hairline, not selectable
   objects.push(handle, series, rule);
 
   // ── 4. CTA headline — Playfair Bold Italic, centred, large ───────────────────

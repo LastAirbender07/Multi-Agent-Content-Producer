@@ -32,7 +32,10 @@ export async function dropCompactEditorialHeader(
   // Add all three elements individually — do NOT wrap in a Group
   handle.set({ selectable: true, evented: true });
   series.set({ selectable: true, evented: true });
-  rule.set({ selectable: true, evented: true });
+  rule.set({ selectable: false, evented: false }); // hairline rule is decorative
+  (handle as fabric.Textbox & { data?: unknown }).data = { role: "compact_editorial_handle" };
+  (series as fabric.Textbox & { data?: unknown }).data = { role: "compact_editorial_series" };
+  (rule   as fabric.Rect    & { data?: unknown }).data = { role: "compact_editorial_rule"   };
 
   canvas.add(handle);
   canvas.add(series);

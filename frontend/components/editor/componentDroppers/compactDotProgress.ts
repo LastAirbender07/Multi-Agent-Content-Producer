@@ -23,7 +23,8 @@ export async function dropCompactDotProgress(
     tokens: COMPACT_TOKENS,
   });
 
-  dots.set({ selectable: true, evented: true });
+  dots.set({ selectable: true, evented: true, interactive: true });
+  (dots as fabric.Group & { data?: unknown }).data = { role: "compact_dot_progress" };
   canvas.add(dots);
   canvas.setActiveObject(dots);
 }

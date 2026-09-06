@@ -22,7 +22,8 @@ export async function dropCompactNumberBadge(
     tokens: COMPACT_TOKENS,
   });
 
-  badge.set({ selectable: true, evented: true });
+  badge.set({ selectable: true, evented: true, interactive: true });
+  (badge as fabric.Group & { data?: unknown }).data = { role: "compact_number_badge" };
   canvas.add(badge);
   canvas.setActiveObject(badge);
 }
