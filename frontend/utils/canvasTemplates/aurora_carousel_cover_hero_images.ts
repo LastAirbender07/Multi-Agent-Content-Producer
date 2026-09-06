@@ -29,9 +29,9 @@ interface CoverHeroImagesMeta {
 function getMeta(slide: SlideData & { canvas_template?: string }): CoverHeroImagesMeta {
   const m = (slide as unknown as Record<string, unknown>).cover_hero as CoverHeroImagesMeta | undefined;
   return {
-    category_pill: m?.category_pill ?? "VIRAL DESIGN",
-    headline:      m?.headline      ?? "GOOGLE,\nWHERE AM I?",
-    body_text:     m?.body_text     ?? "",
+    category_pill: m?.category_pill ?? "YOUR BRAND",
+    headline:      m?.headline      ?? "THE BIGGER\nPICTURE",
+    body_text:     m?.body_text     ?? "Context that makes the story land.",
     cta_line:      m?.cta_line,
     image_urls:    m?.image_urls,
   };

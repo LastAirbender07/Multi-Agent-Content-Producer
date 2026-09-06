@@ -89,7 +89,7 @@ export async function makeTiltedPhoneMockup(
   // DrawContext with parentClipPaths:[]. Without it, render() calls drawObject({})
   // and createClipPathLayer crashes on context.parentClipPaths.forEach (Fabric v7 bug).
   const group = new fabric.Group(objects, {
-    selectable: true, evented: true, interactive: true,
+    selectable: true, evented: true, interactive: true, subTargetCheck: true,
     objectCaching: true,
     shadow: new fabric.Shadow({ color: "rgba(0,0,0,0.22)", blur: 28, offsetX: 5, offsetY: 14 }),
     clipPath: new fabric.Rect({

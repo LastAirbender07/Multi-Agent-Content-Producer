@@ -100,6 +100,35 @@ You are a **senior software architect with 10+ years of Python + TypeScript + br
 
 Review the phase draft against every checklist below. Any single unchecked box blocks approval.
 
+#### ⛔ HARD RULE — Check Existing APIs BEFORE Building Anything
+
+> **Added 2026-09-06 after Phase 2.6 failure.**
+>
+> Before writing a single line of implementation code for any UI interaction, data transformation, or rendering behaviour — you MUST:
+>
+> 1. **Search the installed library source** for relevant functions:
+>    - For Fabric.js: `grep -rn "<keyword>" frontend/node_modules/.pnpm/fabric@*/node_modules/fabric/`
+>    - For FastAPI: check `starlette`, `pydantic` docs first
+>    - For Next.js: check Next.js docs for built-in solutions
+> 2. **Search the library's `extensions/` or `plugins/` folder** — many libraries ship opt-in extras that are not in the main bundle
+> 3. **Search GitHub for reference implementations** (`"<library> <feature>" site:github.com`)
+> 4. **Only if none exist**: design a custom solution, and document WHY existing solutions were insufficient
+>
+> **The cost of ignoring this rule:**
+> Phase 2.6 spent 3 sessions building a custom slot/group/fillImageSlot/pan-clamp system that delivered invisible drag UX and no crop feedback. Fabric v7 had `enterCropMode()`, `renderGhostImage()`, `cropPanMoveHandler()` already implemented and shipping in `fabric/dist-extensions/` — with the exact ghost overlay + crop handles + pan behaviour the user needed. The custom system was scrapped entirely.
+>
+> **Specific APIs to always check first for common tasks:**
+> | Task | Check first |
+> |---|---|
+> | Image crop/pan in Fabric.js | `fabric/extensions/cropping_controls/` |
+> | Canvas undo/redo | `fabric.Canvas.undo/redo` or history hooks |
+> | Object alignment | `fabric/extensions/aligning_guidelines/` |
+> | Gesture support | `fabric/extensions/westures_integration/` |
+> | PDF/SVG export | `fabric.Canvas.toSVG()`, `jspdf` |
+> | Animation | `fabric.util.animate()` |
+> | Backend file operations | FastAPI `UploadFile`, `StaticFiles` |
+> | Auth | NextAuth.js, not custom JWT |
+
 #### Architecture Checks
 - [ ] **No ambiguous "etc."** — every function, file, endpoint, prompt, and API call is named explicitly
 - [ ] **Entry conditions are verifiable** — for every precondition, list the exact shell command that proves it

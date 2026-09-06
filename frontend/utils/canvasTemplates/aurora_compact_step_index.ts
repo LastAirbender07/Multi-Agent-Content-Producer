@@ -3,7 +3,7 @@ import type { CanvasTokens } from "@/utils/canvasTokens";
 import type { SlideData } from "@/lib/api";
 import type { SlideMeta } from "./index";
 import { COMPACT_TOKENS } from "./shared/design_tokens";
-import { setData } from "./shared";
+import { setData, resolveAssetUrl } from "./shared";
 
 const CANVAS_SIZE = 1080;
 
@@ -54,7 +54,7 @@ export async function buildAuroraCompactStepIndex(
   const steps = m.steps ?? DEFAULT_STEPS;
 
   const objects: fabric.FabricObject[] = [];
-  const resolvedImageUrl = imageUrl ?? (slide.image_url ?? m.image_url ?? null) ?? null;
+  const resolvedImageUrl = resolveAssetUrl(imageUrl ?? (slide.image_url ?? m.image_url ?? null) ?? null);
 
   // 1. Photo background or dark fallback
   if (resolvedImageUrl) {

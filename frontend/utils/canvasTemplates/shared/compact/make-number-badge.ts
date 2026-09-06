@@ -34,6 +34,8 @@ export function makeNumberBadge(opts: MakeNumberBadgeOpts): fabric.Group {
     textColor = tokens.textDark,
   } = opts;
 
+  // circle is the decorative outline — not user-editable.
+  // label (the number) is user-editable — selectable:true enables double-click.
   const circle = new fabric.Circle({
     left: 0,
     top: 0,
@@ -43,7 +45,7 @@ export function makeNumberBadge(opts: MakeNumberBadgeOpts): fabric.Group {
     strokeWidth,
     originX: "center",
     originY: "center",
-    selectable: false,
+    selectable: false, evented: false,
   });
 
   const label = new fabric.Text(String(number), {
@@ -55,7 +57,7 @@ export function makeNumberBadge(opts: MakeNumberBadgeOpts): fabric.Group {
     originY: "center",
     left: 0,
     top: 0,
-    selectable: false,
+    selectable: true, evented: true,
   });
 
   const group = new fabric.Group([circle, label], {
@@ -63,7 +65,8 @@ export function makeNumberBadge(opts: MakeNumberBadgeOpts): fabric.Group {
     top: cy,
     originX: "center",
     originY: "center",
-    subTargetCheck: false,
+    interactive: true,
+    subTargetCheck: true,
   });
   group.setCoords();
   return group;

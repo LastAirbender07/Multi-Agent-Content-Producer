@@ -106,17 +106,18 @@ const TEMPLATE_METADATA: Record<string, TemplateMeta> = {
   "aurora-compact-step-index": {
     type: "content", label: "Step Index", desc: "Steps overview list",
     color: "#3B7EDC", emoji: "🗺️",
-    starter: { title: "", body: "", compact_meta: {} },
+    // image_url → backend resolves to /assets/images/step-bg-terrain.jpg (landscape bg)
+    starter: { title: "", body: "", compact_meta: { image_url: "/assets/images/step-bg-terrain.jpg" } },
   },
   "aurora-compact-step-detail": {
     type: "content", label: "Step Detail", desc: "Deep-dive step card",
     color: "#3B7EDC", emoji: "🔍",
-    starter: { title: "", body: "", compact_meta: {} },
+    starter: { title: "", body: "", compact_meta: { image_url: "/assets/images/step-bg-terrain.jpg" } },
   },
   "aurora-compact-stat-hero": {
     type: "stat", label: "Stat Hero", desc: "Photo background + stat",
     color: "#F08A3D", emoji: "📸",
-    starter: { title: "", body: "", compact_meta: {} },
+    starter: { title: "", body: "", compact_meta: { image_url: "/assets/images/step-bg-terrain.jpg" } },
   },
   "aurora-compact-list-item": {
     type: "content", label: "List", desc: "Ranked list (SahilBloom)",
@@ -126,7 +127,8 @@ const TEMPLATE_METADATA: Record<string, TemplateMeta> = {
   "aurora-compact-quote": {
     type: "quote", label: "Compact Quote", desc: "Editorial pull-quote",
     color: "#C47A3C", emoji: "💬",
-    starter: { title: "", body: "", compact_meta: {} },
+    // portrait_url → shows a B&W portrait on the right side
+    starter: { title: "", body: "", compact_meta: { image_url: "/assets/images/portrait-contrast.jpg" } },
   },
 
   // ── Phase 2.5 compact-clean gap-fills ─────────────────────────────────────

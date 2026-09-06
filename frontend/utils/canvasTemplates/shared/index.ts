@@ -9,3 +9,4 @@ export * from "./backgrounds";
 export * from "./overlays";
 export * from "./buttons";
 export * from "./components";
+export * from "./assetUrl";

@@ -1,8 +1,6 @@
 "use client";
-import { useRef, useCallback } from "react";
-import { Bold, Italic, AlignLeft, AlignCenter, AlignRight, ChevronUp, ChevronDown, Copy, Trash2, Ungroup, ImageIcon } from "lucide-react";
+import { Bold, Italic, AlignLeft, AlignCenter, AlignRight, ChevronUp, ChevronDown, Copy, Trash2, Ungroup } from "lucide-react";
 import type { SelectedObjectInfo } from "@/components/editor/FabricCanvas";
-import { fillImageSlot } from "@/components/editor/canvasDropHandlers";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type FabricCanvas = any;
 
@@ -17,47 +15,10 @@ interface ContextToolbarProps {
 
 const FONT_SIZES = [14, 18, 24, 32, 48, 64, 80];
 
-/** Roles that support the "Replace Photo" slot-fill button */
-const IMAGE_SLOT_ROLES = new Set(["phone_mockup", "image_pair", "polaroid_frame"]);
-
 export function ContextToolbar({ selectedObject, canvas, onChanged, onUngroup, onCommit, style }: ContextToolbarProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  // Capture the active group BEFORE the file picker opens — opening the picker
-  // blurs the canvas which clears canvas.getActiveObject(), so we must snapshot it.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pendingSlotRef = useRef<any>(null);
-
-  /** Opens OS file picker; captures active object first so blur doesn't lose it */
-  const handleReplacePhoto = useCallback(() => {
-    pendingSlotRef.current = canvas?.getActiveObject() ?? null;
-    fileInputRef.current?.click();
-  }, [canvas]);
-
-  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = "";
-
-    const targetGroup = pendingSlotRef.current;
-    pendingSlotRef.current = null;
-    if (!targetGroup) { console.warn("[ReplacePhoto] no pending slot — was canvas deselected?"); return; }
-
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-
-    await fillImageSlot(canvas, targetGroup, dataUrl);
-    onChanged();
-  }, [canvas, onChanged]);
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const obj: any = canvas?.getActiveObject();
   if (!obj) return null;
-
-  const isImageSlot = IMAGE_SLOT_ROLES.has(selectedObject.role ?? "");
 
   function mutate(updates: Record<string, unknown>) {
     obj.set(updates);
@@ -67,20 +28,35 @@ export function ContextToolbar({ selectedObject, canvas, onChanged, onUngroup, o
 
   const isText = selectedObject.type === "textbox";
 
+  // Detect if an image is in Fabric v7 native crop mode.
+  // enterCropMode swaps in crop controls which include 'mlc' (middle-left crop handle).
+  // Normal image controls don't have 'mlc' — so its presence = crop mode active.
+  const isCropMode = selectedObject.fabricType === "image" &&
+    !!(obj?.controls?.mlc);
+
+  // ── Crop mode: show minimal banner instead of normal controls ─────────────
+  if (isCropMode) {
+    return (
+      <div
+        className="absolute z-30 flex items-center gap-2 bg-zinc-900/95 border border-amber-500/40 rounded-xl px-3 py-1.5 shadow-xl backdrop-blur-sm"
+        style={style}
+        onMouseDown={e => e.stopPropagation()}
+      >
+        <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+        <span className="text-[10px] font-semibold text-amber-400">Cropping</span>
+        <span className="text-[10px] text-zinc-600">
+          · Drag to pan · Handles to crop · Dbl-click or <kbd className="px-1 rounded bg-zinc-800 font-mono text-[9px]">Esc</kbd> to finish
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div
       className="absolute z-30 flex items-center gap-0.5 bg-zinc-900/95 border border-zinc-700 rounded-xl px-2 py-1.5 shadow-xl backdrop-blur-sm flex-wrap"
       style={style}
       onMouseDown={e => e.stopPropagation()}
     >
-      {/* Hidden file input for Replace Photo */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleFileChange}
-      />
       {/* Text-specific controls */}
       {isText && (
         <>
@@ -126,21 +102,6 @@ export function ContextToolbar({ selectedObject, canvas, onChanged, onUngroup, o
             <AlignRight size={12} />
           </button>
 
-          <div className="w-px h-3 bg-zinc-700 mx-0.5" />
-        </>
-      )}
-
-      {/* Image-slot: Replace Photo button */}
-      {isImageSlot && (
-        <>
-          <button
-            onClick={handleReplacePhoto}
-            title="Replace photo — opens file picker"
-            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-violet-300 hover:text-white hover:bg-violet-600/40 transition-all"
-          >
-            <ImageIcon size={11} />
-            Replace Photo
-          </button>
           <div className="w-px h-3 bg-zinc-700 mx-0.5" />
         </>
       )}

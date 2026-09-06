@@ -50,13 +50,13 @@ export async function createBrandBar(
       originX: "left" as const, originY: "top" as const,
     }), { role: "progress_bar" }),
 
-    // Brand name
+    // Brand name — selectable so users can edit the brand name text
     setData(new fabric.Text(brandName.toUpperCase(), {
       left: textLeft, top: textTop,
       fontSize: BRAND_FONT_SZ, fontWeight: "600", fill: t.muted,
       fontFamily: t.fontBody, charSpacing: 100,
       originX: "left" as const, originY: "top" as const,
-      selectable: false, evented: false,
+      selectable: true, evented: true,
     }), { role: "brand_name" }),
   ];
 

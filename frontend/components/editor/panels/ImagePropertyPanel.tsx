@@ -2,6 +2,7 @@
 import { filters as fabricFilters, Rect as FabricRect } from "fabric";
 import { Row } from "./Row";
 import { getFilterValue, hasFilter, setFilter, toggleFilter } from "@/utils/fabricFilters";
+import { enterCropMode } from "@/utils/fabricCrop";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyObj = any;
@@ -114,6 +115,27 @@ export function ImagePropertyPanel({ obj, canvas, onChanged }: Props) {
         <button onClick={setAsBackground}
           className="w-full py-1.5 rounded-lg text-xs font-semibold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-all">
           Set as Background
+        </button>
+      </Row>
+
+      <Row label="">
+        <button
+          onClick={() => {
+            if (!obj || !canvas) return;
+            // enterCropMode is a Fabric v7 native crop extension:
+            // • Shows full image at 50% opacity OUTSIDE the current crop window (ghost)
+            // • 4 corners = scale image within source bounds
+            // • 4 edges = crop from that edge
+            // • Drag body = pan (cropX/cropY change, position stays fixed)
+            // • Double-click again to exit and bake the crop
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            enterCropMode.call(undefined as unknown as () => void, { target: obj } as any);
+            canvas.requestRenderAll();
+          }}
+          className="w-full py-1.5 rounded-lg text-xs font-semibold bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 hover:text-amber-300 transition-all border border-amber-500/20"
+          title="Enter crop mode — double-click image or press Esc to finish"
+        >
+          ✂ Crop / Pan Image
         </button>
       </Row>
 

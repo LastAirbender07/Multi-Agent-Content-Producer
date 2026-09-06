@@ -42,13 +42,15 @@ export function makeBrandPill(opts: MakeBrandPillOpts): fabric.Group {
   const width = Math.round(padding + dotDiameter + dotTextGap + textW + padding);
 
   // All children positioned at their centre relative to pill top-left (0,0).
+  // bg and dot are decorative — not user-editable.
+  // label is the user-editable wordmark — selectable:true enables double-click editing.
   const bg = new fabric.Rect({
     left: width / 2, top: height / 2,
     originX: "center", originY: "center",
     width, height,
     rx: height / 2, ry: height / 2,
     fill: bgColor,
-    selectable: false,
+    selectable: false, evented: false,
   });
 
   const dot = new fabric.Circle({
@@ -57,7 +59,7 @@ export function makeBrandPill(opts: MakeBrandPillOpts): fabric.Group {
     originX: "center", originY: "center",
     radius: dotDiameter / 2,
     fill: textColor,
-    selectable: false,
+    selectable: false, evented: false,
   });
 
   const label = new fabric.Text(wordmark, {
@@ -68,7 +70,7 @@ export function makeBrandPill(opts: MakeBrandPillOpts): fabric.Group {
     fontSize,
     fontWeight: 700,
     fill: textColor,
-    selectable: false,
+    selectable: true, evented: true,
   });
 
   const group = new fabric.Group([bg, dot, label], {
@@ -76,7 +78,8 @@ export function makeBrandPill(opts: MakeBrandPillOpts): fabric.Group {
     top: y,
     originX: "left",
     originY: "top",
-    subTargetCheck: false,
+    interactive: true,     // allows clicking children directly
+    subTargetCheck: true,  // routes pointer events into children
   });
   group.setCoords();
   return group;

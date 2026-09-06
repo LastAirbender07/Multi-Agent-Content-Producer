@@ -4,7 +4,7 @@ import type { SlideData } from "@/lib/api";
 import type { SlideMeta } from "./index";
 import { makeBrandPill } from "./shared/compact";
 import { COMPACT_TOKENS } from "./shared/design_tokens";
-import { setData } from "./shared";
+import { setData, resolveAssetUrl } from "./shared";
 
 const CANVAS_SIZE = 1080;
 
@@ -51,7 +51,7 @@ export async function buildAuroraCompactStatHero(
   const accentColor = m.accent === "coral" ? ACCENT_CORAL : ACCENT_YELLOW;
 
   const objects: fabric.FabricObject[] = [];
-  const resolvedImageUrl = imageUrl ?? (slide.image_url ?? m.image_url ?? null) ?? null;
+  const resolvedImageUrl = resolveAssetUrl(imageUrl ?? (slide.image_url ?? m.image_url ?? null) ?? null);
 
   // 1. Photo background or dark gradient fallback
   if (resolvedImageUrl) {

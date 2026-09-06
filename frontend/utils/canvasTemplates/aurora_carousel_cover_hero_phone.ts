@@ -29,10 +29,10 @@ interface CoverHeroMeta {
 function getMeta(slide: SlideData & { canvas_template?: string }): CoverHeroMeta {
   const m = (slide as unknown as Record<string, unknown>).cover_hero as CoverHeroMeta | undefined;
   return {
-    category_pill:   m?.category_pill   ?? "VIRAL REEL",
-    headline:        m?.headline        ?? "FAKE POST",
-    body_text:       m?.body_text       ?? "",
-    cta_line:        m?.cta_line,
+    category_pill:   m?.category_pill   ?? "YOUR BRAND",
+    headline:        m?.headline        ?? "YOUR HEADLINE\nGOES HERE",
+    body_text:       m?.body_text       ?? "One idea. One slide. Maximum impact.",
+    cta_line:        m?.cta_line        ?? "Swipe to see more →",
     screen_image_url: m?.screen_image_url,
   };
 }

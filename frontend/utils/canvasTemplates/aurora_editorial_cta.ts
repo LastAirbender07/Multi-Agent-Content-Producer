@@ -108,11 +108,12 @@ export async function buildAuroraEditorialCta(
   objects.push(handle, series, rule);
 
   // ── 4. CTA headline — Playfair Bold Italic, centred, large ───────────────────
+  // TWO-PASS: create at top=0, measure real height, then position.
   const ctaW    = CANVAS_SIZE - PAD_X * 2;
   const ctaY    = 340;
   const cta     = new fabric.Textbox(m.cta_headline, {
     left:       PAD_X,
-    top:        ctaY,
+    top:        0,            // placeholder — set after height probe
     width:      ctaW,
     fontFamily: tokens.fontSerif,
     fontStyle:  "italic",
@@ -124,14 +125,14 @@ export async function buildAuroraEditorialCta(
     originX:    "left" as const,
     originY:    "top" as const,
   });
+
+  const realCtaH = cta.calcTextHeight();
+  cta.set({ top: ctaY });
   setData(cta, { role: "editorial_cta" });
   objects.push(cta);
 
   // ── 5. Thin hairline rule below CTA ──────────────────────────────────────────
-  // Estimate CTA height from line count + size
-  const ctaLines      = m.cta_headline.split("\n").length;
-  const estCtaHeight  = ctaLines * m.cta_size * 1.2;
-  const ruleTopY      = ctaY + estCtaHeight + 48;
+  const ruleTopY = ctaY + realCtaH + 48;
 
   const hairline = new fabric.Line(
     [PAD_X + 60, ruleTopY, CANVAS_SIZE - PAD_X - 60, ruleTopY],

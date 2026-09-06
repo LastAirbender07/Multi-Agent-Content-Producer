@@ -1,12 +1,17 @@
 "use client";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, LayoutTemplate, BarChart2, Puzzle, Bookmark } from "lucide-react";
+import { Loader2, LayoutTemplate, BarChart2, Puzzle, Bookmark, ChevronRight } from "lucide-react";
 import { api } from "@/lib/api";
 import { useBlankRunCreation } from "@/hooks/useBlankRunCreation";
 import { ChartEditorPanel } from "@/components/editor/ChartEditorPanel";
 import type { ChartType, ChartData } from "@/types/chart";
 import { SLIDE_TYPES, STARTER_CONTENT, COMPONENTS } from "@/constants/slideTemplates";
+import {
+  TEMPLATE_FAMILIES,
+  TEMPLATE_FAMILY_MAP,
+  TEMPLATE_FAMILY_ORDER,
+} from "@/constants/templateFamilies";
 
 interface TemplatesPanelProps {
   runId: string | null;
@@ -24,6 +29,38 @@ export function TemplatesPanel({ runId, angleIndex, onSlideCreated, onInsertChar
   const [creating, setCreating] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
   const [chartEditorOpen, setChartEditorOpen] = useState(false);
+
+  // ── Collapsible family groups — state persisted in localStorage ──────────────
+  const [collapsedFamilies, setCollapsedFamilies] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const stored = localStorage.getItem("editor_family_collapsed");
+      return stored ? new Set(JSON.parse(stored) as string[]) : new Set();
+    } catch { return new Set(); }
+  });
+
+  const toggleFamily = useCallback((familyId: string) => {
+    setCollapsedFamilies(prev => {
+      const next = new Set(prev);
+      next.has(familyId) ? next.delete(familyId) : next.add(familyId);
+      try { localStorage.setItem("editor_family_collapsed", JSON.stringify([...next])); } catch { /* noop */ }
+      return next;
+    });
+  }, []);
+
+  // Group SLIDE_TYPES by family, preserving order within each family
+  const slidesByFamily: Record<string, typeof SLIDE_TYPES> = {};
+  const unclassified: typeof SLIDE_TYPES = [];
+  for (const t of SLIDE_TYPES) {
+    const key = t.template ?? t.type;
+    const familyId = TEMPLATE_FAMILY_MAP[key];
+    if (familyId) {
+      if (!slidesByFamily[familyId]) slidesByFamily[familyId] = [];
+      slidesByFamily[familyId].push(t);
+    } else {
+      unclassified.push(t);
+    }
+  }
   const [selectedChartType, setSelectedChartType] = useState<ChartType>("column");
 
   const { createRun } = useBlankRunCreation();
@@ -130,36 +167,96 @@ export function TemplatesPanel({ runId, angleIndex, onSlideCreated, onInsertChar
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
 
-        {/* ── Slide types ─────────────────────────────────────────────── */}
+        {/* ── Slide types — grouped by family ─────────────────────────── */}
         {activeTab === "slides" && (
-          <div className="space-y-3">
-            <p className="text-[10px] text-zinc-600 leading-relaxed">
-              Click a type to add a new slide to the current post.
+          <div className="space-y-1">
+            <p className="text-[10px] text-zinc-600 leading-relaxed mb-2">
+              Click a slide to add it to the current post.
             </p>
-            <div className="grid grid-cols-2 gap-2">
-              {SLIDE_TYPES.map((t, idx) => (
-                <button
-                  key={t.template ?? `${t.type}-${idx}`}
-                  data-slide-type={t.template ?? t.type}
-                  onClick={() => createSlideWithType(t.type, t.template)}
-                  disabled={creating === (t.template ?? t.type)}
-                  className="flex flex-col items-start gap-1.5 p-3 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-600 hover:scale-[1.02] hover:shadow-lg hover:shadow-black/50 active:scale-[0.98] transition-all duration-150 group"
-                >
-                  <div className="w-full h-1.5 rounded-full" style={{ background: t.color, opacity: 0.9 }} />
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">{t.emoji}</span>
-                    {creating === (t.template ?? t.type)
-                      ? <Loader2 size={11} className="animate-spin text-zinc-500" />
-                      : null
-                    }
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-bold text-zinc-300 group-hover:text-white transition-colors">{t.label}</p>
-                    <p className="text-[10px] text-zinc-600">{t.desc}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
+
+            {/* Family groups in defined order */}
+            {TEMPLATE_FAMILY_ORDER.map(familyId => {
+              const family = TEMPLATE_FAMILIES[familyId];
+              const templates = slidesByFamily[familyId] ?? [];
+              if (!family || templates.length === 0) return null;
+              const isCollapsed = collapsedFamilies.has(familyId);
+              return (
+                <div key={familyId} className="mb-1">
+                  {/* Family header — clickable to toggle */}
+                  <button
+                    onClick={() => toggleFamily(familyId)}
+                    className="w-full flex items-center gap-2 px-1.5 py-1.5 rounded-lg hover:bg-zinc-800/60 transition-all group text-left"
+                  >
+                    <div
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ background: family.color === "#1B1B1B" || family.color === "#0D0D0D" ? "#888" : family.color }}
+                    />
+                    <span className="text-[11px] font-bold text-zinc-400 group-hover:text-zinc-200 flex-1 transition-colors">
+                      {family.label}
+                    </span>
+                    <span className="text-[9px] text-zinc-700 tabular-nums">{templates.length}</span>
+                    <ChevronRight
+                      size={10}
+                      className={`text-zinc-700 group-hover:text-zinc-500 flex-shrink-0 transition-transform duration-150 ${isCollapsed ? "" : "rotate-90"}`}
+                    />
+                  </button>
+
+                  {/* Collapsible tile grid */}
+                  {!isCollapsed && (
+                    <div className="grid grid-cols-2 gap-2 mt-1.5 mb-2 px-0.5">
+                      {templates.map((t, idx) => (
+                        <button
+                          key={t.template ?? `${t.type}-${idx}`}
+                          data-slide-type={t.template ?? t.type}
+                          onClick={() => createSlideWithType(t.type, t.template)}
+                          disabled={creating === (t.template ?? t.type)}
+                          className="flex flex-col items-start gap-1.5 p-3 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-600 hover:scale-[1.02] hover:shadow-lg hover:shadow-black/50 active:scale-[0.98] transition-all duration-150 group"
+                        >
+                          <div className="w-full h-1.5 rounded-full" style={{ background: t.color, opacity: 0.9 }} />
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">{t.emoji}</span>
+                            {creating === (t.template ?? t.type) && (
+                              <Loader2 size={11} className="animate-spin text-zinc-500" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-[11px] font-bold text-zinc-300 group-hover:text-white transition-colors">{t.label}</p>
+                            <p className="text-[10px] text-zinc-600">{t.desc}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Any templates not in a known family */}
+            {unclassified.length > 0 && (
+              <div className="mt-2">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-700 px-1 mb-1.5">Other</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {unclassified.map((t, idx) => (
+                    <button
+                      key={t.template ?? `${t.type}-${idx}`}
+                      data-slide-type={t.template ?? t.type}
+                      onClick={() => createSlideWithType(t.type, t.template)}
+                      disabled={creating === (t.template ?? t.type)}
+                      className="flex flex-col items-start gap-1.5 p-3 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-600 transition-all duration-150 group"
+                    >
+                      <div className="w-full h-1.5 rounded-full" style={{ background: t.color, opacity: 0.9 }} />
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">{t.emoji}</span>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-bold text-zinc-300 group-hover:text-white transition-colors">{t.label}</p>
+                        <p className="text-[10px] text-zinc-600">{t.desc}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

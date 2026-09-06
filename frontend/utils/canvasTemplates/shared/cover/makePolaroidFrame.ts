@@ -151,7 +151,7 @@ export async function makePolaroidFrame(
   const group = new fabric.Group(objects, {
     selectable: true,
     evented: true,
-    interactive: true,
+    interactive: true, subTargetCheck: true,
     objectCaching: true,
     shadow: new fabric.Shadow({
       color: "rgba(0,0,0,0.18)",

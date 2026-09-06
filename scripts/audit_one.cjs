@@ -37,9 +37,10 @@ const DECO_ROLES = new Set([
   "compact_bg", "editorial_bg", "dark_bg", "aurora_bg",
   "bg_overlay", "glass_overlay", "gradient_overlay", "glow_overlay",
   "bg_glow_0", "bg_glow_1", "bg_glow_2",
-  // Brand bar bottom strip — intentionally non-selectable structural elements
+  // Brand bar bottom strip — structural decorative elements
+  // brand_name and brand_logo are now selectable (Phase 2.7) — removed from deco list
   "brand_bar_bg", "brand_bar_border", "progress_bar",
-  "brand_name", "brand_logo",
+  "brand_logo",  // logo image stays non-selectable (it's a decorative circular image)
   // Decorative glyphs
   "compact_deco_quote",
   // Dot progress internals

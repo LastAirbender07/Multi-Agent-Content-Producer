@@ -90,27 +90,27 @@ export async function buildAuroraCompactCleanCta(
   objects.push(catPill);
 
   // ── 3. Headline (Inter Black, centred) ────────────────────────────────────────
+  // TWO-PASS: build at top=0, measure, then position.
   const padX    = tokens.padX;
   const headlineW = CANVAS_SIZE - padX * 2;  // 904px
   const headlineY = 265;
   const headline = makeMixedWeightText({
     runs:      m.headline_runs,
     x:         padX,
-    y:         headlineY,
+    y:         0,             // placeholder — set after height probe
     size:      m.headline_size,
     maxWidth:  headlineW,
     tokens,
     lineHeight: 1.05,
     align:     "center",
   });
-  headline.set({ left: padX, textAlign: "center" });
+  const realHeadlineH = headline.calcTextHeight();
+  headline.set({ left: padX, top: headlineY, textAlign: "center" });
   setData(headline, { role: "compact_headline" });
   objects.push(headline);
 
   // ── 4. Sub-text — muted, centred, below headline ──────────────────────────────
-  // Compute approximate headline height (line-height × size × lines)
-  const approxHeadlineH = m.headline_size * 1.05 * Math.ceil((headline.text?.length ?? 20) / 22);
-  const subY = headlineY + Math.max(approxHeadlineH, m.headline_size * 1.2) + 52;
+  const subY = headlineY + realHeadlineH + 52;
   const sub = new fabric.Textbox(m.sub_text, {
     left:       padX,
     top:        subY,

@@ -10,6 +10,7 @@ import type { ChartType, ChartData } from "@/types/chart";
 import { useCanvasHistory } from "./useCanvasHistory";
 import { useCanvasCheckpoint } from "./useCanvasCheckpoint";
 import { addImageToCanvas, addComponentToCanvas } from "./canvasDropHandlers";
+import { enterCropMode, cropPanMoveHandler, renderGhostImage } from "@/utils/fabricCrop";
 import { loadSlide } from "./canvasSlideLoader";
 
 // Disable WebGL — avoids cross-origin texture errors for canvas2d filters
@@ -72,6 +73,8 @@ export function FabricCanvas({
   const outerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<fabric.Canvas | null>(null);
   const loadTokenRef = useRef(0);
+  // Tracks whether an image is currently in crop mode (for Escape key handler)
+  const cropModeImageRef = useRef<fabric.FabricImage | null>(null);
 
   const [scale, setScale] = useState(1);
   const fitScaleRef = useRef(1);
@@ -215,7 +218,84 @@ export function FabricCanvas({
     });
     c.on("text:editing:exited", () => { if (isViewOnlyRef.current) return; commit("text edit"); onCanvasChanged(); });
 
-    return () => { c.off(); c.dispose(); canvasRef.current = null; };
+    // ── Crop mode: double-click any FabricImage → Fabric v7 native crop UX ────────
+    // Uses enterCropMode from fabricCrop.ts (inlined from fabric/extensions).
+    // What this gives the user:
+    //   • Ghost overlay — full image at 50% opacity OUTSIDE the crop window
+    //   • 4 corner handles — scale image within source pixel bounds
+    //   • 4 edge handles — crop from each edge (moves boundary in/out)
+    //   • Drag body — pans cropX/cropY, image position stays fixed
+    //   • Second double-click — exits crop mode, bakes cropX/cropY
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    c.on("mouse:dblclick", (e: any) => {
+      if (isViewOnlyRef.current) return;
+      const target = e.target as fabric.FabricObject | null;
+      if (!target || target.type !== "image" || !target.selectable) return;
+      // If already in crop mode for this image, exit instead of re-entering
+      if (cropModeImageRef.current === target) {
+        _exitCropMode(target as fabric.FabricImage, c);
+        return;
+      }
+      cropModeImageRef.current = target as fabric.FabricImage;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      enterCropMode.call(undefined as unknown as () => void, { target } as any);
+      c.requestRenderAll();
+    });
+
+    // ── Multi-select fix: remove decorative objects from group selections ────────
+    // When shift-clicking multiple objects, slide background elements (bg_overlay,
+    // glass_overlay etc.) get included and move with the selection — wrong.
+    // Remove them so only content objects are grouped/moved together.
+    const DECO_ROLES_SET = new Set([
+      "compact_bg","editorial_bg","dark_bg","aurora_bg",
+      "bg_overlay","glass_overlay","gradient_overlay",
+      "bg_glow_0","bg_glow_1","brand_bar_bg","brand_bar_border",
+      "progress_bar","brand_logo","editorial_border","editorial_rule",
+      "compact_deco_quote",
+    ]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    c.on("selection:created", (e: any) => {
+      const sel = c.getActiveObject();
+      if (!sel || sel.type !== "activeselection") return;
+      const activesel = sel as fabric.ActiveSelection;
+      const decos = activesel.getObjects().filter(o =>
+        DECO_ROLES_SET.has((o as fabric.FabricObject & { data?: { role?: string } }).data?.role ?? "")
+      );
+      if (decos.length > 0 && decos.length < activesel.getObjects().length) {
+        decos.forEach(o => activesel.remove(o));
+        c.requestRenderAll();
+      }
+    });
+
+    // Helper to directly exit crop mode — used by Escape key and second-dblclick
+    // Removes crop listeners and restores standard resize handles.
+    function _exitCropMode(img: fabric.FabricImage, canvas: fabric.Canvas) {
+      img.off("moving", cropPanMoveHandler);
+      img.off("before:render", renderGhostImage);
+      // Restore standard controls by resetting to Fabric defaults
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      img.controls = (fabric.FabricObject as any).ownDefaults?.controls ??
+                     (fabric.InteractiveFabricObject as unknown as { ownDefaults?: { controls?: object } })?.ownDefaults?.controls ??
+                     {};
+      img.padding = 0;
+      img.setCoords();
+      cropModeImageRef.current = null;
+      canvas.requestRenderAll();
+    }
+
+    // ── Escape key — exit crop mode ─────────────────────────────────────────────
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && cropModeImageRef.current) {
+        _exitCropMode(cropModeImageRef.current, c);
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      c.off(); c.dispose(); canvasRef.current = null;
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -15,10 +15,17 @@ interface SlidePngPreviewProps {
    * shows the freshly re-rendered image instead of the browser-cached copy.
    */
   versionQuery?: string;
+  /**
+   * Optional canvas data URL captured immediately after a canvas save.
+   * When present, shown instead of the disk PNG — gives instant visual feedback
+   * of the user's edits without waiting for the Playwright re-render.
+   * Cleared when the user navigates to a different slide.
+   */
+  cachedDataUrl?: string;
 }
 
 export function SlidePngPreview({
-  runId, angleIndex, slideNumber, onEnterEditMode, versionQuery,
+  runId, angleIndex, slideNumber, onEnterEditMode, versionQuery, cachedDataUrl,
 }: SlidePngPreviewProps) {
   const [pngUrl, setPngUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,6 +73,11 @@ export function SlidePngPreview({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId, angleIndex, slideNumber, versionQuery]);
 
+  // If a fresh canvas data URL is available from a recent save, prefer it over the
+  // stale disk PNG. The disk PNG will still load in the background via versionQuery
+  // and will replace the data URL once the Playwright re-render completes.
+  const displayUrl = cachedDataUrl ?? pngUrl;
+
   if (hasCanvas) return null;
 
   return (
@@ -76,10 +88,10 @@ export function SlidePngPreview({
         </div>
       )}
 
-      {!loading && pngUrl && (
+      {!loading && displayUrl && (
         <div className="relative group">
           <img
-            src={pngUrl}
+            src={displayUrl}
             alt={`Slide ${slideNumber}`}
             className="max-h-[calc(100vh-120px)] max-w-full object-contain"
             style={{
@@ -104,7 +116,7 @@ export function SlidePngPreview({
         </div>
       )}
 
-      {!loading && !pngUrl && isEditable && (
+      {!loading && !displayUrl && isEditable && (
         <div className="flex flex-col items-center gap-4 text-center">
           <p className="text-zinc-500 text-sm">No preview available for this slide.</p>
           <button
@@ -126,7 +138,7 @@ export function SlidePngPreview({
       )}
 
       {/* Always-visible Edit button at bottom — editable slides only */}
-      {!loading && pngUrl && isEditable && (
+      {!loading && displayUrl && isEditable && (
         <button
           onClick={onEnterEditMode}
           className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-2 px-5 py-2 rounded-xl bg-zinc-800/90 hover:bg-violet-600 border border-zinc-700 hover:border-violet-500 text-zinc-300 hover:text-white font-semibold text-xs transition-all backdrop-blur-sm"

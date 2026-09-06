@@ -24,12 +24,13 @@
  */
 
 export interface TemplateFamilySlides {
-  hook?:    string;
-  content?: string;
-  stat?:    string;
-  quote?:   string;
-  cta?:     string;
-  engage?:  string;
+  hook?:     string;
+  hook_alt?: string;   // second hook variant (e.g. images cover vs phone cover)
+  content?:  string;
+  stat?:     string;
+  quote?:    string;
+  cta?:      string;
+  engage?:   string;
 }
 
 export interface TemplateFamily {
@@ -112,9 +113,52 @@ export const TEMPLATE_FAMILIES: Record<string, TemplateFamily> = {
       engage:  "aurora-nextwork-dark-engage",
     },
   },
+
+  // ── 5. Cover Hero ────────────────────────────────────────────────────────────
+  // Metallic peach gradient with phone mockup or image pair — carousel openers.
+  // Best for: high-impact opening slides, product showcases, visual storytelling.
+  "cover-hero": {
+    id:          "cover-hero",
+    label:       "Cover Hero",
+    description: "Metallic peach gradient with phone or image-pair — cinematic carousel openers.",
+    color:       "#C8956C",
+    slides: {
+      hook:     "aurora-carousel-cover-hero-phone",
+      hook_alt: "aurora-carousel-cover-hero-images",
+    },
+  },
 };
 
-// ── Ordered list for UI rendering ──────────────────────────────────────────────
+// ── Template → Family reverse map ──────────────────────────────────────────────
+/**
+ * Reverse-maps every template key to its familyId.
+ * e.g. { "aurora-hook": "aurora-extended", "aurora-compact-hook": "compact-clean", ... }
+ * Used by TemplatesPanel to group tiles into collapsible family sections.
+ */
+export function buildTemplateFamilyMap(): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const [familyId, family] of Object.entries(TEMPLATE_FAMILIES)) {
+    for (const templateKey of Object.values(family.slides)) {
+      if (templateKey) map[templateKey] = familyId;
+    }
+  }
+  return map;
+}
+
+export const TEMPLATE_FAMILY_MAP: Record<string, string> = buildTemplateFamilyMap();
+
+/** Ordered family IDs for consistent display in the Templates panel */
+export const TEMPLATE_FAMILY_ORDER = [
+  "aurora-extended",
+  "compact-clean",
+  "editorial",
+  "nextwork-dark",
+  "cover-hero",
+] as const;
+
+export type TemplateFamilyOrderId = typeof TEMPLATE_FAMILY_ORDER[number];
+
+// ── Ordered list for UI rendering (legacy — kept for backward compat) ──────────
 // Used by Brand Settings picker to show families in intended display order.
 export const TEMPLATE_FAMILY_IDS = [
   "aurora-extended",

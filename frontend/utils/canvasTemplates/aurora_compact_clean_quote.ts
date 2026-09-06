@@ -70,8 +70,8 @@ export async function buildAuroraCompactCleanQuote(
 
   // ── 2. Decorative quotation mark — oversized, peach, top-left anchor ─────────
   // Not the body text's opening quote — a distinct visual design element.
-  // Using typographic left double quotation mark "“"
-  const decoQuote = new fabric.Textbox("“", {
+  // Using typographic left double quotation mark """
+  const decoQuote = new fabric.Textbox("\u201c", {
     left:       72,
     top:        80,
     width:      300,
@@ -89,12 +89,13 @@ export async function buildAuroraCompactCleanQuote(
   objects.push(decoQuote);
 
   // ── 3. Quote body — Playfair Bold Italic, centred ─────────────────────────────
+  // TWO-PASS: build at top=0, measure real height, then position.
   const padX    = tokens.padX;          // 88
   const quoteW  = CANVAS_SIZE - padX * 2;  // 904
   const quoteY  = 340;
-  const quoteBody = new fabric.Textbox(`“${m.quote_text}”`, {
+  const quoteBody = new fabric.Textbox(`"${m.quote_text}"`, {
     left:       padX,
-    top:        quoteY,
+    top:        0,            // placeholder — set after height probe
     width:      quoteW,
     fontFamily: tokens.fontSerif,
     fontStyle:  "italic",
@@ -106,14 +107,13 @@ export async function buildAuroraCompactCleanQuote(
     originX:    "left" as const,
     originY:    "top" as const,
   });
+  const realQuoteH = quoteBody.calcTextHeight();
+  quoteBody.set({ top: quoteY });
   setData(quoteBody, { role: "compact_quote_body" });
   objects.push(quoteBody);
 
-  // ── 4. Attribution — Inter 400, muted, centred, below quote ──────────────────
-  // Approximate quote height: lines × size × lineHeight
-  const estLines       = Math.ceil((m.quote_text.length / 38));  // ~38 chars per line at 56pt/904px
-  const estQuoteHeight = estLines * m.quote_size * 1.25;
-  const attrY          = quoteY + estQuoteHeight + 48;
+  // ── 4. Attribution — Inter 400, muted, centred, below real quote bottom ───────
+  const attrY = quoteY + realQuoteH + 48;
   const attribution    = new fabric.Textbox(m.attribution, {
     left:       padX,
     top:        attrY,

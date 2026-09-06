@@ -48,8 +48,8 @@ export function makeOutlinedPill(opts: MakeOutlinedPillOpts): fabric.Group {
   const textW = probe.width ?? 0;
   const width = Math.round(padding * 2 + textW);
 
-  // Both children centered at the pill's geometric centre (width/2, height/2).
-  // Group originX "left" means group.left = left edge of pill.
+  // bg is the decorative pill shape — not user-editable.
+  // label is the user-editable text — selectable:true enables double-click editing.
   const bg = new fabric.Rect({
     left: width / 2, top: height / 2,
     originX: "center", originY: "center",
@@ -58,7 +58,7 @@ export function makeOutlinedPill(opts: MakeOutlinedPillOpts): fabric.Group {
     fill: fillColor,
     stroke: strokeColor,
     strokeWidth,
-    selectable: false,
+    selectable: false, evented: false,
   });
 
   const label = new fabric.Text(text.toUpperCase(), {
@@ -69,7 +69,7 @@ export function makeOutlinedPill(opts: MakeOutlinedPillOpts): fabric.Group {
     fontWeight: 700,
     fill: textColor,
     charSpacing: letterSpacing,
-    selectable: false,
+    selectable: true, evented: true,
   });
 
   const group = new fabric.Group([bg, label], {
@@ -77,7 +77,8 @@ export function makeOutlinedPill(opts: MakeOutlinedPillOpts): fabric.Group {
     top: y,
     originX: "left",
     originY: "top",
-    subTargetCheck: false,
+    interactive: true,
+    subTargetCheck: true,
   });
   group.setCoords();
   return group;

@@ -111,11 +111,15 @@ export async function buildAuroraEditorialHook(
   objects.push(handle, series, rule);
 
   // ── 4. Playfair Bold Italic headline — left, large, below header ──────────────
+  // TWO-PASS layout: create headline first (top=0), measure real height via
+  // calcTextHeight(), THEN position it and place body below it.
+  // char-count estimates are unreliable for Playfair Display at large sizes —
+  // the font is significantly wider than Inter and wraps earlier than expected.
   const headlineY = 145;
   const headlineW = CANVAS_SIZE - PAD_X * 2;
   const headline  = new fabric.Textbox(m.headline, {
     left:       PAD_X,
-    top:        headlineY,
+    top:        0,            // placeholder — will be set after height probe
     width:      headlineW,
     fontFamily: tokens.fontSerif,    // Playfair Display
     fontStyle:  "italic",
@@ -127,14 +131,15 @@ export async function buildAuroraEditorialHook(
     originX:    "left" as const,
     originY:    "top" as const,
   });
+
+  // Measure real rendered height — includes all wrapped lines
+  const realHeadlineH = headline.calcTextHeight();
+  headline.set({ top: headlineY });
   setData(headline, { role: "editorial_headline" });
   objects.push(headline);
 
-  // ── 5. Body line — Inter 400, muted, below headline ──────────────────────────
-  // Approximate headline height for stacking
-  const estHeadlineLines  = Math.ceil((m.headline.length / 30));   // ~30 chars/line at 88pt
-  const estHeadlineHeight = estHeadlineLines * m.headline_size * 1.18;
-  const bodyY             = headlineY + estHeadlineHeight + 40;
+  // ── 5. Body line — Inter 400, muted, placed below real headline bottom ────────
+  const bodyY = headlineY + realHeadlineH + 44;
 
   const body = new fabric.Textbox(m.body, {
     left:       PAD_X,

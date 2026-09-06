@@ -3,7 +3,7 @@ import type { CanvasTokens } from "@/utils/canvasTokens";
 import type { SlideData } from "@/lib/api";
 import type { SlideMeta } from "./index";
 import { COMPACT_TOKENS } from "./shared/design_tokens";
-import { setData } from "./shared";
+import { setData, resolveAssetUrl } from "./shared";
 
 const CANVAS_SIZE = 1080;
 
@@ -65,7 +65,7 @@ export async function buildAuroraCompactQuote(
   const m: Required<CompactQuoteMeta> = { ...DEFAULTS, ...(slide.compact_meta ?? {}) };
 
   const objects: fabric.FabricObject[] = [];
-  const resolvedPortrait = imageUrl ?? m.image_url ?? m.portrait_url ?? null;
+  const resolvedPortrait = resolveAssetUrl(imageUrl ?? m.image_url ?? m.portrait_url ?? null);
 
   // ── 1. Cream outer canvas ─────────────────────────────────────────────────
   objects.push(new fabric.Rect({

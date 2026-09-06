@@ -6,6 +6,42 @@
 
 ---
 
+## 2026-09-06 — Phase 2.5 visual audit + layout fixes; Phases 2.6/2.7/2.8 planned
+
+**Visual audit method:** Playwright screenshots at 1080×1080, pixel-scanning each template for correct background, all text regions present, no overlaps.
+
+**Root cause of editorial-hook overlap (reported by user):**
+`aurora_editorial_hook.ts` used char-count estimation (`Math.ceil(len/30)`) to place body text below headline. Playfair Display Bold Italic at 88pt is significantly wider than Inter — the 54-char default headline wrapped to 3 lines (not 2), placing headline bottom at y≈456px. Body was placed at y=392 (inside the headline). Fix: two-pass layout using `calcTextHeight()` to measure the real rendered height before positioning body.
+
+**Same fix applied to:** `aurora_editorial_cta.ts` (hairline+follow placement), `aurora_compact_clean_cta.ts` (sub-text placement), `aurora_compact_clean_quote.ts` (attribution placement).
+
+**Other fixes:**
+- `compact_deco_quote` Textbox: `selectable:true` → `selectable:false, evented:false` (decorative glyph, not user content)
+- `editorial_header` forEach role split → per-element roles (`editorial_handle`, `editorial_series`, `editorial_rule`)
+- 4 compact droppers: added `data.role`, `interactive:true`
+- curly-quote bug in `aurora_compact_clean_quote.ts` fixed (U+201C/U+201D → ASCII + `“` escape for intentional typographic glyph)
+
+**New issues identified (not yet fixed — tracked in phases):**
+- Brand pill and outlined pill text children are `selectable:false` — users cannot edit wordmark/label text → **Phase 2.7**
+- Dual rendering: PNG thumbnail shows old Playwright-generated state; canvas shows new live state → **Phase 2.7**
+- No machine-readable content specs per template for LLM content generation → **Phase 2.8**
+- Image slot crop/pan not implemented — users can't reposition photo within phone/polaroid/image-pair → **Phase 2.6**
+
+**New protocol files:**
+- `Docs/protocol/EDITOR_UI_TEST_PROTOCOL.md` — hands-dirty browser test protocol (768 lines), replaces GAN scores
+- `Docs/protocol/AUDIT_TRACKER.md` — per-item pass/fail log
+- `scripts/audit_one.cjs` — reusable Playwright audit script
+
+**New phase plans:**
+- `PHASE_2.6_image_slot_crop_pan.md` — APPROVED
+- `PHASE_2.7_editor_editability_fixes.md` — APPROVED  
+- `PHASE_2.8_template_content_schema.md` — APPROVED
+
+**Priority order for implementation:** 2.7 → 2.8 → 2.6 → 3
+(2.7 fixes real user-facing editing bugs; 2.8 unblocks Phase 3; 2.6 is UX enhancement)
+
+---
+
 ## 2026-08-30 — Phase 2.5 APPROVED (v2): family model + 29-component panel
 
 **Corrected from v1 after user feedback ("don't redesign existing templates; there are more than 6 missing components").**

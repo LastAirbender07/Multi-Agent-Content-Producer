@@ -54,6 +54,9 @@ function EditorContent() {
   const [totalSlides, setTotalSlides] = useState(1);
   const [currentSlideOverrides, setCurrentSlideOverrides] = useState<Record<string, string>>({});
   const [currentCanvasTemplate, setCurrentCanvasTemplate] = useState<string | undefined>();
+  // After a canvas save, store the canvas data-URL so SlidePngPreview shows
+  // the freshly-edited state instead of the stale Playwright-generated PNG.
+  const [cachedCanvasDataUrl, setCachedCanvasDataUrl] = useState<string | null>(null);
 
   function navigateTo(rid: string, v: "slide" | "blog", angle?: number, slide?: number) {
     const p = new URLSearchParams();
@@ -74,6 +77,7 @@ function EditorContent() {
     setSelectedObject(null);
     setCurrentSlideOverrides({});
     setCurrentCanvasTemplate(undefined);
+    setCachedCanvasDataUrl(null); // clear cached preview when switching slides
     try {
       const m = await api.getRunManifest(rid);
       setTopic(m.topic);
@@ -113,11 +117,20 @@ function EditorContent() {
     setSaveError(null);
     try {
       const json = api_.getCanvasJson();
+      // Snapshot the canvas to a data URL BEFORE the async save — gives instant
+      // visual feedback in preview mode without waiting for Playwright re-render.
+      const liveCanvas = api_.getCanvas();
+      if (liveCanvas) {
+        try {
+          const dataUrl = liveCanvas.toDataURL({ format: "png", multiplier: 1 });
+          setCachedCanvasDataUrl(dataUrl);
+        } catch { /* non-fatal — preview just shows old PNG */ }
+      }
       const result = await api.saveCanvas(selectedRunId, selectedAngle, selectedSlide, json);
       // Clear checkpoint
       const cpKey = `canvas_cp_${selectedRunId}_${selectedAngle}_${selectedSlide}`;
       localStorage.removeItem(cpKey);
-      // Cache-bust the PNG preview when the user returns to view mode
+      // Cache-bust the backend-rendered PNG (replaces data URL when it loads)
       if (result.version_query) setLatestVersionQuery(result.version_query);
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 2000);
@@ -324,6 +337,7 @@ function EditorContent() {
                     slideNumber={selectedSlide!}
                     onEnterEditMode={enterEditMode}
                     versionQuery={latestVersionQuery ?? undefined}
+                    cachedDataUrl={cachedCanvasDataUrl ?? undefined}
                   />
                 )}
 

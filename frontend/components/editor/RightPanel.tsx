@@ -5,6 +5,7 @@ import { TextPropertyPanel } from "@/components/editor/panels/TextPropertyPanel"
 import { ImagePropertyPanel } from "@/components/editor/panels/ImagePropertyPanel";
 import { BulletsPropertyPanel } from "@/components/editor/panels/BulletsPropertyPanel";
 import { CanvasPropertyPanel } from "@/components/editor/panels/CanvasPropertyPanel";
+
 import type { ChartType, ChartData, ChartObjectData } from "@/types/chart";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type FabricCanvas = any;

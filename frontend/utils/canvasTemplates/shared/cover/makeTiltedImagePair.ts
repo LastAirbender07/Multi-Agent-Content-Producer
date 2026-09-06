@@ -91,7 +91,7 @@ export async function makeTiltedImagePair(
   const totalH = Math.max(images[0].height, images[1].height);
 
   const group = new fabric.Group(objects, {
-    selectable: true, evented: true, interactive: true,
+    selectable: true, evented: true, interactive: true, subTargetCheck: true,
   });
 
   // Tag for image-slot protocol — role lets canvasDropHandlers detect this is an

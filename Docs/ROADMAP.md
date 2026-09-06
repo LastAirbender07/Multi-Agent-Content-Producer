@@ -9,16 +9,20 @@
 
 ---
 
-## Where we are now (2026-08-30 — Phase 2.5 APPROVED, ready to implement)
+## Where we are now (2026-09-06 — Phase 2.5 implemented, 2.6/2.7/2.8 planned)
 
 | # | Phase | Status | Detail plan |
 |---|---|---|---|
 | 1 | Editor Canvas Save | ✅ SHIPPED | `PHASE_1_editor_canvas_save.md` |
-| 2 | Compact Template Family (5 core, sequential + GAN-iterate) | ✅ **COMPLETE (2026-08-30)** | [`PHASE_2_compact_templates.md`](phases/PHASE_2_compact_templates.md) |
-| 2.5 | Template Family Cohesion + Component Panel Exposure | 🟡 **APPROVED — Loop 1 complete (2026-08-30), ready to implement** | [`PHASE_2.5_template_families_and_components.md`](phases/PHASE_2.5_template_families_and_components.md) |
-| 3 | Format Plumbing (auto template selection LLM) | ⏸ **PAUSED — waiting on Phase 2.5** (Loop 1 approved but blocked by family enum change) | [`PHASE_3_format_plumbing.md`](phases/PHASE_3_format_plumbing.md) |
-| 4 | Build `editorial` + `nextwork-dark` families | 📝 OUTLINE (was "remaining 5 compact formats" — re-scoped by Phase 2.5) | `PHASE_4_remaining_compact_formats.md` |
-| 5 | UI (format chip) & Analytics | 📝 OUTLINE — needs Loop-1 | `PHASE_5_ui_and_analytics.md` |
+| 2 | Compact Template Family | ✅ **COMPLETE (2026-08-30)** | [`PHASE_2_compact_templates.md`](phases/PHASE_2_compact_templates.md) |
+| 2.5 | Template Family Cohesion + Component Panel | ✅ **IMPLEMENTED (2026-09-06)** — 7 new templates, 15 new components, 4 families. Visual audit complete. | [`PHASE_2.5_template_families_and_components.md`](phases/PHASE_2.5_template_families_and_components.md) |
+| 2.6 | Image Crop Mode (Fabric v7 native) | 🟡 **REVISED + APPROVED** — slot/group approach scrapped; uses `fabric/dist-extensions` crop API | [`PHASE_2.6_revised_image_crop.md`](phases/PHASE_2.6_revised_image_crop.md) |
+| 2.7 | Editor Real Editability Fixes | 🟡 **APPROVED — ready to implement** (brand pill editable, dual-render fix, protocol strengthened) | [`PHASE_2.7_editor_editability_fixes.md`](phases/PHASE_2.7_editor_editability_fixes.md) |
+| 2.8 | Template Content Schema & Rich Metadata | 🟡 **APPROVED — ready to implement** (LLM content specs per template, Phase 3 prerequisite) | [`PHASE_2.8_template_content_schema.md`](phases/PHASE_2.8_template_content_schema.md) |
+| 2.9 | Visual Audit Fixes + Collapsible Family Groups | 🟡 **APPROVED — ready to implement** | [`PHASE_2.9_visual_audit_fixes.md`](phases/PHASE_2.9_visual_audit_fixes.md) |
+| 3 | Format Plumbing (auto template selection LLM) | ⏸ **PAUSED — waiting on Phase 2.8** (needs template specs to route correctly) | [`PHASE_3_format_plumbing.md`](phases/PHASE_3_format_plumbing.md) |
+| 4 | Build remaining editorial + nextwork-dark slides | 📝 OUTLINE | `PHASE_4_remaining_compact_formats.md` |
+| 5 | UI (format chip) & Analytics | 📝 OUTLINE | `PHASE_5_ui_and_analytics.md` |
 | 6A | aurora-editorial-* (SahilBloom style) | ⏸ NOT DRAFTED — family MDs are spec | *(pending Phase 5)* |
 | 6B | aurora-product-* (Anthropic style) | ⏸ NOT DRAFTED — family MDs are spec | *(pending Phase 5)* |
 | 6C | aurora-nextwork-* (dark cinematic) | ⏸ NOT DRAFTED — family MDs are spec | *(pending Phase 5)* |
