@@ -1,6 +1,8 @@
 "use client";
-import { Bold, Italic, AlignLeft, AlignCenter, AlignRight, ChevronUp, ChevronDown, Copy, Trash2, Ungroup } from "lucide-react";
+import { useRef, useCallback } from "react";
+import { Bold, Italic, AlignLeft, AlignCenter, AlignRight, ChevronUp, ChevronDown, Copy, Trash2, Ungroup, ImageIcon } from "lucide-react";
 import type { SelectedObjectInfo } from "@/components/editor/FabricCanvas";
+import { fillImageSlot } from "@/components/editor/canvasDropHandlers";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type FabricCanvas = any;
 
@@ -15,10 +17,47 @@ interface ContextToolbarProps {
 
 const FONT_SIZES = [14, 18, 24, 32, 48, 64, 80];
 
+/** Roles that support the "Replace Photo" slot-fill button */
+const IMAGE_SLOT_ROLES = new Set(["phone_mockup", "image_pair", "polaroid_frame"]);
+
 export function ContextToolbar({ selectedObject, canvas, onChanged, onUngroup, onCommit, style }: ContextToolbarProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Capture the active group BEFORE the file picker opens — opening the picker
+  // blurs the canvas which clears canvas.getActiveObject(), so we must snapshot it.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pendingSlotRef = useRef<any>(null);
+
+  /** Opens OS file picker; captures active object first so blur doesn't lose it */
+  const handleReplacePhoto = useCallback(() => {
+    pendingSlotRef.current = canvas?.getActiveObject() ?? null;
+    fileInputRef.current?.click();
+  }, [canvas]);
+
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+
+    const targetGroup = pendingSlotRef.current;
+    pendingSlotRef.current = null;
+    if (!targetGroup) { console.warn("[ReplacePhoto] no pending slot — was canvas deselected?"); return; }
+
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    await fillImageSlot(canvas, targetGroup, dataUrl);
+    onChanged();
+  }, [canvas, onChanged]);
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const obj: any = canvas?.getActiveObject();
   if (!obj) return null;
+
+  const isImageSlot = IMAGE_SLOT_ROLES.has(selectedObject.role ?? "");
 
   function mutate(updates: Record<string, unknown>) {
     obj.set(updates);
@@ -34,6 +73,14 @@ export function ContextToolbar({ selectedObject, canvas, onChanged, onUngroup, o
       style={style}
       onMouseDown={e => e.stopPropagation()}
     >
+      {/* Hidden file input for Replace Photo */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileChange}
+      />
       {/* Text-specific controls */}
       {isText && (
         <>
@@ -79,6 +126,21 @@ export function ContextToolbar({ selectedObject, canvas, onChanged, onUngroup, o
             <AlignRight size={12} />
           </button>
 
+          <div className="w-px h-3 bg-zinc-700 mx-0.5" />
+        </>
+      )}
+
+      {/* Image-slot: Replace Photo button */}
+      {isImageSlot && (
+        <>
+          <button
+            onClick={handleReplacePhoto}
+            title="Replace photo — opens file picker"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-violet-300 hover:text-white hover:bg-violet-600/40 transition-all"
+          >
+            <ImageIcon size={11} />
+            Replace Photo
+          </button>
           <div className="w-px h-3 bg-zinc-700 mx-0.5" />
         </>
       )}

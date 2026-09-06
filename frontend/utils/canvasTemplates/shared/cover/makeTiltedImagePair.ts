@@ -91,8 +91,23 @@ export async function makeTiltedImagePair(
   const totalH = Math.max(images[0].height, images[1].height);
 
   const group = new fabric.Group(objects, {
-    selectable: false, evented: false,
+    selectable: true, evented: true, interactive: true,
   });
+
+  // Tag for image-slot protocol — role lets canvasDropHandlers detect this is an
+  // image-pair container. filledSlots tracks which slot to fill next (cycles 0→1→0).
+  // slotDimensions stores each slot's width/height for proper image scaling.
+  (group as fabric.Group & { data?: unknown }).data = {
+    role: "image_pair",
+    filledSlots: 0,
+    slotCount: 2,
+    slotDimensions: images.map(img => ({
+      w: img.width,
+      h: img.height,
+      cornerRadius: img.cornerRadius,
+    })),
+  };
+
   group.set({
     left: x + totalW / 2,
     top:  y + totalH / 2,

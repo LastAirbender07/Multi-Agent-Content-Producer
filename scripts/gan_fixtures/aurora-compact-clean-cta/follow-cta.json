@@ -1,0 +1,13 @@
+{
+  "canvas_template": "aurora-compact-clean-cta",
+  "type": "cta",
+  "_theme": "aurora",
+  "title": "Follow for more",
+  "body": "@yourbrand  ·  Every Sunday",
+  "compact_meta": {
+    "pill_text": "FOLLOW FOR MORE",
+    "brand_wordmark": "@yourbrand",
+    "dot_count": 8,
+    "dot_active": 7
+  }
+}

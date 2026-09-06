@@ -129,6 +129,67 @@ const TEMPLATE_METADATA: Record<string, TemplateMeta> = {
     starter: { title: "", body: "", compact_meta: {} },
   },
 
+  // ── Phase 2.5 compact-clean gap-fills ─────────────────────────────────────
+  "aurora-compact-clean-quote": {
+    type: "quote", label: "Compact Quote+", desc: "Cream pull-quote with serif",
+    color: "#E8CBA3", emoji: "💬",
+    starter: { title: "The secret of getting ahead is getting started.", body: "— Mark Twain", compact_meta: {
+      brand_wordmark: "@yourbrand",
+    }},
+  },
+  // ── Phase 2.5 editorial family ────────────────────────────────────────────
+  "aurora-editorial-cta": {
+    type: "cta", label: "Editorial CTA", desc: "Journal-page closing CTA",
+    color: "#1B1B1B", emoji: "✒️",
+    starter: { title: "Follow along.\nMore every week.", body: "Follow @yourbrand", compact_meta: {
+      handle: "@yourbrand",
+      series_title: "Your Series.",
+    }},
+  },
+  "aurora-editorial-hook": {
+    type: "hook", label: "Editorial Hook", desc: "Book-page opening slide",
+    color: "#1B1B1B", emoji: "📖",
+    starter: { title: "The one idea that changed how I think about everything.", body: "A deep-dive into the framework behind it.", compact_meta: {
+      handle: "@yourbrand",
+      series_title: "Your Series.",
+      chapter: "01",
+    }},
+  },
+  "aurora-compact-clean-engage": {
+    type: "engage", label: "Compact Engage", desc: "Save/share action prompt",
+    color: "#E8CBA3", emoji: "🔖",
+    starter: { title: "Save this.", body: "If this helped you, send it to someone who needs it.", compact_meta: {
+      pill_text: "SAVE + SHARE",
+      brand_wordmark: "@yourbrand",
+    }},
+  },
+  "aurora-compact-clean-cta": {
+    type: "cta", label: "Compact CTA", desc: "Clean cream follow CTA",
+    color: "#E8CBA3", emoji: "✨",
+    starter: { title: "Follow for more", body: "@yourbrand  ·  Every Sunday", compact_meta: {
+      pill_text: "FOLLOW FOR MORE",
+      brand_wordmark: "@yourbrand",
+    }},
+  },
+
+  // ── Phase 2.5 nextwork-dark family ───────────────────────────────────────────
+  "aurora-nextwork-dark-cta": {
+    type: "cta", label: "Dark CTA", desc: "Near-black follow CTA",
+    color: "#0D0D0D", emoji: "🌑",
+    starter: { title: "Follow for more.", body: "@yourbrand  ·  Every Sunday", compact_meta: {
+      pill_text: "FOLLOW FOR MORE",
+      brand_wordmark: "@yourbrand",
+    }},
+  },
+  "aurora-nextwork-dark-engage": {
+    type: "engage", label: "Dark Engage", desc: "Near-black save/share slide",
+    color: "#0D0D0D", emoji: "🌑",
+    starter: { title: "Save this.", body: "If this helped you, send it to someone who needs it.", compact_meta: {
+      pill_text: "SAVE THIS",
+      brand_wordmark: "@yourbrand",
+    }},
+  },
+
   // ── Phase 5 Cover-Hero family ──────────────────────────────────────────────
   "aurora-carousel-cover-hero-phone": {
     type: "hook", label: "Cover: Phone", desc: "Tilted phone mockup cover",
@@ -212,25 +273,53 @@ export const STARTER_CONTENT: Record<string, TemplateMeta["starter"]> = Object.f
     )
 );
 
-// ── COMPONENTS: draggable component tiles (unchanged — not registry-driven) ──
+// ── COMPONENTS: draggable component tiles (not registry-driven) ───────────────
 
-export const COMPONENTS = [
-  { id: "brand-bar",        label: "Brand Bar",         desc: "Logo + progress bar",         color: "#7C6EFA" },
-  { id: "dark-card",        label: "Glass Card",         desc: "Frosted dark card",           color: "#2DD4BF" },
-  { id: "stat-block",       label: "Stat Block",         desc: "Big number + label",          color: "#F59E0B" },
-  { id: "quote-block",      label: "Quote Block",        desc: "Insight dot + text",          color: "#EC4899" },
-  { id: "bullet-list",      label: "Bullet List",        desc: "3 numbered bullets",          color: "#10B981" },
-  { id: "accent-line",      label: "Accent Line",        desc: "Gradient divider bar",        color: "#6366F1" },
-  { id: "eyebrow-pill",     label: "Eyebrow Pill",       desc: "Frosted label (on gradient)", color: "#2DD4BF" },
-  { id: "glow-blob",        label: "Glow Blob",          desc: "Radial gradient atmosphere",  color: "#7C6EFA" },
-  { id: "deco-ring",        label: "Deco Ring",          desc: "Decorative circle outline",   color: "#A0A0A0" },
-  { id: "btn-gradient",     label: "Btn: Gradient",      desc: "Filled aurora gradient",      color: "#7C6EFA" },
-  { id: "btn-ghost",        label: "Btn: Ghost",         desc: "White border, white text",    color: "#A0A0A0" },
-  { id: "btn-frosted-glow", label: "Btn: Frosted Glow",  desc: "Glass + glow shadow",         color: "#2DD4BF" },
-  { id: "btn-solid-white",  label: "Btn: Solid White",   desc: "White pill, gradient text",   color: "#FFFFFF" },
-  { id: "btn-dark-pill",    label: "Btn: Dark Pill",     desc: "Dark center, white border",   color: "#444444" },
-  { id: "btn-dark-gradient",label: "Btn: Dark+Gradient", desc: "Dark fill, gradient text",    color: "#6366F1" },
-] as const;
+export interface ComponentTile {
+  id:      string;
+  label:   string;
+  desc:    string;
+  color:   string;
+  section: "aurora" | "compact" | "cover";
+}
+
+export const COMPONENTS: ComponentTile[] = [
+  // ── Aurora Extended primitives ─────────────────────────────────────────────
+  { id: "brand-bar",        label: "Brand Bar",         desc: "Logo + progress bar",         color: "#7C6EFA", section: "aurora" },
+  { id: "dark-card",        label: "Glass Card",         desc: "Frosted dark card",           color: "#2DD4BF", section: "aurora" },
+  { id: "stat-block",       label: "Stat Block",         desc: "Big number + label",          color: "#F59E0B", section: "aurora" },
+  { id: "quote-block",      label: "Quote Block",        desc: "Insight dot + text",          color: "#EC4899", section: "aurora" },
+  { id: "bullet-list",      label: "Bullet List",        desc: "3 numbered bullets",          color: "#10B981", section: "aurora" },
+  { id: "accent-line",      label: "Accent Line",        desc: "Gradient divider bar",        color: "#6366F1", section: "aurora" },
+  { id: "eyebrow-pill",     label: "Eyebrow Pill",       desc: "Frosted label (on gradient)", color: "#2DD4BF", section: "aurora" },
+  { id: "glow-blob",        label: "Glow Blob",          desc: "Radial gradient atmosphere",  color: "#7C6EFA", section: "aurora" },
+  { id: "deco-ring",        label: "Deco Ring",          desc: "Decorative circle outline",   color: "#A0A0A0", section: "aurora" },
+  { id: "btn-gradient",     label: "Btn: Gradient",      desc: "Filled aurora gradient",      color: "#7C6EFA", section: "aurora" },
+  { id: "btn-ghost",        label: "Btn: Ghost",         desc: "White border, white text",    color: "#A0A0A0", section: "aurora" },
+  { id: "btn-frosted-glow", label: "Btn: Frosted Glow",  desc: "Glass + glow shadow",         color: "#2DD4BF", section: "aurora" },
+  { id: "btn-solid-white",  label: "Btn: Solid White",   desc: "White pill, gradient text",   color: "#FFFFFF", section: "aurora" },
+  { id: "btn-dark-pill",    label: "Btn: Dark Pill",     desc: "Dark center, white border",   color: "#444444", section: "aurora" },
+  { id: "btn-dark-gradient",label: "Btn: Dark+Gradient", desc: "Dark fill, gradient text",    color: "#6366F1", section: "aurora" },
+
+  // ── Compact Family primitives ─────────────────────────────────────────────
+  { id: "compact-brand-pill",        label: "Brand Pill",          desc: "Dark pill + wordmark",            color: "#1A1A1A", section: "compact" },
+  { id: "compact-outlined-pill",     label: "Category Pill",       desc: "Peach ALL-CAPS label pill",       color: "#E8CBA3", section: "compact" },
+  { id: "compact-mixed-weight-text", label: "Mixed Weight Text",   desc: "Regular + Black inline mix",      color: "#6B6B6B", section: "compact" },
+  { id: "compact-dot-progress",      label: "Dot Progress",        desc: "Slide progress indicator",        color: "#C9C4BD", section: "compact" },
+  { id: "compact-number-badge",      label: "Number Badge",        desc: "Outlined circle step number",     color: "#1A1A1A", section: "compact" },
+  { id: "compact-editorial-header",  label: "Editorial Header",    desc: "@handle + series title bar",      color: "#3D3D3D", section: "compact" },
+
+  // ── Cover Hero primitives ─────────────────────────────────────────────────
+  { id: "cover-phone-mockup",        label: "Tilted Phone",        desc: "iPhone mockup tilted 8°",         color: "#888888", section: "cover" },
+  { id: "cover-image-pair",          label: "Image Pair",          desc: "Two photos tilted + overlapping", color: "#888888", section: "cover" },
+  { id: "cover-overlay-cards",       label: "Overlay Cards",       desc: "Floating stat cards",             color: "#7C6EFA", section: "cover" },
+  { id: "cover-straddling-title",    label: "Straddling Title",    desc: "White card + chip on top edge",   color: "#FFFFFF", section: "cover" },
+  { id: "cover-metallic-gradient",   label: "Metallic Gradient",   desc: "Peach-to-warm-brown radial bg",   color: "#C8956C", section: "cover" },
+  { id: "cover-display-headline",    label: "Display Headline",    desc: "Inter Black 140pt hero text",     color: "#1A1A1A", section: "cover" },
+  { id: "cover-body-text",           label: "Cover Body Text",     desc: "Supporting copy block",           color: "#6B6B6B", section: "cover" },
+  { id: "cover-italic-cta",          label: "Italic CTA Line",     desc: "Italic serif CTA / swipe text",  color: "#888888", section: "cover" },
+  { id: "cover-polaroid-frame",      label: "Polaroid Frame",      desc: "Photo print — drag image inside", color: "#F5F0E8", section: "cover" },
+];
 
 // ── SLIDE_TEMPLATES: curated quick-strip (EditorLeftPanel) ───────────────────
 // This is intentionally a short hand-picked list for fast access — not auto-derived.

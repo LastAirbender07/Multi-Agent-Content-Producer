@@ -199,24 +199,40 @@ export function TemplatesPanel({ runId, angleIndex, onSlideCreated, onInsertChar
 
         {/* ── Draggable components ─────────────────────────────────────── */}
         {activeTab === "components" && (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <p className="text-[10px] text-zinc-600 leading-relaxed">
               Drag a component onto the canvas to add it to any slide.
             </p>
-            <div className="grid grid-cols-2 gap-1.5">
-              {COMPONENTS.map(c => (
-                <div
-                  key={c.id}
-                  draggable
-                  onDragStart={e => e.dataTransfer.setData("componentId", c.id)}
-                  className="flex flex-col gap-1 p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-600 cursor-grab active:cursor-grabbing transition-all"
-                >
-                  <div className="w-full h-0.5 rounded-full" style={{ background: c.color, opacity: 0.7 }} />
-                  <p className="text-[11px] font-semibold text-zinc-400">{c.label}</p>
-                  <p className="text-[10px] text-zinc-700">{c.desc}</p>
+            {(["aurora", "compact", "cover"] as const).map(section => {
+              const items = COMPONENTS.filter(c => c.section === section);
+              const sectionLabels: Record<typeof section, string> = {
+                aurora:  "Aurora Extended",
+                compact: "Compact Family",
+                cover:   "Cover Hero",
+              };
+              return (
+                <div key={section}>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 mb-1.5 px-0.5">
+                    {sectionLabels[section]}
+                  </p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {items.map(c => (
+                      <div
+                        key={c.id}
+                        data-component-id={c.id}
+                        draggable
+                        onDragStart={e => e.dataTransfer.setData("componentId", c.id)}
+                        className="flex flex-col gap-1 p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-600 cursor-grab active:cursor-grabbing transition-all"
+                      >
+                        <div className="w-full h-0.5 rounded-full" style={{ background: c.color, opacity: 0.7 }} />
+                        <p className="text-[11px] font-semibold text-zinc-400">{c.label}</p>
+                        <p className="text-[10px] text-zinc-700">{c.desc}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
         )}
 

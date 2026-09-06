@@ -82,19 +82,31 @@ export async function makeTiltedPhoneMockup(
   }));
 
   // ── Group + clip to phone shape + shadow ─────────────────────────────────────
+  // clipPath is passed IN the constructor — assigning post-construction triggers
+  // a Fabric v7 _set('canvas', …) propagation onto an unwired Rect (_objects=undefined)
+  // which crashes with "forEach of undefined" on canvas.add(group).
+  // objectCaching:true forces Fabric to use renderCache() path, which initialises
+  // DrawContext with parentClipPaths:[]. Without it, render() calls drawObject({})
+  // and createClipPathLayer crashes on context.parentClipPaths.forEach (Fabric v7 bug).
   const group = new fabric.Group(objects, {
-    selectable: false, evented: false,
+    selectable: true, evented: true, interactive: true,
+    objectCaching: true,
     shadow: new fabric.Shadow({ color: "rgba(0,0,0,0.22)", blur: 28, offsetX: 5, offsetY: 14 }),
+    clipPath: new fabric.Rect({
+      left: -(phoneW / 2), top: -(phoneH / 2),
+      width: phoneW, height: phoneH,
+      rx: cornerRadius, ry: cornerRadius,
+      originX: "left" as const, originY: "top" as const,
+    }),
   });
 
-  // Clip the group to the phone rounded-rect in GROUP local space (0,0 = group center).
-  // This is far more reliable than per-image clipPath inside a group.
-  group.clipPath = new fabric.Rect({
-    left: -phoneW / 2, top: -phoneH / 2,
-    width: phoneW, height: phoneH,
-    rx: cornerRadius, ry: cornerRadius,
-    originX: "left" as const, originY: "top" as const,
-  });
+  // Tag for image-slot protocol
+  (group as fabric.Group & { data?: unknown }).data = {
+    role: "phone_mockup",
+    phoneW,
+    phoneH,
+    cornerRadius,
+  };
 
   group.set({
     left:  phoneX + phoneW / 2,

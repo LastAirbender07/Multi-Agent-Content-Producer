@@ -20,6 +20,16 @@ import { buildAuroraCompactListItem }    from "./aurora_compact_list_item";
 import { buildAuroraCompactQuote }       from "./aurora_compact_quote";
 import { buildAuroraCarouselCoverHeroPhone }  from "./aurora_carousel_cover_hero_phone";
 import { buildAuroraCarouselCoverHeroImages } from "./aurora_carousel_cover_hero_images";
+// Phase 2.5 — compact-clean family gap-fills
+import { buildAuroraCompactCleanCta }         from "./aurora_compact_clean_cta";
+import { buildAuroraCompactCleanQuote }       from "./aurora_compact_clean_quote";
+import { buildAuroraCompactCleanEngage }      from "./aurora_compact_clean_engage";
+// Phase 2.5 — editorial family gap-fills
+import { buildAuroraEditorialHook }           from "./aurora_editorial_hook";
+import { buildAuroraEditorialCta }            from "./aurora_editorial_cta";
+// Phase 2.5 — nextwork-dark family gap-fills
+import { buildAuroraNxtworkDarkCta }          from "./aurora_nextwork_dark_cta";
+import { buildAuroraNxtworkDarkEngage }       from "./aurora_nextwork_dark_engage";
 
 export interface SlideMeta {
   slideNum:    number;
@@ -64,6 +74,16 @@ export const REGISTRY: Record<string, TemplateBuilder> = {
   // Phase 5 cover-hero family
   "aurora-carousel-cover-hero-phone":  buildAuroraCarouselCoverHeroPhone,
   "aurora-carousel-cover-hero-images": buildAuroraCarouselCoverHeroImages,
+  // Phase 2.5 — compact-clean family gap-fills
+  "aurora-compact-clean-cta":          buildAuroraCompactCleanCta,
+  "aurora-compact-clean-quote":        buildAuroraCompactCleanQuote,
+  "aurora-compact-clean-engage":       buildAuroraCompactCleanEngage,
+  // Phase 2.5 — editorial family
+  "aurora-editorial-hook":             buildAuroraEditorialHook,
+  "aurora-editorial-cta":              buildAuroraEditorialCta,
+  // Phase 2.5 — nextwork-dark family
+  "aurora-nextwork-dark-cta":          buildAuroraNxtworkDarkCta,
+  "aurora-nextwork-dark-engage":       buildAuroraNxtworkDarkEngage,
   // Lumina (thin wrappers — same layout, different tokens)
   "lumina-hook":          lw(buildAuroraHook),
   "lumina-content-0":     lw((s,i,t,m) => buildAuroraContent(s,i,t,m, 0)),

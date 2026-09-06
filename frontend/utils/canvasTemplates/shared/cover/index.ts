@@ -1,4 +1,6 @@
 export { makeMetallicGradient, METALLIC_PEACH_MID } from "./makeMetallicGradient";
+export { makePolaroidFrame }                        from "./makePolaroidFrame";
+export type { PolaroidFrameOpts }                   from "./makePolaroidFrame";
 export { makeWhiteCardWithStraddlingTitle }          from "./makeWhiteCardWithStraddlingTitle";
 export { makeDisplayHeadline }                       from "./makeDisplayHeadline";
 export { makeBodyText }                              from "./makeBodyText";

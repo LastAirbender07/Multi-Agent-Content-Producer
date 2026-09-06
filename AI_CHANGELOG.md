@@ -6,6 +6,40 @@
 
 ---
 
+## 2026-08-30 — Phase 2.5 APPROVED (v2): family model + 29-component panel
+
+**Corrected from v1 after user feedback ("don't redesign existing templates; there are more than 6 missing components").**
+
+**Core principle (user direction):** Each existing template is well-crafted. The solution is NOT to homogenise them — it is to group them into families and fill the GAPS (missing slide types) in each family's own visual vocabulary. Every family must cover all slide types so a full carousel can be produced without mixing families.
+
+**Problem 1 — Family coverage model:**
+4 formal families defined, each with an LLM-facing semantic purpose:
+- `aurora-extended` — premium brand storytelling, opinion, thought leadership. Dark glassmorphism. Existing 6 types; missing list/step/compare (Phase 4 gap-fill).
+- `compact-clean` — data-heavy content, tutorials, listicles. Warm cream, Inter Black, peach pill. Existing: hook/fact/step/list-item. **Phase 2.5 adds:** compact-clean-quote, compact-clean-cta, compact-clean-engage.
+- `editorial` — reflective/opinion/wisdom content. SahilBloom book-page aesthetic. Existing: list-item, compact-quote. **Phase 2.5 adds:** editorial-hook, editorial-cta.
+- `nextwork-dark` — technical education, immersive storytelling. Photo bg + white overlay. Existing: step*/stat-hero. **Phase 2.5 adds:** nextwork-dark-cta, nextwork-dark-engage.
+New: `frontend/constants/templateFamilies.ts` — rich metadata constant; feeds Phase 3 routing.
+
+**Problem 2 — Components panel gap (far larger than v1 assumed):**
+Full audit: 29 components are BUILT. Only 15 are registered. Missing 14:
+- **6 compact primitives:** brand-pill, outlined-pill, mixed-weight-text, dot-progress, number-badge, editorial-header-bar
+- **8 cover-hero primitives:** tilted-phone-mockup, tilted-image-pair, overlay-cards, straddling-title, metallic-gradient, display-headline, body-text, italic-cta-line
+Phase 2.5 registers all 14. Editor Components tab goes from 15 → 29 tiles in 3 sections.
+
+**Phase 2.5 scope (29 files, 17 steps):**
+- 7 new template builders (gap-fill slides)
+- 14 new component dropper files
+- Wire 14 cases in canvasDropHandlers.ts
+- Section grouping in TemplatesPanel.tsx (3 sections)
+- `TEMPLATE_FAMILIES` metadata constant
+
+**Docs updated:**
+- `Docs/phases/PHASE_2.5_template_families_and_components.md` — full plan (v2)
+- `Docs/ROADMAP.md` — Phase 2.5 APPROVED row
+- `Docs/phases/MASTER_PLAN_multi_format.md` — corrected Phase 2.5 block + 4-family North Star
+
+---
+
 ## 2026-08-30 — Phase 2 COMPLETE: regression confirmed, 0 new failures
 
 **Playwright regression result:**

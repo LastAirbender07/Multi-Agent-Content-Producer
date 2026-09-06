@@ -26,7 +26,162 @@ import {
   dropBtnDarkGradient,
 } from "./componentDroppers/buttons";
 
+// ── Compact primitive droppers ────────────────────────────────────────────────
+import { dropCompactBrandPill }       from "./componentDroppers/compactBrandPill";
+import { dropCompactOutlinedPill }    from "./componentDroppers/compactOutlinedPill";
+import { dropCompactMixedWeightText } from "./componentDroppers/compactMixedWeightText";
+import { dropCompactDotProgress }     from "./componentDroppers/compactDotProgress";
+import { dropCompactNumberBadge }     from "./componentDroppers/compactNumberBadge";
+import { dropCompactEditorialHeader } from "./componentDroppers/compactEditorialHeader";
+// ── Cover-hero primitive droppers ─────────────────────────────────────────────
+import { dropCoverPhoneMockup }       from "./componentDroppers/coverPhoneMockup";
+import { dropCoverImagePair }         from "./componentDroppers/coverImagePair";
+import { dropCoverOverlayCards }      from "./componentDroppers/coverOverlayCards";
+import { dropCoverStraddlingTitle }   from "./componentDroppers/coverStraddlingTitle";
+import { dropCoverMetallicGradient }  from "./componentDroppers/coverMetallicGradient";
+import { dropCoverDisplayHeadline }   from "./componentDroppers/coverDisplayHeadline";
+import { dropCoverBodyText }          from "./componentDroppers/coverBodyText";
+import { dropCoverItalicCta }         from "./componentDroppers/coverItalicCta";
+import { dropCoverPolaroidFrame }     from "./componentDroppers/coverPolaroidFrame";
+
 import { ASSET_BASE as API_BASE } from "@/lib/api/client";
+
+// ── Type for objects with data metadata ──────────────────────────────────────
+
+type FabricObjectWithData = fabric.FabricObject & {
+  data?: {
+    role?: string;
+    phoneW?: number;
+    phoneH?: number;
+    cornerRadius?: number;
+    innerW?: number;
+    innerH?: number;
+    innerLeft?: number;
+    innerTop?: number;
+    filledSlots?: number;
+    slotCount?: number;
+    slotDimensions?: Array<{ w: number; h: number; cornerRadius: number }>;
+  };
+};
+
+/** Image-slot roles — dropping an image URL onto these fills the slot instead of creating a free image */
+const IMAGE_SLOT_ROLES = new Set(["phone_mockup", "image_pair", "polaroid_frame"]);
+
+// ── fillImageSlot: replace a placeholder / previous photo inside a slot group ─
+
+export async function fillImageSlot(
+  canvas: fabric.Canvas,
+  slotGroup: fabric.Group,
+  imageUrl: string,
+): Promise<void> {
+  const d = (slotGroup as FabricObjectWithData).data;
+  if (!d?.role) return;
+
+  const img = await fabric.FabricImage.fromURL(imageUrl, { crossOrigin: "anonymous" });
+  const iw  = img.width  ?? 400;
+  const ih  = img.height ?? 400;
+
+  if (d.role === "phone_mockup") {
+    // ── Phone screen fill ──────────────────────────────────────────────────
+    // Children live in group-local space where group-center = (0,0).
+    // We grab the existing placeholder's position so we inherit those coords exactly.
+    const phoneW = d.phoneW       ?? 360;
+    const phoneH = d.phoneH       ?? 780;
+    const cr     = d.cornerRadius ?? 44;
+
+    const children = slotGroup.getObjects();
+    const old      = children[0];
+
+    const scale = Math.max(phoneW / iw, phoneH / ih);
+    // Center image at the same center the old placeholder occupied (group-local coords)
+    const cx = old ? (old.left ?? 0) + (phoneW / 2) : 0;
+    const cy = old ? (old.top  ?? 0) + (phoneH / 2) : 0;
+    img.set({
+      left:   cx - (iw * scale) / 2,
+      top:    cy - (ih * scale) / 2,
+      scaleX: scale, scaleY: scale,
+      selectable: true, evented: true,   // double-click group → pan/crop
+      originX: "left" as const, originY: "top" as const,
+    });
+
+    if (old) slotGroup.remove(old);
+    slotGroup.insertAt(0, img);
+    // clipPath shape never changes — no need to reassign; the constructor-set
+    // clipPath persists. Reassigning post-add would trigger another _set propagation crash.
+
+  } else if (d.role === "image_pair") {
+    // ── Image pair slot fill (cycles slot 0 → 1 → 0) ─────────────────────
+    const filledSlots    = d.filledSlots ?? 0;
+    const slotDimensions = d.slotDimensions ?? [
+      { w: 340, h: 460, cornerRadius: 20 },
+      { w: 300, h: 400, cornerRadius: 20 },
+    ];
+    const slotIdx = filledSlots % 2;
+    const slot    = slotDimensions[slotIdx];
+
+    const children = slotGroup.getObjects();
+    const old      = children[slotIdx];
+
+    const scale = Math.max(slot.w / iw, slot.h / ih);
+    img.set({
+      // Inherit position from the placeholder being replaced (already in group-local coords)
+      left:   old ? old.left : 0,
+      top:    old ? old.top  : 0,
+      scaleX: scale, scaleY: scale,
+      angle:  slotIdx === 0 ? -6 : 5,
+      selectable: true, evented: true,   // double-click group → pan/crop
+      originX: "left" as const, originY: "top" as const,
+    });
+
+    // Per-image clip in the image's local space.
+    // With originX:"left", (0,0) = image top-left, so clip starts at (0,0).
+    img.clipPath = new fabric.Rect({
+      left: 0, top: 0,
+      width: slot.w, height: slot.h,
+      rx: slot.cornerRadius, ry: slot.cornerRadius,
+      originX: "left" as const, originY: "top" as const,
+    });
+
+    if (old) slotGroup.remove(old);
+    slotGroup.insertAt(slotIdx, img);
+    d.filledSlots = filledSlots + 1;
+
+  } else if (d.role === "polaroid_frame") {
+    // ── Polaroid inner photo fill ─────────────────────────────────────────
+    // Photo slot is at index 1; its left/top are already in group-local space.
+    const innerW = d.innerW ?? 332;
+    const innerH = d.innerH ?? 336;
+
+    // Index: 0=white bg, 1=photo/placeholder, 2=border overlay, 3=caption
+    const children = slotGroup.getObjects();
+    const photoIdx = 1;
+    const old      = children[photoIdx];
+
+    const scale = Math.max(innerW / iw, innerH / ih);
+    // Center the image at the same center the placeholder occupied
+    const cx = old ? (old.left ?? 0) + (innerW / 2) : 0;
+    const cy = old ? (old.top  ?? 0) + (innerH / 2) : 0;
+    img.set({
+      left:   cx - (iw * scale) / 2,
+      top:    cy - (ih * scale) / 2,
+      scaleX: scale, scaleY: scale,
+      selectable: true, evented: true,   // double-click group → pan/crop
+      originX: "left" as const, originY: "top" as const,
+    });
+    // No per-image clipPath — the group-level outer-frame clip handles overflow.
+    // The photo area is sized (innerH) so it won't spill into the caption zone.
+
+    if (old) slotGroup.remove(old);
+    slotGroup.insertAt(photoIdx, img);
+  }
+
+  // Mark the group's cache as dirty so Fabric re-renders from scratch.
+  // Without this, objectCaching:true groups keep showing the stale cached image.
+  (slotGroup as fabric.Group & { dirty?: boolean }).dirty = true;
+  slotGroup.setCoords();
+  canvas.setActiveObject(slotGroup);
+  canvas.requestRenderAll();
+}
 
 // ── Image drop ────────────────────────────────────────────────────────────────
 
@@ -37,6 +192,14 @@ export async function addImageToCanvas(
   dropY: number,
   canvasSize: number,
 ): Promise<void> {
+  // ── Image-slot protocol: if the active object is a slot container, fill it ──
+  const active = canvas.getActiveObject() as FabricObjectWithData | null;
+  if (active && active.type === "group" && active.data?.role && IMAGE_SLOT_ROLES.has(active.data.role)) {
+    await fillImageSlot(canvas, active as fabric.Group, imageUrl);
+    return;
+  }
+
+  // ── Default: create a free-floating image ─────────────────────────────────
   const naturalSize = await new Promise<{ w: number; h: number }>((resolve) => {
     const el = new Image(); el.crossOrigin = "anonymous";
     el.onload  = () => resolve({ w: el.naturalWidth, h: el.naturalHeight });
@@ -70,7 +233,7 @@ export async function addComponentToCanvas(
   const t = getTokens(`${theme}-hook`);
 
   switch (componentId) {
-    case "brand-bar":         await dropBrandBar(canvas, t, apiBase);                  break;
+    case "brand-bar":         await dropBrandBar(canvas, t, apiBase, dropX, dropY);    break;
     case "dark-card":         await dropGlassCard(canvas, t, dropX, dropY);            break;
     case "stat-block":        await dropStatBlock(canvas, t, dropX, dropY);            break;
     case "quote-block":       await dropQuoteBlock(canvas, t, dropX, dropY);           break;
@@ -88,9 +251,32 @@ export async function addComponentToCanvas(
     case "btn-dark-pill":     await dropBtnDarkPill(canvas, t, dropX, dropY);          break;
     case "btn-dark-gradient": await dropBtnDarkGradient(canvas, t, dropX, dropY);      break;
 
+    // ── Compact primitive droppers ─────────────────────────────────────────────
+    case "compact-brand-pill":        await dropCompactBrandPill(canvas, t, dropX, dropY);       break;
+    case "compact-outlined-pill":     await dropCompactOutlinedPill(canvas, t, dropX, dropY);    break;
+    case "compact-mixed-weight-text": await dropCompactMixedWeightText(canvas, t, dropX, dropY); break;
+    case "compact-dot-progress":      await dropCompactDotProgress(canvas, t, dropX, dropY);     break;
+    case "compact-number-badge":      await dropCompactNumberBadge(canvas, t, dropX, dropY);     break;
+    case "compact-editorial-header":  await dropCompactEditorialHeader(canvas, t, dropX, dropY); break;
+    // ── Cover-hero primitive droppers ──────────────────────────────────────────
+    case "cover-phone-mockup":        await dropCoverPhoneMockup(canvas, t, dropX, dropY);       break;
+    case "cover-image-pair":          await dropCoverImagePair(canvas, t, dropX, dropY);         break;
+    case "cover-overlay-cards":       await dropCoverOverlayCards(canvas, t, dropX, dropY);      break;
+    case "cover-straddling-title":    await dropCoverStraddlingTitle(canvas, t, dropX, dropY);   break;
+    case "cover-metallic-gradient":   await dropCoverMetallicGradient(canvas, t, dropX, dropY);  break;
+    case "cover-display-headline":    await dropCoverDisplayHeadline(canvas, t, dropX, dropY);   break;
+    case "cover-body-text":           await dropCoverBodyText(canvas, t, dropX, dropY);          break;
+    case "cover-italic-cta":          await dropCoverItalicCta(canvas, t, dropX, dropY);         break;
+    case "cover-polaroid-frame":      await dropCoverPolaroidFrame(canvas, t, dropX, dropY);      break;
+
     default:
       console.warn(`Unknown component: ${componentId}`);
   }
 
-  canvas.renderAll();
+  // Guard against canvas being disposed/destroyed between the async dropper and renderAll.
+  // Fabric v7 sets canvas.destroyed = true on .dispose(); _objects becomes undefined.
+  const c = canvas as fabric.Canvas & { destroyed?: boolean; _objects?: unknown[] };
+  if (c && !c.destroyed && Array.isArray(c._objects)) {
+    canvas.renderAll();
+  }
 }

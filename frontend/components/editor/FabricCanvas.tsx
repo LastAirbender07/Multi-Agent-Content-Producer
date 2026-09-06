@@ -157,6 +157,10 @@ export function FabricCanvas({
       enableRetinaScaling: false,
     });
     canvasRef.current = c;
+    // Expose for Playwright live tests — only in development
+    if (process.env.NODE_ENV !== "production") {
+      (window as unknown as Record<string, unknown>).__fc = c;
+    }
 
     const onSelected = () => {
       const obj = c.getActiveObject();

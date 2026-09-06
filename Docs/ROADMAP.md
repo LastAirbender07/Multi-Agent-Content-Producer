@@ -9,14 +9,15 @@
 
 ---
 
-## Where we are now (2026-08-30 — Phase 2 COMPLETE)
+## Where we are now (2026-08-30 — Phase 2.5 APPROVED, ready to implement)
 
 | # | Phase | Status | Detail plan |
 |---|---|---|---|
 | 1 | Editor Canvas Save | ✅ SHIPPED | `PHASE_1_editor_canvas_save.md` |
 | 2 | Compact Template Family (5 core, sequential + GAN-iterate) | ✅ **COMPLETE (2026-08-30)** | [`PHASE_2_compact_templates.md`](phases/PHASE_2_compact_templates.md) |
-| 3 | Format Plumbing (auto template selection LLM) | 🟡 **APPROVED — Loop 1 complete, ready to implement** | [`PHASE_3_format_plumbing.md`](phases/PHASE_3_format_plumbing.md) |
-| 4 | Remaining 5 Compact Families | 📝 OUTLINE — needs Loop-1 | `PHASE_4_remaining_compact_formats.md` |
+| 2.5 | Template Family Cohesion + Component Panel Exposure | 🟡 **APPROVED — Loop 1 complete (2026-08-30), ready to implement** | [`PHASE_2.5_template_families_and_components.md`](phases/PHASE_2.5_template_families_and_components.md) |
+| 3 | Format Plumbing (auto template selection LLM) | ⏸ **PAUSED — waiting on Phase 2.5** (Loop 1 approved but blocked by family enum change) | [`PHASE_3_format_plumbing.md`](phases/PHASE_3_format_plumbing.md) |
+| 4 | Build `editorial` + `nextwork-dark` families | 📝 OUTLINE (was "remaining 5 compact formats" — re-scoped by Phase 2.5) | `PHASE_4_remaining_compact_formats.md` |
 | 5 | UI (format chip) & Analytics | 📝 OUTLINE — needs Loop-1 | `PHASE_5_ui_and_analytics.md` |
 | 6A | aurora-editorial-* (SahilBloom style) | ⏸ NOT DRAFTED — family MDs are spec | *(pending Phase 5)* |
 | 6B | aurora-product-* (Anthropic style) | ⏸ NOT DRAFTED — family MDs are spec | *(pending Phase 5)* |

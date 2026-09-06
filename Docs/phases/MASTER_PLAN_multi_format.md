@@ -1,6 +1,6 @@
 # MASTER PLAN — Multi-Format Content Strategy (v4)
 
-> **Status:** APPROVED — Phase 2 ✅ COMPLETE (2026-08-30). Next: Phase 3 Loop 1 architect review.
+> **Status:** APPROVED — Phase 2 ✅ COMPLETE (2026-08-30). Phase 2.5 🟡 ARCHITECT PLAN in progress (2026-08-30). Phase 3 ⏸ PAUSED pending Phase 2.5.
 > **Last synced with reality:** 2026-08-30
 > **Revised on:** 2026-08-23 based on two user course corrections:
 >   1. **Slides first, plumbing second** — the visible template design is the highest-leverage change; format-selection plumbing lands after.
@@ -19,10 +19,12 @@
 
 ## The North Star (unchanged)
 
-Turn our pipeline from a **one-format producer** (opinion-only, dense-slide) into a **10-format producer** (OPINION / FACTS / TUTORIAL / EXPLAINER / TRENDING / STORY / LISTICLE / REVIEW / COMPARISON / CHECKLIST) with **two visual families**:
+Turn our pipeline from a **one-format producer** (opinion-only, dense-slide) into a **10-format producer** (OPINION / FACTS / TUTORIAL / EXPLAINER / TRENDING / STORY / LISTICLE / REVIEW / COMPARISON / CHECKLIST) with **four visual families**:
 
-- **extended** — today's dense look, kept as-is
-- **compact** — new modern Instagram-native look with big type, one idea per slide, 2-second readability
+- **aurora-extended** — today's dense dark glassmorphism look, kept as-is
+- **compact-clean** — nextwork.ig style: warm cream, Inter Black, big type, one idea per slide, 2-second readability
+- **editorial** — SahilBloom book-page style: cold neutral white, Playfair serif, hairline rules, magazine quality
+- **nextwork-dark** — atmospheric photo-background with white overlay text; tech/tutorial carousels with strong brand identity
 
 **Success metric:** we produce ≥ 3 format types per week; compact slides pass GAN validation ≤ 5 % content-zone diff; user runs no longer feel like a "wall of text on a phone".
 
@@ -74,7 +76,32 @@ PHASE 2 ── Compact Template Family — 5 core builders (Week 1)          ✅
    │
    │  Templates exist, editable, screenshottable — pipeline still emits extended defaults
    ↓
-PHASE 3 ── Format Plumbing (Week 2)                                     🟡 APPROVED — ready to implement
+PHASE 2.5 ── Template Family Cohesion + Component Panel (2026-08-30)    🟡 APPROVED — Loop 1 complete
+   │      ├── PROBLEM 1: Phase 2 compact templates lack family grouping — each has unique DNA,
+   │      │   needs formal families so every family covers ALL slide types for a full carousel
+   │      ├── PROBLEM 2: 14 built components (6 compact + 8 cover-hero) invisible in editor
+   │      │   (only 15 of 29 built components are registered — phone mockup, image pair, etc. missing!)
+   │      │
+   │      ├── PRINCIPLE: NO redesigns — existing templates stay as-is, perfectly crafted.
+   │      │   Each family gets its MISSING slide types added in its own visual vocabulary.
+   │      │   Every family must cover: hook, content, stat, quote, list, step, compare, CTA, engage.
+   │      │
+   │      ├── TRACK 1 — 4 formal families defined + gap-fill new templates (7 new builders):
+   │      │   ┌── aurora-extended   (6 existing — dark glassmorphism; missing: list, step, compare → Phase 4)
+   │      │   ├── compact-clean     (hook/fact/step/list existing; +3 new: cta, quote, engage)
+   │      │   ├── editorial         (list-item + quote existing; +2 new: hook, cta)
+   │      │   └── nextwork-dark     (step*/stat-hero existing; +2 new: cta, engage)
+   │      │   + New: frontend/constants/templateFamilies.ts — rich LLM-facing metadata for all 4 families
+   │      │
+   │      ├── TRACK 2 — All 14 missing components registered in editor (29 total after):
+   │      │   ├── 6 compact dropper files (brand-pill, outlined-pill, mixed-weight-text, etc.)
+   │      │   ├── 8 cover-hero dropper files (tilted phone!, tilted image pair!, overlay cards, etc.)
+   │      │   ├── Wire all 14 into canvasDropHandlers.ts
+   │      │   └── TemplatesPanel.tsx: 3 sections — "Aurora" (15) + "Compact" (6) + "Cover" (8)
+   │      │
+   │      └── Impact on Phase 3: TemplateFamily enum = 4 values; COMPACT_ROUTING gains family dimension
+   ↓
+PHASE 3 ── Format Plumbing (Week 2)                                     ⏸ PAUSED — waiting on Phase 2.5
    │      ├── PostFormat + TemplateFamily enums (Pydantic)
    │      ├── format_selection_node — ONLY runs in auto mode
    │      ├── Manual angle-mode: user picks format in the same modal as angles
