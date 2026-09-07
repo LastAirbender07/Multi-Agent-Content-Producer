@@ -390,3 +390,30 @@ async def save_canvas(
         run_id, angle_index, slide_number, request.fabric_json,
     )
     return CanvasSaveResponse(**result)
+
+
+# ── Template Content Specs (Phase 2.8) ───────────────────────────────────────
+
+from core.services.template_spec_service import get_spec, get_all_specs  # noqa: E402
+
+@router.get("/template-specs")
+async def list_template_specs() -> dict:
+    """Return all template content specs. Used by Phase 3 format_selection_node."""
+    return {"specs": get_all_specs()}
+
+
+@router.get("/template-spec/{template_id}")
+async def get_template_spec(template_id: str) -> dict:
+    """Return the content spec for a single template.
+
+    Example: GET /api/v1/content/template-spec/aurora-compact-clean-cta
+    Returns: textFields, images, contentTone, contentStyle, exampleContent
+    """
+    spec = get_spec(template_id)
+    if not spec:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No spec found for template '{template_id}'. "
+                   "Run: node scripts/export_specs.cjs to regenerate.",
+        )
+    return spec

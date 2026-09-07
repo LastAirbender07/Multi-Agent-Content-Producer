@@ -37,8 +37,8 @@ SLIDE TYPES AND CONTENT REQUIREMENTS:
              bullets: 2-3 key takeaways this quote illustrates (10-15 words each). These appear as "Key Insights" below the quote.
 
 - engage   : One mid-carousel engagement prompt. Appears around slide 5-7 to catch viewers before they drop off.
-             Title: direct, warm call to follow/like/save (10-16 words). E.g. "If this surprised you, follow — we break down research like this every week."
-             Body: 1-2 sentences reinforcing why following is worth it (specific, not generic).
+             Title: direct, warm call to follow/like/save — HARD LIMIT 15 words max / 100 chars max. E.g. "If this surprised you, follow — we break this down weekly."
+             Body: 1 sentence only, max 100 chars. NEVER exceed these limits.
              Leave bullets, stat fields, and chart fields empty.
 
 - cta      : Exactly 2 CTA slides total.
@@ -61,6 +61,8 @@ donut:         {{"labels": ["Group A", "Group B", "Group C"], "values": [73, 18,
 line:          {{"labels": ["2020","2021","2022","2023","2024"], "values": [12, 28, 45, 61, 73]}}
 radar:         {{"labels": ["Attr1","Attr2","Attr3","Attr4","Attr5"], "datasets": [{{"label":"X","values":[85,78,70,90,55]}},{{"label":"Y","values":[70,55,45,40,85]}}]}}
 funnel:        {{"labels": ["Stage1","Stage2","Stage3"], "values": [100, 72, 8]}}
+
+{template_spec_block}
 
 STRICT RULES:
 1. First slide MUST be type=hook
