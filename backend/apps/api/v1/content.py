@@ -417,3 +417,21 @@ async def get_template_spec(template_id: str) -> dict:
                    "Run: node scripts/export_specs.cjs to regenerate.",
         )
     return spec
+
+
+# ── Phase 3: Format selection endpoint ───────────────────────────────────────
+
+@router.get("/{run_id}/format-selection")
+async def get_format_selection(run_id: str) -> dict:
+    """Return the format selection result for a run (auto mode only).
+
+    404 for manual-mode runs and pre-Phase-3 runs — that's expected, not an error.
+    """
+    path = _OUTPUTS_ROOT / run_id / "format_selection" / "format_selection.json"
+    if not path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="No format selection found for this run "
+                   "(manual mode, pre-Phase-3, or run not yet completed).",
+        )
+    return _json.loads(path.read_text(encoding="utf-8"))

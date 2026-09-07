@@ -192,6 +192,19 @@ const TEMPLATE_METADATA: Record<string, TemplateMeta> = {
     }},
   },
 
+  // ── Phase 3.5 Aurora Lite family — dark aurora, Instagram-readable ───────────
+  "aurora-lite-content": {
+    type: "content", label: "Lite Content", desc: "Dark aurora — one idea, big type",
+    color: "#7C6EFA", emoji: "💡",
+    starter: { title: "One bold statement that changes how you think", body: "The essential context in one sentence." },
+  },
+  "aurora-lite-quote": {
+    type: "quote", label: "Lite Quote", desc: "Dark pull quote, no bullets",
+    color: "#2DD4BF", emoji: "💬",
+    starter: { title: "The most powerful thing I learned was this.", body: "— Source, Year" },
+  },
+  // aurora-lite-hook/stat/cta/engage reuse existing aurora templates — no separate metadata needed
+
   // ── Phase 5 Cover-Hero family ──────────────────────────────────────────────
   "aurora-carousel-cover-hero-phone": {
     type: "hook", label: "Cover: Phone", desc: "Tilted phone mockup cover",

@@ -5,6 +5,7 @@ from pathlib import Path
 from configs.settings import get_settings
 from core.graphs.content_graph import build_content_graph
 from core.orchestration.contracts import ContentRequest, ContentResponse, ResearchSynthesis, RunStatus
+from core.orchestration.contracts import PostFormat, TemplateFamily, COMPACT_FORMATS
 from core.schemas.workflow_state import ContentGraphState
 from core.services.progress_store import progress_store
 from infra.logging import get_logger
@@ -135,6 +136,16 @@ class ContentOrchestrator:
         all_slides_per_angle: list[list[dict]] = []
         all_image_assets_per_angle: list[list[dict]] = []
 
+        # Phase 3: derive template_family from request.post_format
+        # post_format defaults to PostFormat.opinion on old callers — fully backward-compatible
+        post_format     = request.post_format
+        template_family = (
+            TemplateFamily.compact_clean.value if post_format in COMPACT_FORMATS
+            else TemplateFamily.aurora_extended.value
+        )
+        logger.info("orchestrator_format", run_id=run_id,
+                    post_format=post_format.value, template_family=template_family)
+
         for idx, angle in enumerate(request.selected_angles):
             logger.info("content_processing_angle", run_id=run_id, angle_index=idx)
 
@@ -152,19 +163,21 @@ class ContentOrchestrator:
             })
 
             initial: ContentGraphState = {
-                "request": request.model_dump(),
-                "run_id": run_id,
-                "angle": angle,
-                "angle_index": idx,
-                "total_angles": total_angles,
-                "slides": [],
-                "caption": "",
-                "hashtags": [],
-                "image_assets": [],
+                "request":        request.model_dump(),
+                "run_id":         run_id,
+                "angle":          angle,
+                "angle_index":    idx,
+                "total_angles":   total_angles,
+                "slides":         [],
+                "caption":        "",
+                "hashtags":       [],
+                "image_assets":   [],
                 "slide_html_paths": [],
-                "slide_png_paths": [],
-                "messages": [],
-                "errors": [],
+                "slide_png_paths":  [],
+                "post_format":    post_format.value,     # Phase 3: read by slide_generator + carousel_generator
+                "template_family": template_family,      # Phase 3: read by carousel_generator
+                "messages":       [],
+                "errors":         [],
             }
 
             try:

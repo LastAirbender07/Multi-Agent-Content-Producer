@@ -5,6 +5,8 @@ from core.prompts.prompt_loader import load_prompt
 from core.prompts.system_prompts import get_system_prompt
 from core.schemas.workflow_state import ContentGraphState
 from core.services.caption_validator import enforce_caption_limits, validate_caption
+from core.orchestration.contracts import PostFormat
+from core.orchestrators.content.format_blocks import CAPTION_FORMAT_BLOCKS
 from infra.llm.factory import LLMFactory
 from infra.logging import get_logger
 
@@ -33,6 +35,14 @@ async def generate_caption_node(state: ContentGraphState) -> dict:
     )
 
     try:
+        # Phase 3: per-format caption guidance
+        post_format_str = state.get("post_format", PostFormat.opinion.value)
+        try:
+            post_format = PostFormat(post_format_str.upper())
+        except ValueError:
+            post_format = PostFormat.opinion
+        format_block = CAPTION_FORMAT_BLOCKS.get(post_format, "")
+
         system_prompt = get_system_prompt("content")
         user_prompt = load_prompt(
             "caption_generation",
@@ -41,6 +51,7 @@ async def generate_caption_node(state: ContentGraphState) -> dict:
             emotional_hook=angle["emotional_hook"],
             hook_slide_title=hook_title,
             slide_titles=slide_titles,
+            format_block=format_block,   # Phase 3
         )
 
         result = await LLMFactory.get_client_with_retry(

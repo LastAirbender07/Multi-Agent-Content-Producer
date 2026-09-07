@@ -4,6 +4,8 @@ from core.orchestrators.content.graph_validator import validate_and_fix_slides
 from core.prompts.prompt_loader import load_prompt
 from core.prompts.system_prompts import get_system_prompt
 from core.schemas.workflow_state import ContentGraphState
+from core.orchestration.contracts import PostFormat
+from core.orchestrators.content.format_blocks import SLIDE_FORMAT_BLOCKS
 from core.services.template_spec_service import get_all_specs, format_spec_for_prompt
 from infra.llm.factory import LLMFactory
 from infra.logging import get_logger
@@ -67,10 +69,16 @@ async def generate_slides_node(state: ContentGraphState) -> dict:
 
     try:
         system_prompt = get_system_prompt("content")
-        # Build per-template content constraints from Phase 2.8 specs.
-        # Injected as {template_spec_block} so the LLM knows char limits and tone
-        # for each slide type. Gracefully empty if specs not yet generated.
+        # Phase 2.8: per-template content constraints (char limits, tone, example)
         template_spec_block = _build_template_spec_block()
+
+        # Phase 3: per-format slide instruction block (empty = no change for OPINION)
+        post_format_str = state.get("post_format", PostFormat.opinion.value)
+        try:
+            post_format = PostFormat(post_format_str.upper())
+        except ValueError:
+            post_format = PostFormat.opinion
+        format_block = SLIDE_FORMAT_BLOCKS.get(post_format, "")
 
         user_prompt = load_prompt(
             "slide_generation",
@@ -81,7 +89,8 @@ async def generate_slides_node(state: ContentGraphState) -> dict:
             research_summary=clean_summary,
             key_points="\n".join(f"- {point}" for point in clean_key_points),
             target_slides=target_slides,
-            template_spec_block=template_spec_block,
+            template_spec_block=template_spec_block,   # Phase 2.8
+            format_block=format_block,                 # Phase 3
         )
         result = await LLMFactory.get_client_with_retry(
             lambda llm: llm.generate_structured(

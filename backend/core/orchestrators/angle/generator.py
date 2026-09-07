@@ -1,4 +1,5 @@
-from core.orchestration.contracts import Angle, AngleGenerationOutput, AngleRequest
+from core.orchestration.contracts import Angle, AngleGenerationOutput, AngleRequest, PostFormat
+from core.orchestrators.content.format_blocks import ANGLE_FORMAT_BLOCKS
 from core.prompts.prompt_loader import load_prompt
 from core.prompts.system_prompts import get_system_prompt
 from core.schemas.workflow_state import AngleGraphState
@@ -23,6 +24,14 @@ async def generate_angles_node(state: AngleGraphState) -> dict:
         exclude_block = ""
 
     try:
+        # Phase 3: inject format-specific angle guidance
+        post_format_str = state.get("post_format", PostFormat.opinion.value)
+        try:
+            post_format = PostFormat(post_format_str.upper())
+        except ValueError:
+            post_format = PostFormat.opinion
+        format_block = ANGLE_FORMAT_BLOCKS.get(post_format, "")
+
         system_prompt = get_system_prompt("angle")
         user_prompt = load_prompt(
             "angle_generation",
@@ -30,6 +39,7 @@ async def generate_angles_node(state: AngleGraphState) -> dict:
             research_summary=synthesis.summary,
             key_points="\n".join(f"- {p}" for p in synthesis.key_points),
             exclude_block=exclude_block,
+            format_block=format_block,   # Phase 3: empty string for OPINION = no change
         )
 
         run_id = state.get("run_id")

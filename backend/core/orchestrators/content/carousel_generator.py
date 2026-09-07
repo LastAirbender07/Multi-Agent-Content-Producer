@@ -4,7 +4,7 @@ from PIL import Image
 from playwright.async_api import async_playwright
 
 from configs.settings import get_settings
-from core.orchestration.contracts import ContentRequest, Slide
+from core.orchestration.contracts import ContentRequest, PostFormat, Slide
 from core.orchestrators.content import _progress_store as content_progress
 from core.orchestrators.content.render_server import serve_directory
 from core.schemas.workflow_state import ContentGraphState
@@ -27,8 +27,93 @@ def _get_template_name(emotional_hook: str) -> str:
     return _TEMPLATE_MAP.get(emotional_hook, "aurora")
 
 
-def _canvas_template_id(slide_type: str, theme: str, layout_variant: int, has_image: bool) -> str:
-    """Compute the Fabric canvas template identifier for this slide."""
+# Phase 3: compact-clean routing table
+# Keys: (PostFormat.value, slide_type) → aurora-compact-* template ID
+# Falls through to extended for types not listed here (story+content, etc.)
+COMPACT_ROUTING: dict[tuple[str, str], str] = {
+    # hook — all compact formats use compact-hook
+    (PostFormat.facts.value,     "hook"):    "aurora-compact-hook",
+    (PostFormat.tutorial.value,  "hook"):    "aurora-compact-hook",
+    (PostFormat.listicle.value,  "hook"):    "aurora-compact-hook",
+    (PostFormat.review.value,    "hook"):    "aurora-compact-hook",
+    (PostFormat.story.value,     "hook"):    "aurora-compact-hook",
+    (PostFormat.checklist.value, "hook"):    "aurora-compact-hook",
+    (PostFormat.comparison.value,"hook"):    "aurora-compact-hook",
+    # content slides
+    (PostFormat.facts.value,     "content"): "aurora-compact-fact",
+    (PostFormat.tutorial.value,  "content"): "aurora-compact-step",
+    (PostFormat.listicle.value,  "content"): "aurora-compact-list-item",
+    (PostFormat.review.value,    "content"): "aurora-compact-fact",
+    (PostFormat.checklist.value, "content"): "aurora-compact-list-item",
+    (PostFormat.comparison.value,"content"): "aurora-compact-fact-compare",
+    # stat slides
+    (PostFormat.facts.value,     "stat"):    "aurora-compact-fact",
+    (PostFormat.tutorial.value,  "stat"):    "aurora-compact-stat-hero",
+    (PostFormat.listicle.value,  "stat"):    "aurora-compact-fact",
+    (PostFormat.review.value,    "stat"):    "aurora-compact-fact",
+    (PostFormat.comparison.value,"stat"):    "aurora-compact-fact-compare",
+    # quote slides
+    (PostFormat.facts.value,     "quote"):   "aurora-compact-quote",
+    (PostFormat.tutorial.value,  "quote"):   "aurora-compact-quote",
+    (PostFormat.listicle.value,  "quote"):   "aurora-compact-quote",
+    (PostFormat.review.value,    "quote"):   "aurora-compact-quote",
+    (PostFormat.story.value,     "quote"):   "aurora-compact-quote",
+    (PostFormat.comparison.value,"quote"):   "aurora-compact-quote",
+    # cta + engage — use compact-clean variants (Phase 2.5 templates)
+    (PostFormat.facts.value,     "cta"):     "aurora-compact-clean-cta",
+    (PostFormat.facts.value,     "engage"):  "aurora-compact-clean-engage",
+    (PostFormat.tutorial.value,  "cta"):     "aurora-compact-clean-cta",
+    (PostFormat.tutorial.value,  "engage"):  "aurora-compact-clean-engage",
+    (PostFormat.listicle.value,  "cta"):     "aurora-compact-clean-cta",
+    (PostFormat.listicle.value,  "engage"):  "aurora-compact-clean-engage",
+    (PostFormat.review.value,    "cta"):     "aurora-compact-clean-cta",
+    (PostFormat.review.value,    "engage"):  "aurora-compact-clean-engage",
+    (PostFormat.checklist.value, "cta"):     "aurora-compact-clean-cta",
+    (PostFormat.checklist.value, "engage"):  "aurora-compact-clean-engage",
+    (PostFormat.comparison.value,"cta"):     "aurora-compact-clean-cta",
+    (PostFormat.comparison.value,"engage"):  "aurora-compact-clean-engage",
+    (PostFormat.story.value,     "cta"):     "aurora-compact-clean-cta",
+    (PostFormat.story.value,     "engage"):  "aurora-compact-clean-engage",
+}
+
+
+# Phase 3.5: aurora-lite routing table
+# Keys: (slide_type, "aurora-lite") → template ID
+AURORA_LITE_ROUTING: dict[tuple[str, str], str] = {
+    ("hook",    "aurora-lite"): "aurora-lite-hook",     # = aurora-hook
+    ("content", "aurora-lite"): "aurora-lite-content",  # NEW — no bullets, 64pt title
+    ("stat",    "aurora-lite"): "aurora-lite-stat",     # = aurora-stat
+    ("quote",   "aurora-lite"): "aurora-lite-quote",    # NEW — no insight bullets
+    ("cta",     "aurora-lite"): "aurora-lite-cta",      # = aurora-cta
+    ("engage",  "aurora-lite"): "aurora-lite-engage",   # = aurora-engage
+}
+
+
+def _canvas_template_id(
+    slide_type: str,
+    theme: str,
+    layout_variant: int,
+    has_image: bool,
+    template_family: str = "aurora-lite",  # Phase 3.5: default changed from aurora-extended to aurora-lite
+    post_format: str = PostFormat.opinion.value,
+) -> str:
+    """Compute the Fabric canvas template identifier for this slide.
+
+    Phase 3:   compact-clean → COMPACT_ROUTING table
+    Phase 3.5: aurora-lite → AURORA_LITE_ROUTING table
+    Fallback:  aurora-extended (user-explicit) or unrecognised family → existing logic
+    """
+    if template_family == "compact-clean":
+        key = (post_format, slide_type)
+        if key in COMPACT_ROUTING:
+            return COMPACT_ROUTING[key]
+        # Fallback for unrouted types (story+content, etc.) → extended
+    elif template_family == "aurora-lite":
+        key = (slide_type, "aurora-lite")
+        if key in AURORA_LITE_ROUTING:
+            return AURORA_LITE_ROUTING[key]
+        # Fallback for unrecognised aurora-lite slide types → extended
+    # aurora-extended (user-explicit) OR unrouted fallback: existing logic unchanged
     if slide_type == "content":
         return f"{theme}-content-text" if not has_image else f"{theme}-content-{layout_variant}"
     return f"{theme}-{slide_type}"
@@ -109,9 +194,16 @@ async def screenshot_slides_fabric_node(state: ContentGraphState) -> dict:
             image_url      = None
             layout_variant = 0
 
+        # Phase 3: read format/family from state for compact routing
+        post_format_val  = state.get("post_format",    PostFormat.opinion.value)
+        template_family  = state.get("template_family", "aurora-extended")
+
         # Compute canvas_template if not already stored, then build enriched dict
-        # with canvas_template + _theme so inferTemplate() picks the right builder.
-        canvas_template = slide_dict.get("canvas_template") or _canvas_template_id(slide_type, theme, layout_variant, has_image)
+        canvas_template = slide_dict.get("canvas_template") or _canvas_template_id(
+            slide_type, theme, layout_variant, has_image,
+            template_family=template_family,
+            post_format=post_format_val,
+        )
         slide_dict = {**slide_dict, "canvas_template": canvas_template, "_theme": theme}
         # Update the legacy polling store (for /render-status endpoint)
         content_progress.update(run_id, i + 1, len(slides_raw))

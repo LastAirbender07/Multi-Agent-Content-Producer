@@ -42,6 +42,25 @@ export interface TemplateFamily {
 }
 
 export const TEMPLATE_FAMILIES: Record<string, TemplateFamily> = {
+  // ── 0. Aurora Lite ───────────────────────────────────────────────────────────
+  // Dark aurora aesthetic but Instagram-readable: 64pt title, ≤15-word body, zero bullets.
+  // This is the LLM's default dark family — replaces aurora-extended in auto-routing.
+  // aurora-extended remains available for explicit user selection only.
+  "aurora-lite": {
+    id:          "aurora-lite",
+    label:       "Aurora Lite",
+    description: "Dark aurora — big type, one idea per slide, no bullets. Instagram-readable.",
+    color:       "#7C6EFA",
+    slides: {
+      hook:    "aurora-lite-hook",     // = aurora-hook (already readable)
+      content: "aurora-lite-content",  // NEW — 64pt, ≤15 words, no bullets
+      stat:    "aurora-lite-stat",     // = aurora-stat (already readable)
+      quote:   "aurora-lite-quote",    // NEW — 50pt, no insight bullets
+      cta:     "aurora-lite-cta",      // = aurora-cta (already readable)
+      engage:  "aurora-lite-engage",   // = aurora-engage (already readable)
+    },
+  },
+
   // ── 1. Aurora Extended ──────────────────────────────────────────────────────
   // The original gradient-heavy aurora family. Rich visuals, bold colours.
   // Best for: tech, SaaS, fintech, dark-mode aesthetic audiences.
@@ -149,7 +168,8 @@ export const TEMPLATE_FAMILY_MAP: Record<string, string> = buildTemplateFamilyMa
 
 /** Ordered family IDs for consistent display in the Templates panel */
 export const TEMPLATE_FAMILY_ORDER = [
-  "aurora-extended",
+  "aurora-lite",       // Phase 3.5: LLM default dark family — shown first in panel
+  "aurora-extended",   // user-explicit only — kept for users who want dense slides
   "compact-clean",
   "editorial",
   "nextwork-dark",

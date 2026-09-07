@@ -205,6 +205,47 @@ class AngleResponse(BaseModel):
     output_path: str = Field(default="")
 
 
+# ─── Phase 3: Format + Family Enums ──────────────────────────────────────────
+
+class PostFormat(str, Enum):
+    """10 content formats — determines which template family is used."""
+    opinion    = "OPINION"
+    facts      = "FACTS"
+    tutorial   = "TUTORIAL"
+    explainer  = "EXPLAINER"
+    trending   = "TRENDING"
+    story      = "STORY"
+    listicle   = "LISTICLE"
+    review     = "REVIEW"
+    comparison = "COMPARISON"
+    checklist  = "CHECKLIST"
+
+class TemplateFamily(str, Enum):
+    """Template families — values MUST match TEMPLATE_FAMILIES keys in templateFamilies.ts."""
+    aurora_lite     = "aurora-lite"       # dark + readable — LLM default for OPINION/EXPLAINER/TRENDING/STORY
+    compact_clean   = "compact-clean"     # warm cream — FACTS / TUTORIAL / LISTICLE / etc.
+    aurora_extended = "aurora-extended"   # dense classic — user-explicit ONLY, NEVER returned by LLM auto-routing
+
+# PostFormats that route to the compact-clean family
+COMPACT_FORMATS: frozenset[PostFormat] = frozenset({
+    PostFormat.facts,
+    PostFormat.tutorial,
+    PostFormat.listicle,
+    PostFormat.review,
+    PostFormat.story,
+    PostFormat.checklist,
+    PostFormat.comparison,
+})
+
+class FormatSelectionOutput(BaseModel):
+    """Persisted at outputs/runs/{run_id}/format_selection/format_selection.json"""
+    run_id:             str            = Field(...,  description="Run ID this selection applies to")
+    recommended_format: PostFormat     = Field(...,  description="Best-fit post format for this topic")
+    template_family:    TemplateFamily = Field(...,  description="Template family to use")
+    reasoning:          str            = Field(default="", description="1-2 sentence rationale")
+    auto_mode:          bool           = Field(default=True, description="True = LLM selected; False = user supplied")
+
+
 # ─── Content Generation Orchestrator Contracts ─────────────────────────────────
 
 class SlideType(str, Enum):
@@ -257,6 +298,18 @@ class ContentRequest(BaseModel):
     research_summary: str = Field(..., description="Summary of the research findings to inform content generation")
     key_points: list[str] = Field(default_factory=list, description="Key points from the research to inform content generation")
     template: str = "auto"
+    post_format: PostFormat = Field(
+        default=PostFormat.opinion,
+        description="Post format — determines compact vs extended template family. "
+                    "In auto mode, overridden by format_selection_node. "
+                    "Existing callers without this field get OPINION (aurora-lite) by default.",
+    )
+    selected_family: str | None = Field(
+        default=None,
+        description="User-selected template family. When set, format_selection_node is skipped "
+                    "and this family is used directly. None = LLM auto-selects. "
+                    "Example: 'aurora-extended', 'editorial', 'compact-clean'.",
+    )
     max_slides: int = Field(default=14, description="Maximum number of slides to generate for the content (ideal 10-14, hard cap 20)")
     min_slides: int = Field(default=4, description="Minimum number of slides to generate for the content")
     image_source: Literal["auto", "pexels", "ddgs"] = Field(default="auto", description="Global override: auto = trust LLM per-slide preference, pexels = force all slides to stock, ddgs = force all slides to web images")

@@ -28,3 +28,4 @@ Format each angle as:
 
 Think: What would Naval/Balaji/Patrick Collison say about this?
 {exclude_block}
+{format_block}

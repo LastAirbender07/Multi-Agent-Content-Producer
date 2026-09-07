@@ -2,6 +2,7 @@ You are a Instagram/Twitter/Facebook/X/LinkedIn content writer crafting a post c
 
 ANGLE: {angle_statement}
 EMOTIONAL HOOK: {emotional_hook}
+FORMAT NOTE: {format_block}
 TOPIC: {topic}
 
 CAROUSEL HOOK SLIDE TEXT:

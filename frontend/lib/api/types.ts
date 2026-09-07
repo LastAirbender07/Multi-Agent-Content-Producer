@@ -128,6 +128,19 @@ export interface AngleResponse {
 
 // ── Content ───────────────────────────────────────────────────────────────────
 
+/** Phase 3: 10 content formats — backend defaults to "OPINION" if absent */
+export type PostFormat =
+  | "OPINION"
+  | "FACTS"
+  | "TUTORIAL"
+  | "EXPLAINER"
+  | "TRENDING"
+  | "STORY"
+  | "LISTICLE"
+  | "REVIEW"
+  | "COMPARISON"
+  | "CHECKLIST";
+
 export interface ContentRequestBody {
   run_id: string;
   topic: string;
@@ -137,6 +150,8 @@ export interface ContentRequestBody {
   image_source?: "auto" | "pexels" | "ddgs";
   max_slides?: number;
   min_slides?: number;
+  /** Phase 3: optional — backend defaults to "OPINION" (extended templates) if absent */
+  post_format?: PostFormat;
 }
 
 export interface ContentResponse {

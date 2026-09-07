@@ -64,6 +64,9 @@ funnel:        {{"labels": ["Stage1","Stage2","Stage3"], "values": [100, 72, 8]}
 
 {template_spec_block}
 
+FORMAT-SPECIFIC RULES (override defaults above for this format):
+{format_block}
+
 STRICT RULES:
 1. First slide MUST be type=hook
 2. Include exactly ONE type=engage slide (mid-carousel, around position 5-7)

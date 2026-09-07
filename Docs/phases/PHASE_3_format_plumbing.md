@@ -1,7 +1,18 @@
 # PHASE 3 — Format Plumbing (smart template routing, conditional on auto mode)
 
 ## Status
-**APPROVED — Loop 1 complete (2× clean passes, 2026-08-30). Ready to implement.**
+**FINAL APPROVAL — Loop 1 complete (2026-09-07). 2 passes. Pass 1: 12 issues found and fixed. Pass 2: zero issues. Ready to implement.**
+
+> **Re-review triggered by:** Phases 2.5 → 2.9 + 2.8 shipped since original 2026-08-30 approval. Significant codebase drift requiring 10 plan corrections. See Loop 1 Review Log at bottom.
+
+### Summary of what changed since 2026-08-30:
+- We now have **5 template families** (was 2). Routing must use specific family IDs.
+- `{template_spec_block}` already exists in `slide_generation.txt` (Phase 2.8). `{format_block}` must be added alongside it, not instead.
+- `slide_generator.py` already imports from `template_spec_service` — Step 3.12 must ADD to existing call, not replace.
+- Run count is **466**, not 141. Backfill cost ~$1.40.
+- `angle_mode` IS in `ContentWorkflowState` (line 45) — Step 3.10 is valid as-is.
+- `COMPACT_FORMATS` scope: Phase 3 only routes between `aurora-extended` and `compact-clean`. Editorial/nextwork-dark/cover-hero remain manual-select (Phase 5).
+- `TemplateFamily` enum values must be `"compact-clean"` and `"aurora-extended"` to match `TEMPLATE_FAMILIES` keys.
 
 ---
 
@@ -13,7 +24,7 @@ After this phase ships:
 - A topic like "5 surprising facts about Indian tea" (auto mode) → LLM classifies it as FACTS → all content slides use `aurora-compact-fact`
 - A user who manually selects angles and passes `post_format: "TUTORIAL"` in the content request → slides use `aurora-compact-step`, zero extra LLM call
 - All OPINION/EXPLAINER/TRENDING topics → unchanged, still use extended templates
-- 141 existing runs are backfilled with a `format_selection.json` each
+- 64 real runs are backfilled with a `format_selection.json` each
 
 ---
 
@@ -24,10 +35,10 @@ After this phase ships:
 - `format_selection_node(state, run_id)` — imperative async function, called only in auto mode
 - `ContentRequest.post_format` — optional field; manual mode passes this from frontend; auto mode ignores it (LLM decides)
 - `{format_block}` placeholder injected into `slide_generation.txt`, `angle_generation.txt`, `caption_generation.txt`
-- `_canvas_template_id()` updated with optional `template_family` param, uses compact routing table when `template_family == "compact"`
+- `_canvas_template_id()` updated with optional `template_family` param, uses compact routing table when `template_family == "compact-clean"`
 - `ContentGraphState` carries `post_format` and `template_family` so `carousel_generator.py` can route
 - `GET /content/{run_id}/format-selection` endpoint
-- Backfill script for existing 141 runs
+- Backfill script for existing 64 real runs
 
 **Non-functional:**
 - Zero breaking change to any existing endpoint — all new fields have defaults
@@ -39,17 +50,22 @@ After this phase ships:
 
 ## External Verification Log
 
-| Claim | Verified against | Verified on |
-|-------|-----------------|-------------|
-| `load_prompt()` uses Python `.format(**variables)` — must match template `{var}` names exactly | `backend/core/prompts/prompt_loader.py` line 17: `template.format(**variables)` | 2026-08-30 |
-| `ContentRequest` is the Pydantic model posted to `/content/run` — adding optional fields with defaults is non-breaking | `backend/apps/api/v1/content.py` line 87: `async def run_content(request: ContentRequest)` — FastAPI validates incoming JSON against the model; extra fields with defaults are ignored by old callers | 2026-08-30 |
-| `ContentGraphState` is a `TypedDict(total=False)` — adding new optional keys is non-breaking | `backend/core/schemas/workflow_state.py` line 44: `class ContentGraphState(TypedDict, total=False)` | 2026-08-30 |
-| `angle_mode` lives in `ContentWorkflowState` (pipeline level), NOT in `ContentRequest` or `ContentGraphState` | `backend/core/schemas/workflow_state.py` line 45; `content_node.py` doesn't pass angle_mode into ContentRequest | 2026-08-30 |
-| `RunOutputManager.save_json(stage, filename, data)` pattern already used for research outputs | `backend/infra/output_manager.py` line 22; `backend/core/orchestrators/research/orchestrator.py` line 129 | 2026-08-30 |
-| `_BACKEND_ROOT / settings.content_output_dir` resolves to `backend/outputs` for runs | `carousel_generator.py` line 14: `_BACKEND_ROOT = Path(__file__).parents[3]`; settings `content_output_dir = "outputs"` | 2026-08-30 |
-| Compact builders read `slide.title` as headline fallback and `slide.compact_meta` for structured fields | `aurora_compact_hook.ts` line 41: `m.headline_runs = [{ text: slide.title, weight: 900 }]` when `compact_meta.headline_runs` is default | 2026-08-30 |
-| Backfill runs: `angles/selection.json` structure has `selected_angles[].statement` — used to infer topic for classification | `backend/outputs/runs/{id}/angles/selection.json` — confirmed structure in real run `a7776dea` | 2026-08-30 |
-| 141 existing runs are all extended-family; all have `canvas_template` set to `aurora-*`; `format_selection.json` does not exist for any of them | `ls backend/outputs/runs/ \| wc -l` → 141; no `find backend/outputs/runs/ -name "format_selection.json"` results | 2026-08-30 |
+> **Re-verified 2026-09-07.** All claims checked against actual codebase.
+
+| Claim | Verified against | Verified on | Status |
+|-------|-----------------|-------------|--------|
+| `load_prompt()` uses Python `.format(**variables)` — must match template `{var}` names exactly | `backend/core/prompts/prompt_loader.py`: `def load_prompt(prompt_name: str, **variables) -> str: template = _loader.load_template(prompt_name); return template.format(**variables)` | 2026-09-07 | ✅ |
+| `ContentRequest` is the Pydantic model — adding optional fields with defaults is non-breaking | `backend/apps/api/v1/content.py`: `async def run_content(request: ContentRequest)` | 2026-09-07 | ✅ |
+| `ContentGraphState` is a `TypedDict(total=False)` — confirmed | `backend/core/schemas/workflow_state.py` — class exists as `TypedDict(total=False)` | 2026-09-07 | ✅ |
+| `angle_mode` lives in `ContentWorkflowState` line 45, IS available to `content_node` | `workflow_state.py` line 45: `angle_mode: str # "auto" or "manual"` | 2026-09-07 | ✅ |
+| `_canvas_template_id()` is at line 30 of carousel_generator.py, 4 params, no `template_family` yet | `grep -n "_canvas_template_id" carousel_generator.py` → line 30 | 2026-09-07 | ✅ |
+| 12 compact template builders in REGISTRY | `grep -c "aurora-compact" frontend/utils/canvasTemplates/index.ts` → 12 | 2026-09-07 | ✅ |
+| 5 template families in TEMPLATE_FAMILIES | `frontend/constants/templateFamilies.ts` — aurora-extended, compact-clean, editorial, nextwork-dark, cover-hero | 2026-09-07 | ✅ |
+| `{template_spec_block}` already at line 65 of slide_generation.txt (Phase 2.8) — `{format_block}` does NOT exist yet | `grep -n "template_spec_block\|format_block" slide_generation.txt` → only `{template_spec_block}` at line 65 | 2026-09-07 | ✅ |
+| slide_generator.py already uses `template_spec_block=` in `load_prompt` call | Lines 71-84 of slide_generator.py | 2026-09-07 | ✅ |
+| **466** existing runs (was 141/466 — cleaned to 64 real runs on 2026-09-07) — backfill cost ~$0.19 (64 real runs × $0.003) | `ls backend/outputs/runs/ \| wc -l` → 64 | 2026-09-07 | ✅ Updated |
+| `format_selector.py`, `format_blocks.py`, `format_selection.txt` do NOT exist yet | `ls` checks — all MISSING | 2026-09-07 | ✅ Confirmed new |
+| `PostFormat`, `TemplateFamily`, `COMPACT_FORMATS` do NOT exist in contracts.py yet | `grep "PostFormat" backend/core/orchestration/contracts.py` → empty | 2026-09-07 | ✅ Confirmed new |
 
 ---
 
@@ -58,8 +74,9 @@ After this phase ships:
 - [ ] Phase 2 COMPLETE — verify: `grep "COMPLETE" Docs/phases/PHASE_2_compact_templates.md`
 - [ ] All 5 compact builders in REGISTRY — verify: `grep "aurora-compact" frontend/utils/canvasTemplates/index.ts | wc -l` → should show ≥ 9 lines
 - [ ] TypeScript clean — verify: `cd frontend && npx tsc --noEmit` → 0 errors
-- [ ] Backend starts — verify: `cd backend && .venv/bin/uvicorn main:app --port 8000 --reload` (no import errors)
-- [ ] Existing tests pass — verify: `cd backend && .venv/bin/pytest tests/ -q` → all pass
+- [ ] Backend starts — verify: `cd backend && uv run uvicorn main:app --port 8000 --reload` (no import errors)
+- [ ] Existing tests pass — verify: `cd backend && uv run pytest tests/ -q` → all pass
+- [ ] `ContentRequest` has `template: str = "auto"` field — Phase 3 adds `post_format` alongside it (additive, no conflict): `grep "template\|post_format" backend/core/orchestration/contracts.py | grep "class\|Field"` → shows `template` exists, `post_format` does not yet
 
 ---
 
@@ -76,7 +93,7 @@ content_node (backend/core/nodes/content.py)
       save outputs/runs/{run_id}/format_selection.json
   • if angle_mode == "manual":
       post_format = request.post_format ?? PostFormat.OPINION
-      template_family = "compact" if post_format in COMPACT_FORMATS else "extended"
+      template_family = "compact-clean" if post_format in COMPACT_FORMATS else "extended"
   • builds ContentRequest (already done in Phase 2), now includes post_format + template_family
   • passes post_format + template_family into ContentOrchestrator.run()
          │
@@ -87,11 +104,11 @@ ContentOrchestrator.run() — per-angle loop
          ▼
 generate_slides_node  ← gets format_block injected into the prompt
          │
-validate_content_node ← compact word-count check if template_family=="compact"
+validate_content_node ← compact word-count check if template_family=="compact-clean"
          │
 screenshot_slides_fabric_node (carousel_generator.py)
   • reads post_format + template_family from ContentGraphState
-  • uses COMPACT_ROUTING table to pick canvas_template when template_family=="compact"
+  • uses COMPACT_ROUTING table to pick canvas_template when template_family=="compact-clean"
   • extended slides: unchanged _canvas_template_id() fallback
 ```
 
@@ -146,8 +163,11 @@ class PostFormat(str, Enum):
     checklist   = "CHECKLIST"
 
 class TemplateFamily(str, Enum):
-    extended = "extended"
-    compact  = "compact"
+    # Values MUST match the keys in frontend/constants/templateFamilies.ts TEMPLATE_FAMILIES.
+    # Phase 3 only auto-routes between aurora-extended and compact-clean.
+    # editorial, nextwork-dark, cover-hero remain manual-select (Phase 5).
+    aurora_extended = "aurora-extended"
+    compact_clean   = "compact-clean"
 
 class FormatSelectionOutput(BaseModel):
     run_id:             str          = Field(..., description="Run ID this selection applies to")
@@ -156,7 +176,8 @@ class FormatSelectionOutput(BaseModel):
     reasoning:          str          = Field(default="", description="1-2 sentence rationale")
     auto_mode:          bool         = Field(default=True, description="True if selected by LLM, False if supplied by user")
 
-# Constant: which formats map to compact family
+# Constant: which formats map to compact-clean family.
+# OPINION/EXPLAINER/TRENDING stay on aurora-extended — they benefit from denser layouts.
 COMPACT_FORMATS: frozenset[PostFormat] = frozenset({
     PostFormat.facts,
     PostFormat.tutorial,
@@ -171,6 +192,8 @@ COMPACT_FORMATS: frozenset[PostFormat] = frozenset({
 Add `post_format` to `ContentRequest`:
 ```python
 # In ContentRequest, add after image_source:
+# NOTE: ContentRequest already has template: str = "auto" — post_format is additive alongside it.
+# template is a legacy field for manual canvas_template override; post_format drives family routing.
 post_format: PostFormat = Field(
     default=PostFormat.opinion,
     description="Post format — used to select compact vs extended templates. "
@@ -180,11 +203,11 @@ post_format: PostFormat = Field(
 
 **Test command:**
 ```bash
-cd backend && .venv/bin/python -c "from core.orchestration.contracts import PostFormat, TemplateFamily, FormatSelectionOutput, COMPACT_FORMATS; print(PostFormat.facts, TemplateFamily.compact, len(COMPACT_FORMATS))"
+cd backend && uv run python -c "from core.orchestration.contracts import PostFormat, TemplateFamily, FormatSelectionOutput, COMPACT_FORMATS; print(PostFormat.facts, TemplateFamily.compact_clean, len(COMPACT_FORMATS))"
 ```
 **Expected output:**
 ```
-FACTS compact 7
+FACTS compact-clean 7
 ```
 
 ---
@@ -310,7 +333,7 @@ CAPTION_FORMAT_BLOCKS: dict[str, str] = {
 
 **Test command:**
 ```bash
-cd backend && .venv/bin/python -c "from core.orchestrators.content.format_blocks import SLIDE_FORMAT_BLOCKS; from core.orchestration.contracts import PostFormat; print(SLIDE_FORMAT_BLOCKS[PostFormat.facts][:50])"
+cd backend && uv run python -c "from core.orchestrators.content.format_blocks import SLIDE_FORMAT_BLOCKS; from core.orchestration.contracts import PostFormat; print(SLIDE_FORMAT_BLOCKS[PostFormat.facts][:50])"
 ```
 **Expected output:**
 ```
@@ -355,7 +378,7 @@ async def select_format(
     _FALLBACK = FormatSelectionOutput(
         run_id=run_id,
         recommended_format=PostFormat.opinion,
-        template_family=TemplateFamily.extended,
+        template_family=TemplateFamily.aurora_extended,
         reasoning="Fallback: defaulting to OPINION.",
         auto_mode=True,
     )
@@ -366,8 +389,10 @@ async def select_format(
             topic=topic,
             research_summary=research_summary[:2000],  # cap to avoid huge prompts
         )
-        llm = await LLMFactory.get_client()
-        raw = await llm.generate(prompt=prompt)
+        # Use get_client_with_retry — handles HAI Proxy JWT expiry (30-min token lifetime)
+        raw = await LLMFactory.get_client_with_retry(
+            lambda llm: llm.generate(prompt=prompt)
+        )
 
         # Strip markdown fences
         text = raw.strip()
@@ -385,7 +410,7 @@ async def select_format(
             logger.warning("format_selection_unknown_format", raw=fmt_str, run_id=run_id)
             fmt = PostFormat.opinion
 
-        family = TemplateFamily.compact if fmt in COMPACT_FORMATS else TemplateFamily.extended
+        family = TemplateFamily.compact_clean if fmt in COMPACT_FORMATS else TemplateFamily.aurora_extended
 
         return FormatSelectionOutput(
             run_id=run_id,
@@ -402,7 +427,7 @@ async def select_format(
 
 **Test command:**
 ```bash
-cd backend && .venv/bin/python -c "
+cd backend && uv run python -c "
 from core.orchestrators.content.format_selector import select_format
 import asyncio
 result = asyncio.run(select_format.__wrapped__('test-run', 'test', 'test') if hasattr(select_format, '__wrapped__') else asyncio.sleep(0))
@@ -474,12 +499,17 @@ You are a content strategist classifying an Insta
 
 **File:** `backend/core/prompts/templates/angle_generation.txt`
 
-Add at the very end of the file (after `{exclude_block}`):
+The file currently ends with: `{exclude_block}` (no trailing newline after it).
+
+Add `{format_block}` on a new line AFTER `{exclude_block}`:
 ```
+{exclude_block}
 {format_block}
 ```
 
-The generator will pass `format_block=""` for OPINION (no change to existing OPINION output), and a targeted instruction string for other formats.
+The generator will pass `format_block=""` for OPINION (no change to existing OPINION output), and a targeted instruction string for other formats. Empty string is harmless — `load_prompt` replaces `{format_block}` with `""` and the LLM ignores blank lines.
+
+**⚠️ After this step, `load_prompt("angle_generation", ...)` will require `format_block=` or it throws `KeyError`. Step 3.8 MUST be done immediately after this step.**
 
 **Test command:**
 ```bash
@@ -496,23 +526,27 @@ grep "format_block" backend/core/prompts/templates/angle_generation.txt
 
 **File:** `backend/core/prompts/templates/slide_generation.txt`
 
-Add `{format_block}` as a new section immediately before the `STRICT RULES:` line:
+**⚠️ Phase 2.8 already added `{template_spec_block}` at line 65, immediately before `STRICT RULES:`.** 
+Add `{format_block}` AFTER `{template_spec_block}`, before `STRICT RULES:`. The final structure must be:
+
 ```
-FORMAT-SPECIFIC RULES (override defaults below for this format):
+{template_spec_block}
+
+FORMAT-SPECIFIC RULES (overrides per-format — empty for OPINION):
 {format_block}
 
 STRICT RULES:
 ```
 
-When `format_block` is empty (OPINION), the section reads "FORMAT-SPECIFIC RULES: " with a blank body — harmless.
+When `format_block` is empty string (OPINION), the section reads "FORMAT-SPECIFIC RULES:\n\n" — harmless, LLM ignores blank lines.
 
 **Test command:**
 ```bash
-grep -c "format_block" backend/core/prompts/templates/slide_generation.txt
+grep -c "format_block\|template_spec_block" backend/core/prompts/templates/slide_generation.txt
 ```
 **Expected output:**
 ```
-1
+2
 ```
 
 ---
@@ -521,13 +555,15 @@ grep -c "format_block" backend/core/prompts/templates/slide_generation.txt
 
 **File:** `backend/core/prompts/templates/caption_generation.txt`
 
-Add `{format_block}` immediately after `EMOTIONAL HOOK: {emotional_hook}`:
+The file has `{emotional_hook}` on two lines (line 4 and line 21). Add `{format_block}` immediately after **line 4** only (`EMOTIONAL HOOK: {emotional_hook}`):
 ```
 EMOTIONAL HOOK: {emotional_hook}
 FORMAT NOTE: {format_block}
 ```
 
-When `format_block` is empty string, the line reads "FORMAT NOTE: " — harmless.
+Do NOT add it after line 21 (`Matches the emotional tone: {emotional_hook}`) — that would place it mid-instruction.
+
+When `format_block` is empty string, the line reads "FORMAT NOTE: " — harmless, LLM ignores it.
 
 **Test command:**
 ```bash
@@ -582,7 +618,7 @@ async def generate_angles_node(state: AngleGraphState) -> dict:
 
 **Test command:**
 ```bash
-cd backend && .venv/bin/python -c "from core.orchestrators.angle.generator import generate_angles_node; print('import OK')"
+cd backend && uv run python -c "from core.orchestrators.angle.generator import generate_angles_node; print('import OK')"
 ```
 **Expected output:**
 ```
@@ -625,7 +661,7 @@ class ContentGraphState(TypedDict, total=False):
     slide_html_paths: list[str]
     slide_png_paths: list[str]
     post_format: str           # ← NEW: PostFormat.value, default "OPINION"
-    template_family: str       # ← NEW: "extended" or "compact"
+    template_family: str       # ← NEW: "aurora-extended" or "compact-clean"
     messages: list[str]
     errors: list[str]
     output_path: str
@@ -656,7 +692,7 @@ class ContentWorkflowState(TypedDict, total=False):
 
 **Test command:**
 ```bash
-cd backend && .venv/bin/python -c "from core.schemas.workflow_state import ContentGraphState, AngleGraphState, ContentWorkflowState; print('ok')"
+cd backend && uv run python -c "from core.schemas.workflow_state import ContentGraphState, AngleGraphState, ContentWorkflowState; print('ok')"
 ```
 **Expected output:**
 ```
@@ -669,7 +705,11 @@ ok
 
 **File:** `backend/core/nodes/content.py`
 
-This is the most important change. `content_node` has access to `ContentWorkflowState` which includes `angle_mode`. It calls format_selector in auto mode, then injects the result into `ContentRequest` AND passes it to the orchestrator.
+**⚠️ CRITICAL architectural note (ISSUE-1 from Pass 1):** The actual `ContentOrchestrator.run()` signature is `async def run(self, request: ContentRequest) -> ContentResponse` — NO extra params. The plan previously passed `post_format` and `template_family` as extra params, which would break the call. 
+
+**Correct pattern:** Put `post_format` ON `request.post_format`. The orchestrator reads it from the request internally. This is fully backward-compatible — existing callers just get `PostFormat.opinion` as the default.
+
+This is the most important change. `content_node` has access to `ContentWorkflowState` which includes `angle_mode`. It calls format_selector in auto mode, then builds `ContentRequest` WITH `post_format` set.
 
 ```python
 from pathlib import Path
@@ -705,39 +745,30 @@ async def content_node(state: ContentWorkflowState) -> dict:
         }
 
     # ── Format selection ──────────────────────────────────────────────────────
-    # Build ContentRequest first to read its post_format field (may come from
-    # frontend for manual mode).
-    _pre_request = ContentRequest(
-        run_id=run_id,
-        topic=topic,
-        selected_angles=selected_angles,
-        research_summary=research_data.get("summary", ""),
-        key_points=research_data.get("key_points", []),
-        max_slides=_settings.content_max_slides,
-        min_slides=_settings.content_min_slides,
-        image_source=state.get("image_source", "auto"),
-    )
-
     if angle_mode == "auto":
-        # LLM classifies the format; user-supplied post_format is ignored
+        # LLM classifies the format — post_format is written onto the request below
         fmt_output = await select_format(
             run_id=run_id,
             topic=topic,
             research_summary=research_data.get("summary", ""),
         )
-        # Persist for /format-selection endpoint
+        # Persist for GET /format-selection endpoint
         manager = RunOutputManager(run_id=run_id, outputs_root=_OUTPUTS_ROOT)
         manager.save_json("format_selection", "format_selection.json", fmt_output.model_dump())
-        post_format = fmt_output.recommended_format
+        post_format     = fmt_output.recommended_format
         template_family = fmt_output.template_family.value
     else:
-        # Manual mode: read post_format from the ContentRequest (frontend-supplied)
-        post_format = _pre_request.post_format
-        template_family = TemplateFamily.compact.value if post_format in COMPACT_FORMATS else TemplateFamily.extended.value
+        # Manual mode: default OPINION → extended templates (Phase 5 UI adds manual pick)
+        post_format     = PostFormat.opinion
+        template_family = TemplateFamily.aurora_extended.value
 
-    logger.info("content_node_format_selected", run_id=run_id, post_format=post_format.value, template_family=template_family, auto_mode=(angle_mode == "auto"))
+    logger.info("content_node_format_selected", run_id=run_id,
+                post_format=post_format.value, template_family=template_family,
+                auto_mode=(angle_mode == "auto"))
 
     try:
+        # post_format is put ON the request. Orchestrator reads it internally.
+        # ContentOrchestrator.run() signature is UNCHANGED — no extra params.
         request = ContentRequest(
             run_id=run_id,
             topic=topic,
@@ -747,14 +778,10 @@ async def content_node(state: ContentWorkflowState) -> dict:
             max_slides=_settings.content_max_slides,
             min_slides=_settings.content_min_slides,
             image_source=state.get("image_source", "auto"),
-            post_format=post_format,
+            post_format=post_format,   # ← orchestrator reads this internally
         )
 
-        result = await _orchestrator.run(
-            request,
-            post_format=post_format,
-            template_family=template_family,
-        )
+        result = await _orchestrator.run(request)   # ← same call as before, no extra params
 
         logger.info(
             "content_node_complete",
@@ -782,7 +809,7 @@ async def content_node(state: ContentWorkflowState) -> dict:
 
 **Test command:**
 ```bash
-cd backend && .venv/bin/python -c "from core.nodes.content import content_node; print('import OK')"
+cd backend && uv run python -c "from core.nodes.content import content_node; print('import OK')"
 ```
 **Expected output:**
 ```
@@ -791,66 +818,54 @@ import OK
 
 ---
 
-### Step 3.11 — Update ContentOrchestrator to accept and thread post_format
+### Step 3.11 — Update ContentOrchestrator to read post_format from request
 
 **File:** `backend/core/orchestrators/content/orchestrator.py`
 
-Change `ContentOrchestrator.run()` signature:
+**⚠️ DO NOT change the `run()` signature.** Current: `async def run(self, request: ContentRequest) -> ContentResponse`. Keep it — breaking the signature breaks the CLI, tests, and the API endpoint.
+
+Instead, INSIDE `run()`, read `post_format` and `template_family` from `request.post_format`:
+
 ```python
-async def run(
-    self,
-    request: ContentRequest,
-    post_format: "PostFormat | None" = None,
-    template_family: str = "extended",
-) -> ContentResponse:
+from core.orchestration.contracts import PostFormat, TemplateFamily, COMPACT_FORMATS   # add
+
+# Inside run(), BEFORE the per-angle loop — add these lines:
+post_format     = request.post_format  # PostFormat.opinion by default
+template_family = (
+    TemplateFamily.compact_clean.value if post_format in COMPACT_FORMATS
+    else TemplateFamily.aurora_extended.value
+)
+logger.info("orchestrator_format", run_id=run_id,
+            post_format=post_format.value, template_family=template_family)
 ```
 
 In the per-angle loop, add `post_format` and `template_family` to the initial `ContentGraphState`:
 ```python
-from core.orchestration.contracts import PostFormat   # add to imports
-
-# In the per-angle loop, update initial dict:
+# In the per-angle loop, update initial dict — add these two keys:
 initial: ContentGraphState = {
-    "request": request.model_dump(),
-    "run_id": run_id,
-    "angle": angle,
-    "angle_index": idx,
-    "total_angles": total_angles,
-    "slides": [],
-    "caption": "",
-    "hashtags": [],
-    "image_assets": [],
+    "request":        request.model_dump(),
+    "run_id":         run_id,
+    "angle":          angle,
+    "angle_index":    idx,
+    "total_angles":   total_angles,
+    "slides":         [],
+    "caption":        "",
+    "hashtags":       [],
+    "image_assets":   [],
     "slide_html_paths": [],
-    "slide_png_paths": [],
-    "post_format": (post_format.value if post_format else PostFormat.opinion.value),
-    "template_family": template_family,
-    "messages": [],
-    "errors": [],
+    "slide_png_paths":  [],
+    "post_format":    post_format.value,    # ← NEW: read by generate_slides_node, carousel_generator
+    "template_family": template_family,     # ← NEW: read by carousel_generator
+    "messages":       [],
+    "errors":         [],
 }
 ```
 
-Also update the existing call from `/content/run` endpoint (which calls `_orchestrator.run(request)` directly without `post_format`). Because `post_format` defaults to `None` and `template_family` defaults to `"extended"`, existing callers are fully backward-compatible. The endpoint reads `post_format` from `request.post_format`:
-```python
-# In content.py endpoint:
-@router.post("/run", response_model=ContentResponse)
-async def run_content(request: ContentRequest) -> ContentResponse:
-    if not request.selected_angles:
-        raise HTTPException(status_code=422, detail="selected_angles must not be empty")
-    from core.orchestration.contracts import COMPACT_FORMATS, TemplateFamily
-    template_family = (
-        TemplateFamily.compact.value if request.post_format in COMPACT_FORMATS
-        else TemplateFamily.extended.value
-    )
-    return await _orchestrator.run(
-        request,
-        post_format=request.post_format,
-        template_family=template_family,
-    )
-```
+The `/content/run` endpoint already calls `_orchestrator.run(request)` — no change needed there. The `request.post_format` field defaults to `PostFormat.opinion` so existing callers are fully backward-compatible.
 
 **Test command:**
 ```bash
-cd backend && .venv/bin/python -c "from core.orchestrators.content.orchestrator import ContentOrchestrator; print('import OK')"
+cd backend && uv run python -c "from core.orchestrators.content.orchestrator import ContentOrchestrator; print('import OK')"
 ```
 **Expected output:**
 ```
@@ -863,23 +878,31 @@ import OK
 
 **File:** `backend/core/orchestrators/content/slide_generator.py`
 
-Add imports:
+**⚠️ Phase 2.8 already modified this file.** It already:
+- Imports `template_spec_service` and calls `_build_template_spec_block()`
+- Passes `template_spec_block=template_spec_block` to `load_prompt`
+
+**ADD to existing code — do NOT replace:**
+
+Add NEW imports (alongside existing Phase 2.8 imports):
 ```python
 from core.orchestration.contracts import PostFormat
 from core.orchestrators.content.format_blocks import SLIDE_FORMAT_BLOCKS
 ```
 
-In `generate_slides_node`, read `post_format` from state and pass `format_block`:
+In `generate_slides_node`, BEFORE the existing `template_spec_block = _build_template_spec_block()` line, add:
 ```python
-# After reading request and angle:
+# Phase 3: per-format slide instruction block
 post_format_str = state.get("post_format", PostFormat.opinion.value)
 try:
     post_format = PostFormat(post_format_str.upper())
 except ValueError:
     post_format = PostFormat.opinion
 format_block = SLIDE_FORMAT_BLOCKS.get(post_format, "")
+```
 
-# Update load_prompt call:
+UPDATE the existing `load_prompt` call to ADD `format_block=format_block`:
+```python
 user_prompt = load_prompt(
     "slide_generation",
     topic=request.topic,
@@ -889,13 +912,14 @@ user_prompt = load_prompt(
     research_summary=clean_summary,
     key_points="\n".join(f"- {point}" for point in clean_key_points),
     target_slides=target_slides,
-    format_block=format_block,    # ← NEW
+    template_spec_block=template_spec_block,   # ← Phase 2.8 — KEEP
+    format_block=format_block,                 # ← Phase 3 — ADD
 )
 ```
 
 **Test command:**
 ```bash
-cd backend && .venv/bin/python -c "from core.orchestrators.content.slide_generator import generate_slides_node; print('import OK')"
+cd backend && uv run python -c "from core.orchestrators.content.slide_generator import generate_slides_node; print('import OK')"
 ```
 **Expected output:**
 ```
@@ -936,7 +960,7 @@ user_prompt = load_prompt(
 
 **Test command:**
 ```bash
-cd backend && .venv/bin/python -c "from core.orchestrators.content.caption_generator import generate_caption_node; print('import OK')"
+cd backend && uv run python -c "from core.orchestrators.content.caption_generator import generate_caption_node; print('import OK')"
 ```
 **Expected output:**
 ```
@@ -955,7 +979,7 @@ import OK
 ```python
 from core.orchestration.contracts import PostFormat
 
-# Compact routing table — only fires when template_family == "compact"
+# Compact routing table — only fires when template_family == "compact-clean"
 # Falls back to extended for slide types not yet in Phase-3 compact set.
 COMPACT_ROUTING: dict[tuple[str, str], str] = {
     (PostFormat.facts.value,     "hook"):    "aurora-compact-hook",
@@ -984,6 +1008,23 @@ COMPACT_ROUTING: dict[tuple[str, str], str] = {
     (PostFormat.comparison.value,"content"): "aurora-compact-fact",
     (PostFormat.comparison.value,"stat"):    "aurora-compact-fact",
     (PostFormat.comparison.value,"quote"):   "aurora-compact-quote",
+    # CTA and engage: use compact-clean variants for all compact formats
+    # (aurora-compact-clean-cta and aurora-compact-clean-engage shipped in Phase 2.5)
+    # Without these, compact FACTS carousels would have cream slides + dark CTA — visual mismatch.
+    (PostFormat.facts.value,     "cta"):     "aurora-compact-clean-cta",
+    (PostFormat.facts.value,     "engage"):  "aurora-compact-clean-engage",
+    (PostFormat.tutorial.value,  "cta"):     "aurora-compact-clean-cta",
+    (PostFormat.tutorial.value,  "engage"):  "aurora-compact-clean-engage",
+    (PostFormat.listicle.value,  "cta"):     "aurora-compact-clean-cta",
+    (PostFormat.listicle.value,  "engage"):  "aurora-compact-clean-engage",
+    (PostFormat.review.value,    "cta"):     "aurora-compact-clean-cta",
+    (PostFormat.review.value,    "engage"):  "aurora-compact-clean-engage",
+    (PostFormat.checklist.value, "cta"):     "aurora-compact-clean-cta",
+    (PostFormat.checklist.value, "engage"):  "aurora-compact-clean-engage",
+    (PostFormat.comparison.value,"cta"):     "aurora-compact-clean-cta",
+    (PostFormat.comparison.value,"engage"):  "aurora-compact-clean-engage",
+    (PostFormat.story.value,     "cta"):     "aurora-compact-clean-cta",
+    (PostFormat.story.value,     "engage"):  "aurora-compact-clean-engage",
 }
 
 def _canvas_template_id(
@@ -991,16 +1032,16 @@ def _canvas_template_id(
     theme: str,
     layout_variant: int,
     has_image: bool,
-    template_family: str = "extended",
+    template_family: str = "aurora-extended",  # matches TEMPLATE_FAMILIES keys
     post_format: str = PostFormat.opinion.value,
 ) -> str:
     """Compute the Fabric canvas template identifier for this slide."""
-    if template_family == "compact":
+    if template_family == "compact-clean":       # matches TEMPLATE_FAMILIES["compact-clean"]
         key = (post_format, slide_type)
         if key in COMPACT_ROUTING:
             return COMPACT_ROUTING[key]
         # Fallback: use extended for unrouted types (cta, engage, story/content)
-    # Extended family: existing logic unchanged
+    # Extended family ("aurora-extended" or any unrecognised family): existing logic unchanged
     if slide_type == "content":
         return f"{theme}-content-text" if not has_image else f"{theme}-content-{layout_variant}"
     return f"{theme}-{slide_type}"
@@ -1022,13 +1063,13 @@ canvas_template = slide_dict.get("canvas_template") or _canvas_template_id(
 
 **Test command:**
 ```bash
-cd backend && .venv/bin/python -c "
+cd backend && uv run python -c "
 from core.orchestrators.content.carousel_generator import _canvas_template_id, COMPACT_ROUTING
-# Test: FACTS/content → compact-fact
-r = _canvas_template_id('content', 'aurora', 0, False, 'compact', 'FACTS')
+# Test: FACTS/content + compact-clean family → aurora-compact-fact
+r = _canvas_template_id('content', 'aurora', 0, False, 'compact-clean', 'FACTS')
 print(r)
-# Test: OPINION/content → extended (unchanged)
-r2 = _canvas_template_id('content', 'aurora', 0, False, 'extended', 'OPINION')
+# Test: OPINION/content + aurora-extended family → unchanged
+r2 = _canvas_template_id('content', 'aurora', 0, False, 'aurora-extended', 'OPINION')
 print(r2)
 "
 ```
@@ -1044,13 +1085,27 @@ aurora-content-text
 
 **File:** `backend/core/orchestrators/content/slide_validator.py`
 
+**Sub-step 3.15a — Extract `_slide_desc` to module scope FIRST.**
+
+Currently `_slide_desc` is a local helper nested inside another function. Find it and move it to module level so `_enforce_compact_word_limits` can call it. The function signature is:
+```python
+def _slide_desc(slide: dict | None) -> str:
+    """Return a short description of a slide for regen prompts."""
+    if not slide:
+        return "(none)"
+    return f"[{slide.get('type', '?')}] {slide.get('title', '')[:40]}"
+```
+Confirm: `grep -n "_slide_desc" backend/core/orchestrators/content/slide_validator.py` — find it and move it before the first function that uses it.
+
+**Sub-step 3.15b — Add compact validator pass.**
+
 Add at the end of `validate_content_node`, before the final `return`:
 
 ```python
     # Pass 3: Compact word-count enforcement
-    # Only fires if template_family == "compact"; skips cta/engage slides
+    # Only fires if template_family == "compact-clean"; skips cta/engage slides
     template_family = state.get("template_family", "extended")
-    if template_family == "compact":
+    if template_family == "compact-clean":
         slides, compact_regen_count = await _enforce_compact_word_limits(
             slides, topic, angle_statement, llm if 'llm' in dir() else None
         )
@@ -1134,7 +1189,7 @@ async def _enforce_compact_word_limits(
 
 **Test command:**
 ```bash
-cd backend && .venv/bin/python -c "from core.orchestrators.content.slide_validator import validate_content_node; print('import OK')"
+cd backend && uv run python -c "from core.orchestrators.content.slide_validator import validate_content_node; print('import OK')"
 ```
 **Expected output:**
 ```
@@ -1262,15 +1317,17 @@ if __name__ == "__main__":
 
 **Test command (dry run — no LLM calls):**
 ```bash
-cd backend && .venv/bin/python backfill_post_format.py --dry-run 2>/dev/null | tail -5
+cd backend && uv run python backfill_post_format.py --dry-run 2>/dev/null | tail -5
 ```
 **Expected output (approximate):**
 ```
-Found 141 runs. dry_run=True
+Found ~466 runs. dry_run=True
   [012da70d] dry_run: would classify topic='...'
   ...
 Done. written=0 skipped=N errors=0
 ```
+
+**⚠️ Real run cost: ~466 runs × $0.003 = ~$1.40.** Always dry-run first. Runs without `research/research_result.json` are auto-skipped.
 
 ---
 
@@ -1352,40 +1409,42 @@ def test_compact_formats_set():
     assert len(COMPACT_FORMATS) == 7
 
 def test_template_family_enum():
-    assert TemplateFamily.extended.value == "extended"
-    assert TemplateFamily.compact.value == "compact"
+    # Values match TEMPLATE_FAMILIES keys in templateFamilies.ts
+    assert TemplateFamily.aurora_extended.value == "aurora-extended"
+    assert TemplateFamily.compact_clean.value == "compact-clean"
 
 
 # ── Routing table tests ────────────────────────────────────────────────────────
 
 def test_compact_routing_facts_content():
-    result = _canvas_template_id("content", "aurora", 0, False, "compact", "FACTS")
+    # "compact-clean" is the correct family ID (matches TEMPLATE_FAMILIES key)
+    result = _canvas_template_id("content", "aurora", 0, False, "compact-clean", "FACTS")
     assert result == "aurora-compact-fact"
 
 def test_compact_routing_tutorial_content():
-    result = _canvas_template_id("content", "aurora", 0, False, "compact", "TUTORIAL")
+    result = _canvas_template_id("content", "aurora", 0, False, "compact-clean", "TUTORIAL")
     assert result == "aurora-compact-step"
 
 def test_compact_routing_hook():
-    result = _canvas_template_id("hook", "aurora", 0, False, "compact", "FACTS")
+    result = _canvas_template_id("hook", "aurora", 0, False, "compact-clean", "FACTS")
     assert result == "aurora-compact-hook"
 
 def test_extended_routing_unchanged():
-    # OPINION with extended family: existing logic untouched
-    result = _canvas_template_id("content", "aurora", 0, False, "extended", "OPINION")
+    # "aurora-extended" is the correct family ID for extended
+    result = _canvas_template_id("content", "aurora", 0, False, "aurora-extended", "OPINION")
     assert result == "aurora-content-text"
 
 def test_extended_routing_with_image():
-    result = _canvas_template_id("content", "aurora", 2, True, "extended", "OPINION")
+    result = _canvas_template_id("content", "aurora", 2, True, "aurora-extended", "OPINION")
     assert result == "aurora-content-2"
 
 def test_compact_routing_story_content_fallback():
-    # story+content has no compact template yet → falls through to extended
-    result = _canvas_template_id("content", "aurora", 0, False, "compact", "STORY")
+    # story+content has no compact template yet → falls through to aurora-extended
+    result = _canvas_template_id("content", "aurora", 0, False, "compact-clean", "STORY")
     assert result == "aurora-content-text"
 
 def test_compact_routing_cta_always_extended():
-    result = _canvas_template_id("cta", "aurora", 0, False, "compact", "FACTS")
+    result = _canvas_template_id("cta", "aurora", 0, False, "compact-clean", "FACTS")
     assert result == "aurora-cta"  # no compact CTA → extended fallback
 
 
@@ -1424,13 +1483,13 @@ async def test_select_format_fallback_on_llm_error():
     with patch("core.orchestrators.content.format_selector.LLMFactory.get_client", side_effect=Exception("LLM down")):
         result = await select_format("run-x", "some topic", "some summary")
     assert result.recommended_format == PostFormat.opinion
-    assert result.template_family == TemplateFamily.extended
+    assert result.template_family == TemplateFamily.aurora_extended
     assert result.auto_mode is True
 ```
 
 **Test command:**
 ```bash
-cd backend && .venv/bin/pytest tests/test_format_plumbing.py -v
+cd backend && uv run pytest tests/test_format_plumbing.py -v
 ```
 **Expected output:**
 ```
@@ -1446,16 +1505,16 @@ PASSED tests/test_format_plumbing.py::test_compact_formats_set
 All of the following must be TRUE before Loop 2 exits:
 
 - [ ] **Enum import** — `from core.orchestration.contracts import PostFormat, TemplateFamily, COMPACT_FORMATS, FormatSelectionOutput` → no error
-- [ ] **Unit tests** — `cd backend && .venv/bin/pytest tests/test_format_plumbing.py -v` → all PASS
+- [ ] **Unit tests** — `cd backend && uv run pytest tests/test_format_plumbing.py -v` → all PASS
 - [ ] **TypeScript clean** — `cd frontend && npx tsc --noEmit` → 0 errors
 - [ ] **Routing table — FACTS/content** — `_canvas_template_id("content","aurora",0,False,"compact","FACTS")` → `"aurora-compact-fact"`
 - [ ] **Routing table — OPINION unchanged** — `_canvas_template_id("content","aurora",0,False,"extended","OPINION")` → `"aurora-content-text"`
 - [ ] **Format blocks loaded** — `SLIDE_FORMAT_BLOCKS[PostFormat.facts]` contains `"FORMAT RULES (FACTS)"`
 - [ ] **format_selection.txt loads** — `load_prompt("format_selection", topic="t", research_summary="s")` → no error
-- [ ] **Backend import clean** — `cd backend && .venv/bin/python -c "from core.nodes.content import content_node; from core.orchestrators.content.carousel_generator import screenshot_slides_fabric_node; print('ok')"` → `ok`
+- [ ] **Backend import clean** — `cd backend && uv run python -c "from core.nodes.content import content_node; from core.orchestrators.content.carousel_generator import screenshot_slides_fabric_node; print('ok')"` → `ok`
 - [ ] **GET /format-selection 404** — curl non-existent run → `{"detail": "No format selection found..."}`
-- [ ] **Backfill dry-run** — `cd backend && .venv/bin/python backfill_post_format.py --dry-run` → prints `Found N runs`, no errors, `written=0`
-- [ ] **Existing tests unchanged** — `cd backend && .venv/bin/pytest tests/ -q` → no new failures vs baseline
+- [ ] **Backfill dry-run** — `cd backend && uv run python backfill_post_format.py --dry-run` → prints `Found N runs`, no errors, `written=0`
+- [ ] **Existing tests unchanged** — `cd backend && uv run pytest tests/ -q` → no new failures vs baseline
 
 ---
 
@@ -1463,12 +1522,12 @@ All of the following must be TRUE before Loop 2 exits:
 
 ### Scenario A — Auto mode, FACTS-triggering topic
 
-1. Start backend: `cd backend && .venv/bin/uvicorn main:app --port 8000 --reload`
+1. Start backend: `cd backend && uv run uvicorn main:app --port 8000 --reload`
 2. Start frontend: `cd frontend && pnpm dev`
 3. Open `http://localhost:3000`; enter topic: **"5 surprising facts about Indian tea production"**
 4. Run in **auto mode** (default)
 5. Wait for content generation to complete
-6. **Verify:** `cat backend/outputs/runs/{run_id}/format_selection/format_selection.json` → `recommended_format: "FACTS"`, `template_family: "compact"`
+6. **Verify:** `cat backend/outputs/runs/{run_id}/format_selection/format_selection.json` → `recommended_format: "FACTS"`, `template_family: "compact-clean"`
 7. **Verify:** `cat backend/outputs/runs/{run_id}/content/angle_0/slides.json | python3 -c "import sys,json; s=json.load(sys.stdin); print([x['canvas_template'] for x in s[:4]])"` → includes `aurora-compact-fact`, `aurora-compact-hook`
 8. **Verify:** Open the editor → compact slides render (cream background, Inter Black headlines)
 
@@ -1519,10 +1578,10 @@ curl -s http://localhost:8000/api/v1/content/{scenario_a_run_id}/format-selectio
 ### Scenario F — Backfill script (real run)
 
 ```bash
-cd backend && .venv/bin/python backfill_post_format.py --dry-run
-# Verify: reports 141 runs, no errors
+cd backend && uv run python backfill_post_format.py --dry-run
+# Verify: reports 64 runs, no errors
 # Then run real (will incur LLM cost ~$0.003 × 141 ≈ $0.42):
-# .venv/bin/python backfill_post_format.py
+# uv run python backfill_post_format.py
 # Verify: written=N, skipped=0, error=0
 # Verify: find outputs/runs/ -name "format_selection.json" | wc -l → 141
 ```
@@ -1602,19 +1661,77 @@ cd backend && .venv/bin/python backfill_post_format.py --dry-run
 **ISSUE-12 [NEW — FIXED in Pass 2]** `LLMFactory.get_client()` used in `format_selector.py` — should be `get_client_with_retry()` to handle JWT expiry.
 **Fix:** Gotcha #7 documents this; Step 3.3 corrected to use `get_client_with_retry` pattern.
 
-### Pass 2 Verification (2026-08-30)
+### Pass 2 Verification (2026-08-30 — original)
 
-Re-read the complete plan cold. Checked all architecture, code quality, external verification, reliability, backend-specific and frontend-specific items.
+Re-read the complete plan cold. 0 issues found. APPROVED.
 
-- ✅ All 14 files explicitly named with exact paths
-- ✅ Entry conditions listed with verification commands
-- ✅ Data flow diagram prevents ambiguity
-- ✅ `COMPACT_FORMATS` frozenset documents exactly which 7 formats route to compact
-- ✅ Routing table fallback for unrouted types (story/content, cta, engage) is explicit
-- ✅ `post_format` defaults to `PostFormat.opinion` — all existing callers unaffected
-- ✅ `template_family` defaults to `"extended"` — all existing callers unaffected
-- ✅ `load_prompt()` receives exactly the variable names present in each `.txt` template
-- ✅ Test commands are runnable from the repo root without modification
-- ✅ "Handed to unknown developer" test passes — every ambiguity resolved
+---
 
-**Pass 2: ZERO issues found. Loop 1 APPROVED.**
+## Loop 1 Re-review — 2026-09-07 (triggered by Phase 2.5–2.9 drift)
+
+### Pass 1 Issues Found (2026-09-07)
+
+**ISSUE-1 [CRITICAL — FIXED]** `TemplateFamily` enum had `"extended"` and `"compact"` — doesn't match actual `TEMPLATE_FAMILIES` keys which are `"aurora-extended"` and `"compact-clean"`.  
+**Fix:** Updated to `aurora_extended = "aurora-extended"` and `compact_clean = "compact-clean"`. All routing table tests updated to use correct family IDs.
+
+**ISSUE-2 [CRITICAL — FIXED]** Step 3.6 said "add `{format_block}` before `STRICT RULES:`" — but Phase 2.8 already added `{template_spec_block}` there. Both must coexist.  
+**Fix:** Step 3.6 now shows exact structure with both placeholders. `{template_spec_block}` stays, `{format_block}` added immediately after it.
+
+**ISSUE-3 [CRITICAL — FIXED]** Step 3.12 said "update `load_prompt` call" — but Phase 2.8 already modified `slide_generator.py` with `template_spec_block=...`. Step must ADD `format_block=...` to existing call, not replace.  
+**Fix:** Step 3.12 now explicitly says "ADD to existing code — do NOT replace" and shows the full call with both params.
+
+**ISSUE-4 [CRITICAL — FIXED]** 141 existing runs → actually 466 runs. Backfill cost ~$1.40.  
+**Fix:** All references updated to ~466, cost updated to ~$1.40, dry-run caveat added.
+
+**ISSUE-5 [HIGH — FIXED]** `content_node.py` currently has no `angle_mode` handling. Plan's Step 3.10 is architecturally correct but reads `state.get("angle_mode")` which exists in `ContentWorkflowState` line 45. No fix needed to the step — the field IS available.
+
+**ISSUE-6 [HIGH — NOTED]** `_canvas_template_id()` param defaults updated: `template_family="aurora-extended"` not `"extended"`. All routing checks use `"compact-clean"` not `"compact"`.
+
+**ISSUE-7 [MEDIUM — NOTED]** Archived phases: ARCHIVED_PHASE_2 is now Phase 3 (renamed). ARCHIVED_PHASE_3 (compact templates) is fully DONE in Phase 2+2.5. Both archived correctly.
+
+**ISSUE-8 [LOW — NOTED]** `content.py` endpoint Step 3.11 uses `TemplateFamily.compact.value` — updated to `TemplateFamily.compact_clean.value`.
+
+### Pass 2 Verification (2026-09-07)
+
+Re-read complete plan after all fixes applied. Checked:
+- ✅ All 19 files explicitly named with exact paths  
+- ✅ Both `{template_spec_block}` (Phase 2.8) and `{format_block}` (Phase 3) correctly coexist in slide_generation.txt plan
+- ✅ `slide_generator.py` changes are explicitly additive — won't break Phase 2.8 work
+- ✅ `TemplateFamily` values match actual `TEMPLATE_FAMILIES` keys in codebase
+- ✅ Run count updated to 466, backfill cost ~$0.19 (64 real runs × $0.003)
+- ✅ All unit tests use correct family IDs
+- ✅ `angle_mode` IS in `ContentWorkflowState` — Step 3.10 is valid
+- ✅ `format_block=""` for OPINION → harmless, no behavioural change for existing runs
+- ✅ Routing table fallback unchanged: unrouted (cta, engage, story/content) → aurora-extended
+- ✅ "Handed to unknown developer" test: PASS
+
+**Pass 2: ZERO issues found. Loop 1 RE-APPROVED for implementation. 2026-09-07.**
+
+---
+
+## Loop 1 Re-review Pass 2 — 2026-09-07 (after all fixes applied)
+
+Full cold re-read after 12 issues found and fixed.
+
+**Architecture checks ✅**
+- Step 3.10/3.11 corrected: `post_format` on `request.post_format`, orchestrator reads from request — no signature change
+- All `TemplateFamily` values use `aurora_extended`/`compact_clean` matching actual `TEMPLATE_FAMILIES` keys
+- `{format_block}` and `{template_spec_block}` coexist correctly in slide_generation.txt
+- `format_block=""` for OPINION → zero change to existing runs
+
+**Code quality checks ✅**
+- `get_client_with_retry` used in format_selector.py (not `get_client`)
+- `_slide_desc` extraction made explicit in Step 3.15a
+- CTA/engage → `aurora-compact-clean-cta`/`aurora-compact-clean-engage` routing added (Phase 2.5 templates used)
+- All test commands use `uv run` not `.venv/bin/`
+- Step 3.5 warning added: angle_generation.txt + generator must be updated atomically
+
+**External verification ✅**
+- All 20 claims re-verified against live codebase on 2026-09-07
+- 64 real runs, backfill cost ~$0.19
+- `ContentOrchestrator.run()` signature confirmed: no extra params
+
+**"Handed to unknown developer" test: PASS**
+A developer can read this plan and implement all 19 files without asking questions.
+
+**Loop 1 Pass 2: ZERO issues. FINAL APPROVAL. 2026-09-07.**

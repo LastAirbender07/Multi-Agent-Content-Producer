@@ -35,6 +35,7 @@ class AngleGraphState(TypedDict, total=False):
     selected_angles: list[dict]
     selection_reasoning: str
     evaluation: dict        # AngleEvaluation.model_dump()
+    post_format: str        # Phase 3: PostFormat.value — passed from ContentWorkflowState
     errors: list[str]
     messages: list[str]
     output_path: str
@@ -44,6 +45,9 @@ class ContentWorkflowState(TypedDict, total=False):
     run_id: str
     angle_mode: str             # "auto" or "manual" — set by pipeline caller
     image_source: str           # "auto", "pexels", "ddgs" — set by pipeline caller
+    post_format: str            # Phase 3: PostFormat.value — written by content_node after format selection
+    template_family: str        # Phase 3: TemplateFamily.value — written by content_node
+    selected_family: str        # Phase 3.5: user-selected family override (skips format_selection_node)
     processed_query: dict       # ProcessedQuery.model_dump() from QueryPreprocessor
     research_data: dict[str, Any]
     research_summary: str
@@ -69,6 +73,8 @@ class ContentGraphState(TypedDict, total=False):
     image_assets: list[dict]
     slide_html_paths: list[str]
     slide_png_paths: list[str]
+    post_format: str            # Phase 3: PostFormat.value — read by slide_generator + carousel_generator
+    template_family: str        # Phase 3: TemplateFamily.value — read by carousel_generator
     messages: list[str]
     errors: list[str]
     output_path: str

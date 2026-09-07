@@ -20,7 +20,8 @@
 | 2.7 | Editor Real Editability Fixes | ✅ **DONE** — brand/outlined/number pills text-editable; live preview after save | [`PHASE_2.7_editor_editability_fixes.md`](phases/PHASE_2.7_editor_editability_fixes.md) |
 | 2.8 | Template Content Schema & Rich Metadata | ✅ **DONE** — 24 specs, export script, backend service + API, injected into LLM prompt | [`PHASE_2.8_template_content_schema.md`](phases/PHASE_2.8_template_content_schema.md) |
 | 2.9 | Visual Audit Fixes + Collapsible Family Groups | ✅ **DONE** — photo-bg defaults fixed, cover hero text, 5 collapsible family groups | [`PHASE_2.9_visual_audit_fixes.md`](phases/PHASE_2.9_visual_audit_fixes.md) |
-| 3 | Format Plumbing (auto template selection LLM) | 🟡 **UNBLOCKED — ready to implement** (Phase 2.8 done, specs available) | [`PHASE_3_format_plumbing.md`](phases/PHASE_3_format_plumbing.md) |
+| 3 | Format Plumbing (auto template selection LLM) | 🟡 **UNBLOCKED + RE-REVIEWED (2026-09-07)** — 10 drift issues fixed (family IDs, spec block coexistence, 466 runs). Ready to implement. | [`PHASE_3_format_plumbing.md`](phases/PHASE_3_format_plumbing.md) |
+| 3.5 | Aurora Lite Family + LLM routing fix | 🟡 **APPROVED** — 2 new builders, remove aurora-extended from LLM, user family override | [`PHASE_3.5_aurora_lite_family.md`](phases/PHASE_3.5_aurora_lite_family.md) |
 | 4 | Build remaining editorial + nextwork-dark slides | 📝 OUTLINE | `PHASE_4_remaining_compact_formats.md` |
 | 5 | UI (format chip) & Analytics | 📝 OUTLINE | `PHASE_5_ui_and_analytics.md` |
 | 6A | aurora-editorial-* (SahilBloom style) | ⏸ NOT DRAFTED — family MDs are spec | *(pending Phase 5)* |

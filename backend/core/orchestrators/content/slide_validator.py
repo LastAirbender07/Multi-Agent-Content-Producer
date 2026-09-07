@@ -9,6 +9,13 @@ from infra.logging import get_logger
 logger = get_logger(__name__)
 
 
+def _slide_desc(s: dict | None) -> str:
+    """Module-level helper — used by _regen_single_slide and _enforce_compact_word_limits."""
+    if s is None:
+        return "(none)"
+    return f"[{s.get('type', 'content')}] {s.get('title', '')}: {s.get('body', '') or ''}"
+
+
 def _make_cta_slide(topic: str, angle_statement: str, slide_number: int) -> dict:
     return {
         "type": "cta",
@@ -123,11 +130,6 @@ async def _regen_single_slide(
     llm,
 ) -> dict:
     """Re-generate a single failing slide with 1 attempt. Returns original on failure."""
-    def _slide_desc(s: dict | None) -> str:
-        if s is None:
-            return "(none)"
-        return f"[{s.get('type','content')}] {s.get('title','')}: {s.get('body','') or ''}"
-
     try:
         prompt = load_prompt(
             "slide_regen",
@@ -191,6 +193,35 @@ async def validate_content_node(state: ContentGraphState) -> dict:
                 )
     except Exception as e:
         logger.warning("validate_content_node_relevance_check_failed", error=str(e))
+
+    # Pass 3: Word-count enforcement (Phase 3 + 3.5)
+    # compact-clean: title ≤10 words, body ≤25 words, no bullets
+    # aurora-lite:   title ≤10 words, body ≤15 words, no bullets (stricter)
+    template_family = state.get("template_family", "aurora-lite")
+    if template_family in ("compact-clean", "aurora-lite"):
+        SKIP_TYPES = {"cta", "engage", "stat", "quote"}
+        # aurora-lite has stricter body limit (15 words) than compact-clean (25 words)
+        max_body_words = 15 if template_family == "aurora-lite" else 25
+        compact_fixes = 0
+        for i, slide in enumerate(slides):
+            slide_type = slide.get("type", "content")
+            if slide_type in SKIP_TYPES:
+                continue
+            title_words = len(str(slide.get("title", "")).split())
+            body_words  = len(str(slide.get("body",  "")).split())
+            if title_words > 10 or body_words > max_body_words:
+                logger.info("compact_word_limit_truncate",
+                            slide_number=slide.get("slide_number"),
+                            title_words=title_words, body_words=body_words)
+                slides[i] = {
+                    **slide,
+                    "title":   " ".join(str(slide.get("title", "")).split()[:10]),
+                    "body":    " ".join(str(slide.get("body",  "")).split()[:max_body_words]),
+                    "bullets": [],   # aurora-lite and compact-clean never have bullets
+                }
+                compact_fixes += 1
+        if compact_fixes:
+            logger.info("compact_word_limit_fixes_applied", count=compact_fixes)
 
     return {
         "slides": slides,

@@ -27,6 +27,9 @@ import { buildAuroraCompactCleanEngage }      from "./aurora_compact_clean_engag
 // Phase 2.5 — editorial family gap-fills
 import { buildAuroraEditorialHook }           from "./aurora_editorial_hook";
 import { buildAuroraEditorialCta }            from "./aurora_editorial_cta";
+// Phase 3.5 — aurora-lite family (dark aurora + Instagram-readable density)
+import { buildAuroraLiteContent } from "./aurora_lite_content";
+import { buildAuroraLiteQuote }   from "./aurora_lite_quote";
 // Phase 2.5 — nextwork-dark family gap-fills
 import { buildAuroraNxtworkDarkCta }          from "./aurora_nextwork_dark_cta";
 import { buildAuroraNxtworkDarkEngage }       from "./aurora_nextwork_dark_engage";
@@ -84,6 +87,13 @@ export const REGISTRY: Record<string, TemplateBuilder> = {
   // Phase 2.5 — nextwork-dark family
   "aurora-nextwork-dark-cta":          buildAuroraNxtworkDarkCta,
   "aurora-nextwork-dark-engage":       buildAuroraNxtworkDarkEngage,
+  // Phase 3.5 — aurora-lite family (2 new builders; hook/stat/cta/engage reuse existing)
+  "aurora-lite-content": buildAuroraLiteContent,
+  "aurora-lite-quote":   buildAuroraLiteQuote,
+  "aurora-lite-hook":    buildAuroraHook,     // reuse: already Instagram-readable
+  "aurora-lite-stat":    buildAuroraStat,     // reuse: single big number, no density issue
+  "aurora-lite-cta":     buildAuroraCta,      // reuse: short punchy CTA
+  "aurora-lite-engage":  buildAuroraEngage,   // reuse: single ask, no density issue
   // Lumina (thin wrappers — same layout, different tokens)
   "lumina-hook":          lw(buildAuroraHook),
   "lumina-content-0":     lw((s,i,t,m) => buildAuroraContent(s,i,t,m, 0)),

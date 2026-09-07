@@ -1,0 +1,31 @@
+You are a content strategist classifying an Instagram carousel topic into the best post format.
+
+TOPIC: {topic}
+
+RESEARCH SUMMARY (first 2000 chars):
+{research_summary}
+
+---
+
+Classify this topic into EXACTLY ONE of these 10 formats:
+
+- OPINION    — personal take, contrarian stance, editorial commentary
+- FACTS      — surprising or counterintuitive facts; the point is revelation
+- TUTORIAL   — step-by-step how-to; the point is skill transfer
+- EXPLAINER  — demystifying a concept; the point is clarity
+- TRENDING   — tied to a current event or cultural moment
+- STORY      — narrative arc; real event with characters and outcome
+- LISTICLE   — numbered list of items/tips/things; the point is completeness
+- REVIEW     — evaluation with a verdict; pros/cons + recommendation
+- COMPARISON — two options head-to-head; the point is the verdict
+- CHECKLIST  — sequential must-dos; the point is action
+
+Rules:
+1. Choose the format that best matches what a reader EXPECTS from this topic
+2. If the topic is primarily someone's opinion or analysis, choose OPINION
+3. FACTS requires at least 3 surprising, specific data points in the research
+4. TUTORIAL requires a clear sequence of steps that can be numbered
+5. If unsure between two formats, choose the one with the stronger hook for Instagram
+
+Return ONLY valid JSON — no explanation outside the JSON:
+{{"format": "FORMAT_NAME", "reasoning": "One sentence explaining why this format fits best."}}
