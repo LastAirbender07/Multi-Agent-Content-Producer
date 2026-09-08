@@ -1,7 +1,9 @@
 # MASTER PLAN — Multi-Format Content Strategy (v4)
 
-> **Status:** APPROVED — Phase 2 ✅ COMPLETE (2026-08-30). Phase 2.5 🟡 ARCHITECT PLAN in progress (2026-08-30). Phase 3 ⏸ PAUSED pending Phase 2.5.
-> **Last synced with reality:** 2026-08-30
+> **Status:** Phase 2 ✅ COMPLETE. Phase 2.5 ✅ COMPLETE. Phase 3 ✅ COMPLETE. Phase 3.5 ✅ COMPLETE (+ layout bug fixed 2026-09-08). Phase 4 ⏳ NEXT. Phase 5 ⏳ PENDING.
+> **Last synced with reality:** 2026-09-08
+>
+> **Sept 2026 RCA fix (2026-09-08):** aurora-lite-content had no layout variants — every content slide was an identical glass card. Fixed by wiring `aurora-lite-content-0/-1/-2/-3/-text` to `buildAuroraContent()` with layout params. compact-clean was routing content slides to `aurora-compact-fact` (stat template) — fixed by introducing `aurora-compact-content`. See `docs/rca/RCA_TEMPLATE_RENDERING_2026_09_08.md`.
 > **Revised on:** 2026-08-23 based on two user course corrections:
 >   1. **Slides first, plumbing second** — the visible template design is the highest-leverage change; format-selection plumbing lands after.
 >   2. **Don't waste tokens on format-selection in manual mode** — user's angle choice already signals format intent. Only auto mode runs the LLM.

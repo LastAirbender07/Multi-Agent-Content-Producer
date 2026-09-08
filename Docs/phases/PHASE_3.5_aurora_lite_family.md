@@ -1,7 +1,11 @@
 # PHASE 3.5 — Aurora Lite Family + LLM Routing Fix
 
 ## Status
-DRAFT — Loop 1 Pass 1 in progress
+✅ COMPLETE — Loop 2 verified 2026-09-08 + RCA layout fix applied.
+
+**Implementation complete.** Pipeline routes OPINION/EXPLAINER/TRENDING/STORY → aurora-lite, FACTS/TUTORIAL/LISTICLE → compact-clean. E2E verified on two topics with pixel analysis + visual inspection.
+
+**RCA fix (2026-09-08):** aurora-lite-content had no layout variants — every content slide was an identical centred glass card. Root cause: builder written from scratch instead of reusing `buildAuroraContent()` layout engine. Fixed by registering `aurora-lite-content-0/-1/-2/-3/-text` in `index.ts`. compact-clean content slides also fixed: `aurora-compact-content` (new) routes content slides; `aurora-compact-stat-hero` routes stat slides. See `docs/rca/RCA_TEMPLATE_RENDERING_2026_09_08.md`.
 
 ---
 
