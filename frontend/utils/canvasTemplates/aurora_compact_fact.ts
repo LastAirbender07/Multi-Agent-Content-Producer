@@ -65,6 +65,29 @@ export async function buildAuroraCompactFact(
   const tokens = COMPACT_TOKENS;
   const m: Required<CompactFactMeta> = { ...DEFAULTS, ...(slide.compact_meta ?? {}) };
 
+  // Fallback: if compact_meta was not provided, derive content from standard slide fields.
+  // For pipeline slides the backend now synthesises compact_meta correctly.
+  // This covers edge cases: manual editor use, old slides, direct API calls.
+  if (!slide.compact_meta) {
+    const statV = (slide as any).stat_value;
+    const statL = (slide as any).stat_label ?? "";
+    if (statV) {
+      m.variant       = "single";
+      m.stat          = { value: String(statV), caption: statL, color: CORAL };
+      m.body_header   = slide.title ?? "";
+      m.body_copy     = slide.body  ?? "";
+      m.category_pill = "STAT";
+    } else {
+      // Text-only: compare variant with zeroed stat placeholders — body section shows content
+      m.variant        = "compare";
+      m.stat_baseline  = { value: "", caption: "" };
+      m.stat_featured  = { value: "", caption: "" };
+      m.body_header    = slide.title ?? "";
+      m.body_copy      = slide.body  ?? "";
+      m.attribution    = "";
+    }
+  }
+
   const objects: fabric.FabricObject[] = [];
 
   // 1. Cream background

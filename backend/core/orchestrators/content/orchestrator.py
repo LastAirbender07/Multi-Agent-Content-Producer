@@ -138,11 +138,18 @@ class ContentOrchestrator:
 
         # Phase 3: derive template_family from request.post_format
         # post_format defaults to PostFormat.opinion on old callers — fully backward-compatible
+        # Phase 3.5: selected_family on the request (set by content_node) takes priority;
+        #            fallback is aurora-lite (NEVER aurora-extended for automated runs).
         post_format     = request.post_format
-        template_family = (
-            TemplateFamily.compact_clean.value if post_format in COMPACT_FORMATS
-            else TemplateFamily.aurora_extended.value
-        )
+        if request.selected_family:
+            # User or content_node pinned a family — honour it exactly.
+            template_family = request.selected_family
+        elif post_format in COMPACT_FORMATS:
+            template_family = TemplateFamily.compact_clean.value
+        else:
+            # OPINION, EXPLAINER, TRENDING, STORY → aurora-lite (not aurora-extended).
+            # aurora-extended is ONLY set when the user explicitly picks it in the UI.
+            template_family = TemplateFamily.aurora_lite.value
         logger.info("orchestrator_format", run_id=run_id,
                     post_format=post_format.value, template_family=template_family)
 

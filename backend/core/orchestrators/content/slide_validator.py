@@ -9,6 +9,38 @@ from infra.logging import get_logger
 logger = get_logger(__name__)
 
 
+def _smart_truncate(text: str, max_words: int) -> str:
+    """Truncate body text to max_words, preferring a clean sentence/clause boundary.
+
+    Strategy:
+    1. If text is already within limit, return as-is.
+    2. Find the LAST sentence-ending punctuation (. ! ?) within the first max_words.
+       Use this boundary — even if it means fewer words (complete > dense).
+    3. If no sentence boundary, try a soft clause boundary (, ; — –) near the end.
+    4. Hard-truncate at max_words as last resort (no ellipsis — cleaner on screen).
+    """
+    words = text.split()
+    if len(words) <= max_words:
+        return text
+
+    window = words[:max_words]
+
+    # Find the LAST sentence-ending word in the window (scan full window backward)
+    for j in range(len(window) - 1, -1, -1):
+        w = window[j].rstrip()
+        if w and w[-1] in ".!?":
+            return " ".join(window[:j + 1])
+
+    # Try soft boundary (comma/semicolon/dash) — last 4 words of window
+    for j in range(len(window) - 1, max(len(window) - 5, -1), -1):
+        w = window[j].rstrip(",;—–-")
+        if w != window[j]:          # had trailing punctuation stripped
+            return " ".join(window[:j + 1])
+
+    # Hard truncate — just the words, no ellipsis
+    return " ".join(window)
+
+
 def _slide_desc(s: dict | None) -> str:
     """Module-level helper — used by _regen_single_slide and _enforce_compact_word_limits."""
     if s is None:
@@ -216,7 +248,7 @@ async def validate_content_node(state: ContentGraphState) -> dict:
                 slides[i] = {
                     **slide,
                     "title":   " ".join(str(slide.get("title", "")).split()[:10]),
-                    "body":    " ".join(str(slide.get("body",  "")).split()[:max_body_words]),
+                    "body":    _smart_truncate(str(slide.get("body",  "")), max_body_words),
                     "bullets": [],   # aurora-lite and compact-clean never have bullets
                 }
                 compact_fixes += 1

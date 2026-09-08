@@ -40,10 +40,17 @@ async def content_node(state: ContentWorkflowState) -> dict:
     user_family = state.get("selected_family")
 
     if user_family:
-        # User explicitly chose a family — skip format_selection_node entirely
-        post_format     = PostFormat.opinion   # format doesn't matter when family is fixed
+        # User explicitly chose a family — skip format_selection_node entirely.
+        # Pick a sensible default post_format so carousel routing tables have matching keys:
+        #   compact-clean → FACTS (richest COMPACT_ROUTING coverage)
+        #   aurora-lite   → OPINION (AURORA_LITE_ROUTING is format-agnostic)
         template_family = user_family
-        logger.info("content_node_user_family_override", run_id=run_id, family=user_family)
+        if user_family == "compact-clean":
+            post_format = PostFormat.facts
+        else:
+            post_format = PostFormat.opinion
+        logger.info("content_node_user_family_override", run_id=run_id, family=user_family,
+                    default_format=post_format.value)
 
     elif angle_mode == "auto":
         # LLM classifies — returns aurora-lite or compact-clean, NEVER aurora-extended
@@ -79,7 +86,9 @@ async def content_node(state: ContentWorkflowState) -> dict:
             max_slides=_settings.content_max_slides,
             min_slides=_settings.content_min_slides,
             image_source=state.get("image_source", "auto"),
-            post_format=post_format,   # orchestrator reads this and injects into ContentGraphState
+            post_format=post_format,      # orchestrator reads this and injects into ContentGraphState
+            selected_family=user_family,  # Phase 3.5: propagate user-pinned family so orchestrator
+                                          # honours it (skips its own format derivation logic).
         )
 
         result = await _orchestrator.run(request)   # same call as before — no signature change

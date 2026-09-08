@@ -49,7 +49,17 @@ ANGLE_FORMAT_BLOCKS: dict[str, str] = {
 
 # ── Slide generation blocks ───────────────────────────────────────────────────
 SLIDE_FORMAT_BLOCKS: dict[str, str] = {
-    PostFormat.opinion:    "",
+    PostFormat.opinion:    (
+        "FORMAT RULES (OPINION — aurora-lite): One idea per slide. "
+        "Title: one bold declarative statement, <=10 words — punchy, provocative. "
+        "Body: EXACTLY ONE complete sentence that supports the title. "
+        "That sentence MUST be <=15 words AND must be a complete, self-contained thought. "
+        "NEVER write a sentence that continues beyond the body field. "
+        "ABSOLUTELY NO bullet points on any content slide. "
+        "If you need 3 points, write 3 slides with 1 sentence each. "
+        "WRONG: 'Hustle culture was deliberately repackaged as an identity, trapping Gen Z before they could opt out.' (too long) "
+        "RIGHT:  'Hustle culture became identity — Gen Z had no exit.' (complete, <=15w)"
+    ),
     PostFormat.facts:      (
         "FORMAT RULES (FACTS): Each content slide = one surprising fact. "
         "Title: the fact as a bold claim (≤8 words). Body: 2-3 sentences unpacking the 'why'. "
@@ -63,19 +73,20 @@ SLIDE_FORMAT_BLOCKS: dict[str, str] = {
         "each slide builds on the previous one."
     ),
     PostFormat.explainer:  (
-        "FORMAT RULES (EXPLAINER): Content slides = one concept per slide. "
-        "Title: the concept name (≤6 words). Body: plain-language definition + one concrete example (≤40 words). "
-        "Avoid jargon; use analogies. A 12-year-old should understand it."
+        "FORMAT RULES (EXPLAINER -- aurora-lite): One concept per slide. "
+        "Title: the concept name, <=8 words, declarative. "
+        "Body: ONE plain-language sentence (definition OR analogy, not both), <=15 words. "
+        "NO bullet points. 3 examples = 3 separate slides."
     ),
     PostFormat.trending:   (
-        "FORMAT RULES (TRENDING): Lead with recency — every content slide should include a "
-        "date, recent statistic, or named current event. Body ≤35 words. "
-        "Use conversational, urgent tone. Reference specific names/companies/events."
+        "FORMAT RULES (TRENDING -- aurora-lite): One current fact per slide. "
+        "Title: <=10 words with urgency. Body: <=15 words -- the right-now context. "
+        "NO bullet points. Lead with the specific date or named event."
     ),
     PostFormat.story:      (
-        "FORMAT RULES (STORY): Structure the slides as a narrative: setup → conflict → turning point → resolution. "
-        "Body ≤35 words per slide. Use specific names, dates, and places. No abstract generalisations. "
-        "Each slide should feel like a chapter, not a fact."
+        "FORMAT RULES (STORY -- aurora-lite): One story beat per slide. "
+        "Title: <=10 words narrative hook. Body: <=15 words advancing the story. "
+        "NO bullet points. Setup, conflict, turning point, resolution = separate slides."
     ),
     PostFormat.listicle:   (
         "FORMAT RULES (LISTICLE): Each content slide = one item in the list. Number each item in the title. "

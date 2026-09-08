@@ -196,15 +196,88 @@ async def screenshot_slides_fabric_node(state: ContentGraphState) -> dict:
 
         # Phase 3: read format/family from state for compact routing
         post_format_val  = state.get("post_format",    PostFormat.opinion.value)
-        template_family  = state.get("template_family", "aurora-extended")
+        template_family  = state.get("template_family", "aurora-lite")
 
-        # Compute canvas_template if not already stored, then build enriched dict
-        canvas_template = slide_dict.get("canvas_template") or _canvas_template_id(
-            slide_type, theme, layout_variant, has_image,
-            template_family=template_family,
-            post_format=post_format_val,
-        )
+        # Compute canvas_template:
+        # - For aurora-lite and compact-clean: ALWAYS re-derive from routing table.
+        #   The LLM may output aurora-* IDs from the template_spec_block prompt injection
+        #   which would bypass the Phase 3/3.5 routing. Always override for these families.
+        # - For aurora-extended (user-explicit): honour existing canvas_template if set.
+        stored_template = slide_dict.get("canvas_template")
+        if template_family in ("aurora-lite", "compact-clean") or not stored_template:
+            canvas_template = _canvas_template_id(
+                slide_type, theme, layout_variant, has_image,
+                template_family=template_family,
+                post_format=post_format_val,
+            )
+        else:
+            # aurora-extended: respect LLM-supplied canvas_template (user chose dense)
+            canvas_template = stored_template
         slide_dict = {**slide_dict, "canvas_template": canvas_template, "_theme": theme}
+
+        # Phase 3 — compact_meta adapter
+        # Compact-clean templates (aurora-compact-*) read from slide.compact_meta.
+        # The LLM generates standard title/body/bullets. If compact_meta is absent,
+        # synthesise it from the standard fields so content renders correctly.
+        # Field mapping follows the TypeScript interfaces in each compact template:
+        #   aurora-compact-fact:      body_header + body_copy + stat{value,caption} + variant
+        #   aurora-compact-step:      step_number + title + steps[{label,detail}]
+        #   aurora-compact-hook:      headline_runs (falls back to slide.title natively)
+        #   aurora-compact-stat-hero: stat_value + stat_label + body_copy
+        #   aurora-compact-quote:     quote + attribution (partially via compact_meta)
+        #   aurora-compact-clean-cta/engage: headline_runs (falls back to slide.title natively)
+        # Hooks, cta, engage fall back natively → only fact/step/stat-hero need this adapter.
+        if template_family == "compact-clean" and not slide_dict.get("compact_meta"):
+            import re as _re
+            bullets_raw = slide_dict.get("bullets") or []
+            bullets_clean = [
+                _re.sub(r"^\d+[\.\)]\s*", "", str(b)).strip()
+                for b in bullets_raw if str(b).strip()
+            ]
+            stat_v = slide_dict.get("stat_value")
+            stat_l = slide_dict.get("stat_label") or ""
+            title  = slide_dict.get("title", "")
+            body   = slide_dict.get("body",  "")
+
+            if canvas_template == "aurora-compact-fact":
+                if stat_v:
+                    # Numeric stat → single variant
+                    slide_dict = {**slide_dict, "compact_meta": {
+                        "variant":      "single",
+                        "stat":         {"value": str(stat_v), "caption": stat_l},
+                        "body_header":  title,
+                        "body_copy":    body,
+                        "attribution":  "",
+                        "category_pill": "STAT",
+                        "brand_wordmark": "",
+                    }}
+                else:
+                    # Text-only fact: compare variant, inject title/body into the body section
+                    # Zero out the stat placeholders so no Anthropic demo data appears
+                    slide_dict = {**slide_dict, "compact_meta": {
+                        "variant":       "compare",
+                        "stat_baseline": {"value": "", "caption": ""},
+                        "stat_featured": {"value": "", "caption": ""},
+                        "body_header":   title,
+                        "body_copy":     body,
+                        "attribution":   bullets_clean[0] if bullets_clean else "",
+                        "brand_wordmark": "",
+                    }}
+
+            elif canvas_template == "aurora-compact-stat-hero":
+                slide_dict = {**slide_dict, "compact_meta": {
+                    "stat_value": str(stat_v) if stat_v else "",
+                    "stat_label": stat_l,
+                    "body_copy":  body,
+                }}
+
+            elif canvas_template in ("aurora-compact-step", "aurora-compact-list-item"):
+                slide_dict = {**slide_dict, "compact_meta": {
+                    "title":      title,
+                    "body_copy":  body,
+                    "steps":      [{"label": b, "detail": ""} for b in bullets_clean[:4]],
+                }}
+
         # Update the legacy polling store (for /render-status endpoint)
         content_progress.update(run_id, i + 1, len(slides_raw))
 
