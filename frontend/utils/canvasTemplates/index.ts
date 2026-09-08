@@ -24,6 +24,8 @@ import { buildAuroraCarouselCoverHeroImages } from "./aurora_carousel_cover_hero
 import { buildAuroraCompactCleanCta }         from "./aurora_compact_clean_cta";
 import { buildAuroraCompactCleanQuote }       from "./aurora_compact_clean_quote";
 import { buildAuroraCompactCleanEngage }      from "./aurora_compact_clean_engage";
+// Phase RCA fix — general content template for compact-clean family
+import { buildAuroraCompactContent }          from "./aurora_compact_content";
 // Phase 2.5 — editorial family gap-fills
 import { buildAuroraEditorialHook }           from "./aurora_editorial_hook";
 import { buildAuroraEditorialCta }            from "./aurora_editorial_cta";
@@ -77,6 +79,8 @@ export const REGISTRY: Record<string, TemplateBuilder> = {
   // Phase 5 cover-hero family
   "aurora-carousel-cover-hero-phone":  buildAuroraCarouselCoverHeroPhone,
   "aurora-carousel-cover-hero-images": buildAuroraCarouselCoverHeroImages,
+  // Phase RCA fix — general content template for compact-clean (photo bg + title + body)
+  "aurora-compact-content":            buildAuroraCompactContent,
   // Phase 2.5 — compact-clean family gap-fills
   "aurora-compact-clean-cta":          buildAuroraCompactCleanCta,
   "aurora-compact-clean-quote":        buildAuroraCompactCleanQuote,
@@ -87,8 +91,16 @@ export const REGISTRY: Record<string, TemplateBuilder> = {
   // Phase 2.5 — nextwork-dark family
   "aurora-nextwork-dark-cta":          buildAuroraNxtworkDarkCta,
   "aurora-nextwork-dark-engage":       buildAuroraNxtworkDarkEngage,
-  // Phase 3.5 — aurora-lite family (2 new builders; hook/stat/cta/engage reuse existing)
-  "aurora-lite-content": buildAuroraLiteContent,
+  // Phase 3.5 — aurora-lite family
+  // Content: reuse aurora-extended layout engine (imgRight/imgLeft/imgTop/textOnly).
+  // Density rules (≤15w body, no bullets) enforced by slide_validator.py, NOT the builder.
+  // aurora-lite-content (legacy alias) → layout-0 for backward compat with existing slides.
+  "aurora-lite-content":      (s,i,t,m) => buildAuroraContent(s,i,t,m, 0),
+  "aurora-lite-content-0":    (s,i,t,m) => buildAuroraContent(s,i,t,m, 0),  // imgRight
+  "aurora-lite-content-1":    (s,i,t,m) => buildAuroraContent(s,i,t,m, 1),  // textTop
+  "aurora-lite-content-2":    (s,i,t,m) => buildAuroraContent(s,i,t,m, 2),  // imgTop
+  "aurora-lite-content-3":    (s,i,t,m) => buildAuroraContent(s,i,t,m, 3),  // imgLeft
+  "aurora-lite-content-text": (s,i,t,m) => buildAuroraContent(s,i,t,m,-1),  // textOnly
   "aurora-lite-quote":   buildAuroraLiteQuote,
   "aurora-lite-hook":    buildAuroraHook,     // reuse: already Instagram-readable
   "aurora-lite-stat":    buildAuroraStat,     // reuse: single big number, no density issue

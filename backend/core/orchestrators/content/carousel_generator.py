@@ -39,18 +39,20 @@ COMPACT_ROUTING: dict[tuple[str, str], str] = {
     (PostFormat.story.value,     "hook"):    "aurora-compact-hook",
     (PostFormat.checklist.value, "hook"):    "aurora-compact-hook",
     (PostFormat.comparison.value,"hook"):    "aurora-compact-hook",
-    # content slides
-    (PostFormat.facts.value,     "content"): "aurora-compact-fact",
-    (PostFormat.tutorial.value,  "content"): "aurora-compact-step",
+    # content slides — aurora-compact-content (photo bg + title + body, no stat machinery)
+    # stat slides   — aurora-compact-stat-hero (photo bg + large number callout)
+    # These are different slide TYPES and must never share the same template.
+    (PostFormat.facts.value,     "content"): "aurora-compact-content",
+    (PostFormat.tutorial.value,  "content"): "aurora-compact-step",       # step-by-step = tutorial only
     (PostFormat.listicle.value,  "content"): "aurora-compact-list-item",
-    (PostFormat.review.value,    "content"): "aurora-compact-fact",
+    (PostFormat.review.value,    "content"): "aurora-compact-content",
     (PostFormat.checklist.value, "content"): "aurora-compact-list-item",
-    (PostFormat.comparison.value,"content"): "aurora-compact-fact-compare",
+    (PostFormat.comparison.value,"content"): "aurora-compact-content",
     # stat slides
-    (PostFormat.facts.value,     "stat"):    "aurora-compact-fact",
+    (PostFormat.facts.value,     "stat"):    "aurora-compact-stat-hero",
     (PostFormat.tutorial.value,  "stat"):    "aurora-compact-stat-hero",
-    (PostFormat.listicle.value,  "stat"):    "aurora-compact-fact",
-    (PostFormat.review.value,    "stat"):    "aurora-compact-fact",
+    (PostFormat.listicle.value,  "stat"):    "aurora-compact-stat-hero",
+    (PostFormat.review.value,    "stat"):    "aurora-compact-stat-hero",
     (PostFormat.comparison.value,"stat"):    "aurora-compact-fact-compare",
     # quote slides
     (PostFormat.facts.value,     "quote"):   "aurora-compact-quote",
@@ -79,13 +81,14 @@ COMPACT_ROUTING: dict[tuple[str, str], str] = {
 
 # Phase 3.5: aurora-lite routing table
 # Keys: (slide_type, "aurora-lite") → template ID
+# NOTE: "content" type is NOT in this table — it's handled dynamically in
+# _canvas_template_id based on has_image + layout_variant (same as aurora-extended).
 AURORA_LITE_ROUTING: dict[tuple[str, str], str] = {
-    ("hook",    "aurora-lite"): "aurora-lite-hook",     # = aurora-hook
-    ("content", "aurora-lite"): "aurora-lite-content",  # NEW — no bullets, 64pt title
-    ("stat",    "aurora-lite"): "aurora-lite-stat",     # = aurora-stat
-    ("quote",   "aurora-lite"): "aurora-lite-quote",    # NEW — no insight bullets
-    ("cta",     "aurora-lite"): "aurora-lite-cta",      # = aurora-cta
-    ("engage",  "aurora-lite"): "aurora-lite-engage",   # = aurora-engage
+    ("hook",   "aurora-lite"): "aurora-lite-hook",    # reuses aurora-hook builder
+    ("stat",   "aurora-lite"): "aurora-lite-stat",    # reuses aurora-stat builder
+    ("quote",  "aurora-lite"): "aurora-lite-quote",   # custom: no insight bullets
+    ("cta",    "aurora-lite"): "aurora-lite-cta",     # reuses aurora-cta builder
+    ("engage", "aurora-lite"): "aurora-lite-engage",  # reuses aurora-engage builder
 }
 
 
@@ -109,6 +112,12 @@ def _canvas_template_id(
             return COMPACT_ROUTING[key]
         # Fallback for unrouted types (story+content, etc.) → extended
     elif template_family == "aurora-lite":
+        # Content slides: use same layout variants as aurora-extended.
+        # aurora-lite is a DENSITY constraint (≤15w body, no bullets), not a layout constraint.
+        if slide_type == "content":
+            if has_image:
+                return f"aurora-lite-content-{layout_variant}"   # 0=imgRight, 1=textTop, 2=imgTop, 3=imgLeft
+            return "aurora-lite-content-text"
         key = (slide_type, "aurora-lite")
         if key in AURORA_LITE_ROUTING:
             return AURORA_LITE_ROUTING[key]
@@ -215,18 +224,13 @@ async def screenshot_slides_fabric_node(state: ContentGraphState) -> dict:
             canvas_template = stored_template
         slide_dict = {**slide_dict, "canvas_template": canvas_template, "_theme": theme}
 
-        # Phase 3 — compact_meta adapter
-        # Compact-clean templates (aurora-compact-*) read from slide.compact_meta.
-        # The LLM generates standard title/body/bullets. If compact_meta is absent,
-        # synthesise it from the standard fields so content renders correctly.
-        # Field mapping follows the TypeScript interfaces in each compact template:
-        #   aurora-compact-fact:      body_header + body_copy + stat{value,caption} + variant
-        #   aurora-compact-step:      step_number + title + steps[{label,detail}]
-        #   aurora-compact-hook:      headline_runs (falls back to slide.title natively)
-        #   aurora-compact-stat-hero: stat_value + stat_label + body_copy
-        #   aurora-compact-quote:     quote + attribution (partially via compact_meta)
-        #   aurora-compact-clean-cta/engage: headline_runs (falls back to slide.title natively)
-        # Hooks, cta, engage fall back natively → only fact/step/stat-hero need this adapter.
+        # Phase 3 / RCA fix — compact_meta adapter
+        # Templates that fall back natively from slide.title/body (NO adapter needed):
+        #   aurora-compact-hook, aurora-compact-clean-cta/engage, aurora-compact-content
+        # Templates that need explicit field mapping (adapter required):
+        #   aurora-compact-fact      → body_header + body_copy + stat{value,caption} + variant
+        #   aurora-compact-stat-hero → headline + body_intro + stat_value + stat_explanation
+        #   aurora-compact-step      → heading + explanation (detail layout)
         if template_family == "compact-clean" and not slide_dict.get("compact_meta"):
             import re as _re
             bullets_raw = slide_dict.get("bullets") or []
@@ -240,42 +244,38 @@ async def screenshot_slides_fabric_node(state: ContentGraphState) -> dict:
             body   = slide_dict.get("body",  "")
 
             if canvas_template == "aurora-compact-fact":
-                if stat_v:
-                    # Numeric stat → single variant
-                    slide_dict = {**slide_dict, "compact_meta": {
-                        "variant":      "single",
-                        "stat":         {"value": str(stat_v), "caption": stat_l},
-                        "body_header":  title,
-                        "body_copy":    body,
-                        "attribution":  "",
-                        "category_pill": "STAT",
-                        "brand_wordmark": "",
-                    }}
-                else:
-                    # Text-only fact: compare variant, inject title/body into the body section
-                    # Zero out the stat placeholders so no Anthropic demo data appears
-                    slide_dict = {**slide_dict, "compact_meta": {
-                        "variant":       "compare",
-                        "stat_baseline": {"value": "", "caption": ""},
-                        "stat_featured": {"value": "", "caption": ""},
-                        "body_header":   title,
-                        "body_copy":     body,
-                        "attribution":   bullets_clean[0] if bullets_clean else "",
-                        "brand_wordmark": "",
-                    }}
-
-            elif canvas_template == "aurora-compact-stat-hero":
+                # aurora-compact-fact is ONLY used for stat slides now.
+                # It always has a stat value at this point.
                 slide_dict = {**slide_dict, "compact_meta": {
-                    "stat_value": str(stat_v) if stat_v else "",
-                    "stat_label": stat_l,
-                    "body_copy":  body,
+                    "variant":       "single",
+                    "stat":          {"value": str(stat_v) if stat_v else "—", "caption": stat_l},
+                    "body_header":   title,
+                    "body_copy":     body,
+                    "attribution":   bullets_clean[0] if bullets_clean else "",
+                    "category_pill": "STAT",
+                    "brand_wordmark": "",
                 }}
 
-            elif canvas_template in ("aurora-compact-step", "aurora-compact-list-item"):
+            elif canvas_template == "aurora-compact-stat-hero":
+                # aurora-compact-stat-hero — photo bg + headline + stat value overlay.
+                # CompactStatHeroMeta fields: headline, body_intro, stat_value, stat_explanation
                 slide_dict = {**slide_dict, "compact_meta": {
-                    "title":      title,
-                    "body_copy":  body,
-                    "steps":      [{"label": b, "detail": ""} for b in bullets_clean[:4]],
+                    "headline":        title,
+                    "body_intro":      body,
+                    "stat_value":      str(stat_v) if stat_v else "",
+                    "stat_explanation": stat_l,
+                    "attribution":     bullets_clean[0] if bullets_clean else "",
+                    "brand_wordmark":  "",
+                }}
+
+            elif canvas_template in ("aurora-compact-step",):
+                # Tutorial step: heading = title, explanation = body, steps from bullets
+                slide_dict = {**slide_dict, "compact_meta": {
+                    "layout":      "detail",
+                    "heading":     title,
+                    "topicName":   title.split()[0] if title else "",
+                    "explanation": body,
+                    "steps":       [{"name": b, "stepNumber": i+1} for i, b in enumerate(bullets_clean[:6])],
                 }}
 
         # Update the legacy polling store (for /render-status endpoint)
