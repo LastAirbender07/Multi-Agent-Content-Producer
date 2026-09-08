@@ -246,6 +246,75 @@ This is necessary because Fabric.js computes text layout lazily — the height i
 
 ---
 
+---
+
+## ⛔ Template Family Design Contract (Added 2026-09-08 — CRITICAL)
+
+> **Violating this contract was the root cause of three sessions of broken output. Read this before creating or modifying any template family.**
+
+### The Aurora-Extended Layout Engine Is The Source of Truth
+
+`aurora_content.ts` + `contentLayouts/` is the canonical content slide layout engine. It supports:
+- `layout-0`: text left 57%, image right 43% (`imgRight`)
+- `layout-1`: text top, image bottom strip (`textTop`)
+- `layout-2`: image fills top half, text below (`imgTop`)
+- `layout-3`: image left 43%, text right 57% (`imgLeft`)
+- `layout-(-1)`: text only, no image (`textOnly`)
+
+**Every content template family must use these layout variants.** Not some of them — all of them. This is what makes carousels visually interesting.
+
+### What Is A "Template Family" vs A "Density Rule"
+
+A **template family** (aurora-extended, aurora-lite, compact-clean) controls:
+- Visual aesthetic: dark vs cream background, token colours, font choices
+- Content density expectations: do users expect bullets? Long body? Short body?
+
+A **density rule** controls:
+- Maximum words in body text
+- Whether bullets are allowed
+- How the validator truncates content
+
+**These are independent.** Density rules live in `slide_validator.py`. Layout variants live in `contentLayouts/`. A new family does NOT need new layout code — it needs new tokens and (if different enough) a new wrapper that calls the existing layout functions with those tokens.
+
+### The `lw()` Pattern (Right Way to Add a Family)
+
+```typescript
+// Lumina is literally this — same layout engine, different tokens:
+const lw = (fn: TemplateBuilder): TemplateBuilder =>
+  (s, i, _t, m) => fn(s, i, LUMINA, m);
+
+"lumina-content-0": lw((s,i,t,m) => buildAuroraContent(s,i,t,m, 0)),
+```
+
+Aurora-lite content uses the same pattern:
+```typescript
+"aurora-lite-content-0": (s,i,t,m) => buildAuroraContent(s,i,t,m, 0),
+```
+
+The aurora-lite aesthetic difference (dark bg, aurora token colours) comes automatically because `getTokens("aurora-lite-content-0")` returns the aurora token set. **No new builder needed.**
+
+### The Slide Type vs Template Mismatch Anti-Pattern
+
+| Slide type | Wrong template | Right template |
+|-----------|---------------|----------------|
+| `content` (no stat) | `aurora-compact-fact` | `aurora-compact-content` |
+| `stat` | `aurora-compact-content` | `aurora-compact-fact` or `aurora-compact-stat-hero` |
+
+**Never route a `content` type slide to a stat-number template.** The stat template renders a 140pt number as the hero element. If `stat_value` is null, the stat area is blank — top 50% of the slide is empty cream.
+
+### The `compact_meta` Contract
+
+Compact-clean templates do NOT read `slide.title`, `slide.body`, `slide.bullets` directly. They read from `slide.compact_meta` — a template-specific metadata object with field names defined in each template's TypeScript interface.
+
+**When adding a compact template that will be used by the pipeline:**
+1. Add a `slide.title/body` fallback in the TypeScript builder (same pattern as `aurora-compact-hook` line 44)
+2. OR add a `compact_meta` adapter in `carousel_generator.py` that maps standard fields to the template's field names
+3. Document the field mapping in the adapter comment
+
+**If you see Anthropic protein data / "@nextwork" / "Into the lab" in a rendered slide:** the template is using DEFAULTS because `compact_meta` is absent and there is no fallback. Fix: add the fallback or the adapter.
+
+---
+
 ## Common Debugging Patterns
 
 **Builder produces wrong layout:** Add `console.log` inside the builder. In the validation script context the browser console is captured — check the `jsErrors` array in the output.
@@ -257,3 +326,15 @@ This is necessary because Fabric.js computes text layout lazily — the height i
 **Slide renders correctly in editor but not in PNG:** The editor and the bundle use different font loading paths. Check that `canvasFonts.ts` and the inline FONT_DEFS in `renderer_entry.ts` reference the same font family names and weights.
 
 **Text overflows canvas:** The builder is not using `calcTextHeight()` — it is estimating heights with `lineHeight * fontSize`. Find the estimate, replace it with the two-pass pattern.
+
+**Every content slide in a carousel looks identical (same layout):** The template family only registered one content entry instead of five layout variants. Add `-0/-1/-2/-3/-text` variants cycling through `buildAuroraContent()` with different layout numbers. See "Template Family Design Contract" section above.
+
+**Top 50% of slide is blank, content squeezed to bottom:** A `content` type slide was routed to a stat template (`aurora-compact-fact`). The stat template renders a 140pt number hero — when `stat_value` is null, this area is blank. Fix: route content slides to `aurora-compact-content`, stat slides to `aurora-compact-stat-hero` or `aurora-compact-fact`.
+
+**Slide shows placeholder data: "@nextwork", "+47%", "Into the lab", "Anthropic Research Report":** The compact template is using its DEFAULTS because `compact_meta` is absent and the builder has no fallback from `slide.title/body`. Fix: add frontend fallback in the builder (`if (slide.title && !slide.compact_meta?.heading) m.heading = slide.title`) or add backend adapter in `carousel_generator.py`.
+
+**`Read` tool returns empty for PNG files:** This is a known limitation of the Read tool in this environment. It silently returns nothing for binary image files. Use `open path/to/slide.png` (macOS) to view images directly, and use Pillow pixel analysis (`.venv/bin/python -c "from PIL import Image..."`) for programmatic checks.
+
+**"Visual verification passed" but slides are visually broken:** Sub-agents doing pixel sampling cannot reliably distinguish correct content from placeholder defaults, empty layouts from filled ones, or wrong templates from correct ones. Never substitute pixel sampling for actual visual inspection. Open the files with `open`.
+
+**template_family is aurora-extended even though aurora-lite was selected:** `ContentOrchestrator.run()` derives `template_family` independently from `request.post_format`. If `post_format` is not in `COMPACT_FORMATS`, it defaults to `aurora-extended`. Fix: ensure `request.selected_family` is set when the user pins a family, and the orchestrator checks `request.selected_family` before deriving from `post_format`.

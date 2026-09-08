@@ -100,6 +100,23 @@ You are a **senior software architect with 10+ years of Python + TypeScript + br
 
 Review the phase draft against every checklist below. Any single unchecked box blocks approval.
 
+#### ⛔ HARD RULE — For Template / Renderer Work, Read The Reference Implementation First
+
+> **Added 2026-09-08 after aurora-lite family was built wrong for 3 sessions.**
+>
+> Before writing any new template builder or routing logic:
+>
+> 1. **Read `aurora_content.ts` and `contentLayouts/sideBySide.ts` in full** — this is the reference implementation that works. Understand the two-pass layout pattern, the layout variant system, and how `CanvasTokens` is threaded through.
+> 2. **Read `RENDERER_CODEBASE_GUIDE.md → Template Family Design Contract`** — understand the difference between density rules (validator) and layout code (contentLayouts/).
+> 3. **Answer these questions before writing a single line:**
+>    - Does this new template need new LAYOUT code, or just new TOKENS? (Usually: just tokens.)
+>    - Can I call `buildAuroraContent(s,i,t,m, layout)` with a different token set? (Usually: yes.)
+>    - If compact-style: does my template have a `slide.title/body` fallback? (It must.)
+>    - Does my routing table keep content and stat slide types separate? (It must — never share a template between content and stat.)
+>
+> **The cost of ignoring this rule:**
+> `aurora-lite-content.ts` was written as a custom glass-card builder from scratch. It had zero layout variants. Every content slide in every aurora-lite carousel looked identical — same centred card, same position, same size. After three sessions of "fixing" routing, adapters, and format blocks, the actual problem was architectural: the builder never called `buildAuroraContent()` with layout variants. The fix was 5 lines in `index.ts`. Three sessions wasted on the wrong problem.
+
 #### ⛔ HARD RULE — Check Existing APIs BEFORE Building Anything
 
 > **Added 2026-09-06 after Phase 2.6 failure.**
@@ -315,6 +332,44 @@ If any of these five is false, run another pass.
 
 **Purpose:** Verify that what was built matches what was specified. Every done-criterion from `Docs/phases/PHASE_<N>_<slug>.md` must pass. This loop runs until all criteria pass or a blocker is identified.
 
+### ⛔ HARD RULE — Visual PNG Inspection (Added 2026-09-08)
+
+> **Any phase that touches a template builder, routing, or slide generation MUST include visual inspection of actual rendered PNG files. This is non-negotiable and cannot be replaced by:**
+> - Pixel-sampling heuristics
+> - Agent sub-processes doing OCR estimates
+> - Checking slides.json for field values
+> - Confirming routing table entries in Python
+>
+> **Why this rule exists:**
+> In Sept 2026, three sessions were spent "fixing" template rendering while every verification report said "PASS". The actual slides had: empty top 50% (stat template used for content), identical glass-card layout on every slide (no layout variants), and Anthropic placeholder text (wrong compact_meta field names). None of these were caught because visual PNG inspection was never actually done. The `Read` tool silently returns empty for PNG files in this environment. Sub-agents doing pixel sampling cannot distinguish correct content from placeholder defaults.
+>
+> **Required visual check after every render:**
+> ```bash
+> # 1. Open key slides directly in Preview (macOS)
+> open backend/outputs/runs/{run_id}/content/angle_0/png/slide_02.png
+> open backend/outputs/runs/{run_id}/content/angle_0/png/slide_07.png
+> # Open all content-type slides — not just slide_01 which is usually the hook
+>
+> # 2. Pillow sanity check (background color + text distribution)
+> .venv/bin/python -c "
+> from PIL import Image; import numpy as np
+> img = Image.open('path/to/slide.png').convert('RGB')
+> arr = np.array(img)
+> tl  = arr[10:50,10:50].mean(axis=(0,1))
+> dark_top = (arr[50:540,  50:1030].max(axis=2) < 80).sum()
+> dark_bot = (arr[540:1000,50:1030].max(axis=2) < 80).sum()
+> print(f'bg=({tl[0]:.0f},{tl[1]:.0f},{tl[2]:.0f}) top={dark_top} bot={dark_bot}')
+> "
+> ```
+>
+> **Criteria that must be true (not inferred — actually observed):**
+> - Background color matches template family (aurora-lite: dark ~(9,9,9); compact-clean content: dark; compact-clean hook/cta: cream ~(245,240,232))
+> - Text is distributed across the FULL canvas (top AND bottom both > 5000 dark pixels for content slides)
+> - Slide content matches the topic (sleep facts / hustle culture) — NOT placeholder defaults ("@nextwork", "+47%", "Anthropic Research Report", "Into the lab")
+> - Content varies visually across slides in the same carousel (not identical layout repeated)
+>
+> **You must write what you actually saw (not what you expected) before declaring Loop 2 complete.**
+
 ### Step 1 — Verify Entry Conditions Still Hold
 
 Before testing, confirm nothing broke since the previous phase:
@@ -460,6 +515,7 @@ After all scenarios pass, reload pages NOT touched by this phase and confirm the
 1. All scenarios in `PHASE_<N>_<slug>.md → Real Data Testing` pass
 2. No regressions on unchanged pages
 3. UI aesthetics pass: consistent spacing, readable text in dark mode, no raw JSON / stack traces visible
+4. **For renderer phases**: visual PNG inspection completed and findings written down (what was seen, not what was expected). At minimum: slide_01 through slide_12 for one angle of one run, opened directly with `open` command on macOS.
 
 ---
 
@@ -498,6 +554,11 @@ Rationale: the script-file discipline costs one extra `write_to_file` call and e
 | `uv.lock` re-appears in git status | Not gitignored | Add `backend/uv.lock` and `uv.lock` to root `.gitignore`, then `git rm --cached` |
 | Analytics count wrong | Loader path mismatch with pipeline write path | Read `AI_CHANGELOG.md` entries for "analytics bugs" — 10 fixed patterns |
 | Slide `canvas_template: null` legacy runs | Field added after those runs; editor should show view-only banner | Guard in `SlidePngPreview.tsx` |
+| New template family looks like hook on every content slide | Family was built as glass-card-only, no layout variants | Reuse `buildAuroraContent(s,i,t,m, layout)` for content; density rules are enforced by validator, NOT the builder |
+| Content slide shows Anthropic protein data / "@nextwork" | `compact_meta` absent — template using DEFAULTS | Add `slide.title/body` fallback in the builder OR add backend compact_meta adapter in `carousel_generator.py` |
+| Content slides routed to stat template (empty top 50%) | `COMPACT_ROUTING` maps content → `aurora-compact-fact` | Use `aurora-compact-content` for content; `aurora-compact-stat-hero` or `aurora-compact-fact` for stat only |
+| All slides in carousel look identical | Template has no layout variants — same `canvas_template` for all content slides | Add `-0/-1/-2/-3/-text` variants cycling through imgRight/imgLeft/imgTop/textTop/textOnly |
+| Template family "simplified" but aurora-extended works fine | New family rebuilt from scratch instead of reusing existing layout engine | New families = new token sets + same contentLayouts/ engine; density rules go in slide_validator.py |
 
 ---
 
