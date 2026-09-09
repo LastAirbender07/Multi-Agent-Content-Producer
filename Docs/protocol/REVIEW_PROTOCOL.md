@@ -332,43 +332,60 @@ If any of these five is false, run another pass.
 
 **Purpose:** Verify that what was built matches what was specified. Every done-criterion from `Docs/phases/PHASE_<N>_<slug>.md` must pass. This loop runs until all criteria pass or a blocker is identified.
 
-### ⛔ HARD RULE — Visual PNG Inspection (Added 2026-09-08)
+### ⛔ HARD RULE — Visual PNG Inspection (Updated 2026-09-08)
 
-> **Any phase that touches a template builder, routing, or slide generation MUST include visual inspection of actual rendered PNG files. This is non-negotiable and cannot be replaced by:**
-> - Pixel-sampling heuristics
-> - Agent sub-processes doing OCR estimates
-> - Checking slides.json for field values
-> - Confirming routing table entries in Python
+> **Any phase that touches a template builder, routing, or slide generation MUST include visual inspection of actual rendered PNG files using `scripts/see_slide.py`. This is non-negotiable.**
 >
-> **Why this rule exists:**
-> In Sept 2026, three sessions were spent "fixing" template rendering while every verification report said "PASS". The actual slides had: empty top 50% (stat template used for content), identical glass-card layout on every slide (no layout variants), and Anthropic placeholder text (wrong compact_meta field names). None of these were caught because visual PNG inspection was never actually done. The `Read` tool silently returns empty for PNG files in this environment. Sub-agents doing pixel sampling cannot distinguish correct content from placeholder defaults.
+> **Why the Read tool fails here:** The `Read` tool silently returns empty for PNG files in this environment. Root cause confirmed: SAP AI Core (the LLM gateway) accepts images in user message content blocks but **silently drops images in tool_result content blocks**. The Read tool sends images as tool results — they never reach Claude.
 >
-> **Required visual check after every render:**
+> **The fix: `scripts/see_slide.py`** — sends images directly as user message content, bypassing the Read tool's broken path. Fully autonomous. See `docs/protocol/VISUAL_VERIFICATION_METHODS.md` for full details.
+>
+> **Required after every render — run this, read the output, write what you saw:**
 > ```bash
-> # 1. Open key slides directly in Preview (macOS)
-> open backend/outputs/runs/{run_id}/content/angle_0/png/slide_02.png
-> open backend/outputs/runs/{run_id}/content/angle_0/png/slide_07.png
-> # Open all content-type slides — not just slide_01 which is usually the hook
+> # STEP 1 — Full visual inspection (autonomous, replaces all manual checks)
+> cd backend
+> .venv/bin/python ../scripts/see_slide.py --run {RUN_ID} --angle 0
+> # Claude sees every slide and describes: text content, layout, overlap, empty regions,
+> # placeholder defaults. Quote the output in your verification findings.
 >
-> # 2. Pillow sanity check (background color + text distribution)
+> # STEP 2 — Pillow structural sanity (background color + text spread)
 > .venv/bin/python -c "
-> from PIL import Image; import numpy as np
-> img = Image.open('path/to/slide.png').convert('RGB')
-> arr = np.array(img)
-> tl  = arr[10:50,10:50].mean(axis=(0,1))
-> dark_top = (arr[50:540,  50:1030].max(axis=2) < 80).sum()
-> dark_bot = (arr[540:1000,50:1030].max(axis=2) < 80).sum()
-> print(f'bg=({tl[0]:.0f},{tl[1]:.0f},{tl[2]:.0f}) top={dark_top} bot={dark_bot}')
+> from PIL import Image; import numpy as np, os
+> png_dir = 'outputs/runs/{RUN_ID}/content/angle_0/png'
+> for f in sorted(os.listdir(png_dir)):
+>     if not f.endswith('.png'): continue
+>     arr = np.array(Image.open(f'{png_dir}/{f}').convert('RGB'))
+>     bg = arr[0:20,0:20].mean(axis=(0,1))
+>     top = ((arr[50:540, 60:1020,0]>220)&(arr[50:540, 60:1020,1]>220)&(arr[50:540, 60:1020,2]>220)).sum()
+>     bot = ((arr[540:1000,60:1020,0]>220)&(arr[540:1000,60:1020,1]>220)&(arr[540:1000,60:1020,2]>220)).sum()
+>     yellow = ((arr[:,:,0]>200)&(arr[:,:,1]>150)&(arr[:,:,2]<80)).sum()
+>     bg_t = 'DARK' if bg[0]<80 else 'CREAM'
+>     spread = 'SPREAD' if top>500 and bot>500 else 'BOTTOM-ONLY' if top<500 else 'TOP-ONLY'
+>     print(f'{f}: bg={bg_t} {spread} top={top} bot={bot} yellow={yellow}')
 > "
+>
+> # STEP 3 — OCR on cream-bg slides (hook, cta, engage) to catch placeholder defaults
+> tesseract outputs/runs/{RUN_ID}/content/angle_0/png/slide_01.png /tmp/ocr_out --psm 3 2>/dev/null
+> cat /tmp/ocr_out.txt
 > ```
 >
-> **Criteria that must be true (not inferred — actually observed):**
-> - Background color matches template family (aurora-lite: dark ~(9,9,9); compact-clean content: dark; compact-clean hook/cta: cream ~(245,240,232))
-> - Text is distributed across the FULL canvas (top AND bottom both > 5000 dark pixels for content slides)
-> - Slide content matches the topic (sleep facts / hustle culture) — NOT placeholder defaults ("@nextwork", "+47%", "Anthropic Research Report", "Into the lab")
-> - Content varies visually across slides in the same carousel (not identical layout repeated)
->
-> **You must write what you actually saw (not what you expected) before declaring Loop 2 complete.**
+> **Write findings in this format before declaring Loop 2 complete:**
+> ```
+> VISUAL CHECK — run {RUN_ID} angle_0
+> see_slide.py findings:
+>   slide_02: [quote what Claude described — layout, text content, any issues]
+>   slide_07: [quote what Claude described]
+>   slide_03: [quote what Claude described for stat slide]
+> Pillow check: [paste output]
+> OCR check: [paste text read from slide_01]
+> PASS criteria:
+>   [x] bg=DARK on aurora-lite/compact-content slides
+>   [x] SPREAD text on content slides (not BOTTOM-ONLY)
+>   [x] Headline text matches topic (not placeholder defaults)
+>   [x] No text overlap reported by see_slide.py
+>   [x] Visual variety across slides (different layouts, not identical)
+> ```
+> **Never write "verified" or "looks correct" without having run steps 1-3 and written findings.**
 
 ### Step 1 — Verify Entry Conditions Still Hold
 
@@ -515,7 +532,7 @@ After all scenarios pass, reload pages NOT touched by this phase and confirm the
 1. All scenarios in `PHASE_<N>_<slug>.md → Real Data Testing` pass
 2. No regressions on unchanged pages
 3. UI aesthetics pass: consistent spacing, readable text in dark mode, no raw JSON / stack traces visible
-4. **For renderer phases**: visual PNG inspection completed and findings written down (what was seen, not what was expected). At minimum: slide_01 through slide_12 for one angle of one run, opened directly with `open` command on macOS.
+4. **For renderer phases**: `scripts/see_slide.py --run {RUN_ID} --angle 0` has been run, output has been read, and findings have been written in the verification format above. At minimum slides 01, 02, 03, 07 and 12 must be described.
 
 ---
 
@@ -559,6 +576,9 @@ Rationale: the script-file discipline costs one extra `write_to_file` call and e
 | Content slides routed to stat template (empty top 50%) | `COMPACT_ROUTING` maps content → `aurora-compact-fact` | Use `aurora-compact-content` for content; `aurora-compact-stat-hero` or `aurora-compact-fact` for stat only |
 | All slides in carousel look identical | Template has no layout variants — same `canvas_template` for all content slides | Add `-0/-1/-2/-3/-text` variants cycling through imgRight/imgLeft/imgTop/textTop/textOnly |
 | Template family "simplified" but aurora-extended works fine | New family rebuilt from scratch instead of reusing existing layout engine | New families = new token sets + same contentLayouts/ engine; density rules go in slide_validator.py |
+| `Read` tool returns empty for PNG images | SAP AI Core drops images in `tool_result` blocks (confirmed Sept 2026) | Use `scripts/see_slide.py` — sends images as user message content which SAP AI Core accepts |
+| "Visual verification passed" but slides are broken | Pixel sampling / sub-agent analysis used instead of actual vision | Always run `scripts/see_slide.py` and read the output; never substitute pixel counting for actual visual description |
+| Text overlapping in stat-hero or engage template | `DIVIDER_Y` hardcoded — overflows when headline wraps many lines | Use two-pass layout: measure headline height, compute divider dynamically |
 
 ---
 

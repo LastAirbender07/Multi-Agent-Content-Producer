@@ -333,8 +333,14 @@ Compact-clean templates do NOT read `slide.title`, `slide.body`, `slide.bullets`
 
 **Slide shows placeholder data: "@nextwork", "+47%", "Into the lab", "Anthropic Research Report":** The compact template is using its DEFAULTS because `compact_meta` is absent and the builder has no fallback from `slide.title/body`. Fix: add frontend fallback in the builder (`if (slide.title && !slide.compact_meta?.heading) m.heading = slide.title`) or add backend adapter in `carousel_generator.py`.
 
-**`Read` tool returns empty for PNG files:** This is a known limitation of the Read tool in this environment. It silently returns nothing for binary image files. Use `open path/to/slide.png` (macOS) to view images directly, and use Pillow pixel analysis (`.venv/bin/python -c "from PIL import Image..."`) for programmatic checks.
+**`Read` tool returns empty for PNG files:** Root cause confirmed Sept 2026: SAP AI Core (the LLM gateway) silently drops images sent inside `tool_result` content blocks. The Read tool sends images as tool results — they never reach Claude. **Fix: use `scripts/see_slide.py`** which sends images as user message content (the path SAP AI Core accepts). See `docs/protocol/VISUAL_VERIFICATION_METHODS.md`.
 
-**"Visual verification passed" but slides are visually broken:** Sub-agents doing pixel sampling cannot reliably distinguish correct content from placeholder defaults, empty layouts from filled ones, or wrong templates from correct ones. Never substitute pixel sampling for actual visual inspection. Open the files with `open`.
+```bash
+cd backend
+.venv/bin/python ../scripts/see_slide.py --run {RUN_ID} --angle 0
+# Claude receives full visual description of every slide
+```
+
+**"Visual verification passed" but slides are visually broken:** This happens when pixel sampling or sub-agent analysis is used instead of actual vision. Always run `scripts/see_slide.py` and read the output. Never declare "verified" without having received a textual description of what the slide actually contains.
 
 **template_family is aurora-extended even though aurora-lite was selected:** `ContentOrchestrator.run()` derives `template_family` independently from `request.post_format`. If `post_format` is not in `COMPACT_FORMATS`, it defaults to `aurora-extended`. Fix: ensure `request.selected_family` is set when the user pins a family, and the orchestrator checks `request.selected_family` before deriving from `post_format`.
