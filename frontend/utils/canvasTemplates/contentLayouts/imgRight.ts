@@ -1,7 +1,7 @@
 import type { CanvasTokens } from "@/utils/canvasTokens";
 import type { SlideData } from "@/lib/api";
 import type * as fabric from "fabric";
-import { buildSideBySideLayout } from "./sideBySide";
+import { buildSideBySideLayout, type SideBySideOpts } from "./sideBySide";
 
 // layout === 0: text left (57%), image right (43%)
 export async function buildLayoutImgRight(
@@ -10,6 +10,7 @@ export async function buildLayoutImgRight(
   t: CanvasTokens,
   _meta: unknown,
   objects: fabric.FabricObject[],
+  opts: SideBySideOpts = {},
 ): Promise<void> {
-  return buildSideBySideLayout("imageRight", slide, imageUrl!, t, objects);
+  return buildSideBySideLayout("imageRight", slide, imageUrl!, t, objects, opts);
 }

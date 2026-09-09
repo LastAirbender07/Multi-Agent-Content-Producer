@@ -1,134 +1,85 @@
 /**
- * aurora_lite_content.ts — Aurora Lite family / body content slide
+ * aurora_lite_content.ts — Aurora Lite family / content slides with images
  *
- * Aurora Lite DNA: dark #090909 bg, Syne 64pt headline, aurora gradient accent,
- * glass card, Plus Jakarta Sans 28pt body — ONE idea per slide, NO bullets ever.
+ * Same layout engine as aurora-extended (imgRight/imgLeft/imgTop/textTop/textOnly)
+ * but with larger font sizes suited for short (≤15 word) lite slides.
  *
- * This is the Instagram-readable version of aurora-extended content.
- * Difference from aurora_hook: same structure but content-focused
- *   (required body, topic tag reflects slide topic rather than "THREAD",
- *    slightly larger card padding for breathing room).
+ * Aurora-extended uses: title 38-44pt, body 19-22pt (designed for 130w dense slides)
+ * Aurora-lite uses:     title 52-60pt, body 26-30pt (designed for ≤15w lite slides)
  *
- * Layout (1080×1080):
- *   Full-bleed dark background + gradient overlay
- *   Glass card — centred, width 900px, height auto-fit
- *     TOPIC TAG — 13pt Syne, aurora primary color
- *     HEADLINE  — Syne 64pt, white, ≤2 lines, one bold declarative statement
- *     BODY      — Plus Jakarta Sans 28pt, muted white, ≤15 words, one idea
- *   Brand bar at bottom
+ * The bigger type fills the canvas proportionally when body word count is low —
+ * matching the user-visible request for "bigger, more modern" text on content slides.
  *
- * Spec: maxChars title=60, body=80. Validator enforces ≤10 words title, ≤15 words body.
+ * Density rules (≤15w body, no bullets) are enforced by slide_validator.py upstream.
  */
 import * as fabric from "fabric";
-import { createBrandBar, createOverlay, createGlassCard, makeText, makeTitleText, loadCoverImage, setData } from "./shared";
+import { createBrandBar, createBgImage, createOverlay, createLuminaBg } from "./shared";
 import type { CanvasTokens } from "@/utils/canvasTokens";
+import { isDarkTheme } from "@/utils/canvasTokens";
 import type { SlideData } from "@/lib/api";
 import type { SlideMeta } from "./index";
+import { buildLayoutTextOnly } from "./contentLayouts/textOnly";
+import { buildLayoutImgRight } from "./contentLayouts/imgRight";
+import { buildLayoutTextTop }   from "./contentLayouts/textTop";
+import { buildLayoutImgTop }    from "./contentLayouts/imgTop";
+import { buildLayoutImgLeft }   from "./contentLayouts/imgLeft";
 
-const CANVAS_SIZE  = 1080;
-const CARD_W       = 900;
-const CARD_PH      = 56;   // horizontal padding inside card
-const CARD_PV      = 68;   // vertical padding — more generous than hook for breathing room
-const CARD_RX      = 24;
-const LABEL_H      = 36;   // topic tag height + gap
-const HEAD_FONT_SZ = 64;   // down from hook's 72 — gives body room without crowding
-const BODY_FONT_SZ = 28;   // up from content's 23 — bigger, more readable
-const HEAD_BODY_GAP = 20;  // gap between headline bottom and body text
-const CARD_V_BIAS  = 0.52; // slightly above true centre
+const CS = 1080;
+
+// Aurora-lite font sizes — bigger than aurora-extended, fill the canvas for short copy
+const LITE_OPTS_SIDE = { titleFontSize: 56, bodyFontSize: 28 };   // imgRight / imgLeft
+const LITE_OPTS_TOP  = { titleFontSize: 52, bodyFontSize: 26 };   // textTop / imgTop
+// textOnly uses aurora_lite_text_only.ts (96pt headline) — not this file
 
 export async function buildAuroraLiteContent(
   slide: SlideData,
   imageUrl: string | null,
   t: CanvasTokens,
   meta: SlideMeta,
+  layout: 0 | 1 | 2 | 3 | -1,
 ): Promise<fabric.FabricObject[]> {
   const objects: fabric.FabricObject[] = [];
-  const INNER_W = CARD_W - CARD_PH * 2;
+  const has_image = imageUrl !== null;
 
-  // 1. Background — blurred cover image or solid dark
-  if (imageUrl) {
-    const bg = await loadCoverImage(imageUrl, "bg_image");
+  // Background — same as aurora-extended
+  if (imageUrl && isDarkTheme(t)) {
+    const bg = await createBgImage(imageUrl, "blur-darken");
     if (bg) objects.push(bg);
+    objects.push(createOverlay("content", t));
+  } else if (isDarkTheme(t)) {
+    objects.push(new fabric.Rect({
+      left: 0, top: 0, width: CS, height: CS, fill: t.bg,
+      selectable: false, evented: false,
+      originX: "left" as const, originY: "top" as const,
+    }));
+    objects.push(createOverlay("content", t));
+  } else {
+    objects.push(...createLuminaBg(t, CS));
   }
 
-  // 2. Gradient overlay — atmospheric depth
-  objects.push(createOverlay("hook", t));  // same overlay as hook = correct aurora feel
-
-  // ── Two-pass layout ───────────────────────────────────────────────────────
-
-  // Topic tag (short, all-caps, aurora primary color)
-  // Use first 3 words of title as the tag, or "INSIGHT" as fallback
-  const tagWords = (slide.title || "").split(/\s+/).slice(0, 3).join(" ").toUpperCase() || "INSIGHT";
-  const tagObj = makeText(tagWords, {
-    role: "lite_tag",
-    fontSize: 13, fontWeight: "700", fill: t.primary,
-    charSpacing: 220,
-    left: 0, top: 0,
-    originX: "left" as const, originY: "top" as const,
-  });
-  setData(tagObj, { role: "lite_tag" });
-
-  const headlineObj = makeTitleText(slide.title || "Your insight here", {
-    t, role: "lite_headline",
-    fontFamily: `${t.fontTitle}, sans-serif`,
-    fontSize: HEAD_FONT_SZ, lineHeight: 1.1,
-    width: INNER_W,
-    left: 0, top: 0,
-  });
-  setData(headlineObj, { role: "lite_headline" });
-
-  // Body — required, single supporting idea, no bullets
-  const bodyText = slide.body || "";
-  const bodyObj = bodyText
-    ? makeText(bodyText, {
-        role: "lite_body",
-        fontSize: BODY_FONT_SZ, fill: t.muted, lineHeight: 1.5,
-        width: INNER_W,
-        left: 0, top: 0,
-        originX: "left" as const, originY: "top" as const,
-      })
-    : null;
-  if (bodyObj) setData(bodyObj, { role: "lite_body" });
-
-  // Measure real heights
-  const headlineH = headlineObj.calcTextHeight() + 8;
-  const bodyH     = bodyObj ? bodyObj.calcTextHeight() : 0;
-
-  const cardH =
-    CARD_PV
-    + LABEL_H
-    + headlineH
-    + (bodyH ? HEAD_BODY_GAP + bodyH : 0)
-    + CARD_PV;
-
-  const cardLeft = (CANVAS_SIZE - CARD_W) / 2;
-  const cardTop  = Math.round(CANVAS_SIZE * 0.5 - cardH * CARD_V_BIAS);
-
-  // 3. Glass card
-  const glass = await createGlassCard(
-    { left: cardLeft, top: cardTop, width: CARD_W, height: cardH },
-    imageUrl, 16, t, CARD_RX,
-  );
-  objects.push(...glass);
-
-  let cy = cardTop + CARD_PV;
-
-  tagObj.set({ left: cardLeft + CARD_PH, top: cy });
-  objects.push(tagObj);
-  cy += LABEL_H;
-
-  headlineObj.set({ left: cardLeft + CARD_PH, top: cy });
-  objects.push(headlineObj);
-  cy += headlineH;
-
-  if (bodyObj) {
-    cy += HEAD_BODY_GAP;
-    bodyObj.set({ left: cardLeft + CARD_PH, top: cy });
-    objects.push(bodyObj);
+  // Layout variants — same as aurora-extended but with bigger fonts via opts
+  switch (layout) {
+    case -1:
+      await buildLayoutTextOnly(slide, imageUrl, t, meta, objects);
+      break;
+    case 0:
+      if (has_image) await buildLayoutImgRight(slide, imageUrl, t, meta, objects, LITE_OPTS_SIDE);
+      else           await buildLayoutTextOnly(slide, imageUrl, t, meta, objects);
+      break;
+    case 1:
+      if (has_image) await buildLayoutTextTop(slide, imageUrl, t, meta, objects, LITE_OPTS_TOP);
+      else           await buildLayoutTextOnly(slide, imageUrl, t, meta, objects);
+      break;
+    case 2:
+      if (has_image) await buildLayoutImgTop(slide, imageUrl, t, meta, objects, LITE_OPTS_TOP);
+      else           await buildLayoutTextOnly(slide, imageUrl, t, meta, objects);
+      break;
+    case 3:
+      if (has_image) await buildLayoutImgLeft(slide, imageUrl, t, meta, objects, LITE_OPTS_SIDE);
+      else           await buildLayoutTextOnly(slide, imageUrl, t, meta, objects);
+      break;
   }
 
-  // 4. Brand bar
   objects.push(...await createBrandBar(t, meta.logoUrl, meta.brandName, meta.slideNum, meta.totalSlides));
-
   return objects;
 }

@@ -87,7 +87,7 @@ export async function buildAuroraLiteQuote(
   const attrObj = attrText
     ? makeText(`— ${attrText}`, {
         role: "lite_attribution",
-        fontSize: 26, fill: t.muted, lineHeight: 1.4,
+        fontSize: 28, fill: t.muted, lineHeight: 1.45,  // aurora-lite: 28pt (was 26)
         width: INNER_W,
         left: INNER_X, top: 0,
         originX: "left" as const, originY: "top" as const,
@@ -105,7 +105,9 @@ export async function buildAuroraLiteQuote(
 
   const CONTENT_H = CS - t.brandBarH;
   const totalH    = decoH + quoteH + attrH;
-  let curY = Math.max(60, (CONTENT_H - totalH) / 2);
+  // Position the quote in the vertical center-to-lower-center of the canvas
+  // (not purely centered — the center is more commanding for a quote)
+  let curY = Math.max(60, (CONTENT_H - totalH) * 0.42);
 
   // 3. Place elements
   decoMark.set({ top: curY });

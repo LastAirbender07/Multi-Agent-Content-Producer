@@ -13,6 +13,11 @@ const BULLET_GAP = 10;
 const IMG_ASPECT = 5 / 4;  // height = width * IMG_ASPECT
 const IMG_RX    = 18;
 
+export interface SideBySideOpts {
+  titleFontSize?: number;   // default 44 (aurora-extended); aurora-lite uses 56
+  bodyFontSize?:  number;   // default 22 (aurora-extended); aurora-lite uses 28
+}
+
 /**
  * Shared two-pass layout for layout-0 (text left, image right)
  * and layout-3 (image left, text right). Only IMAGE_X and TEXT_X differ.
@@ -23,7 +28,10 @@ export async function buildSideBySideLayout(
   imageUrl: string,          // caller must guarantee image exists — see aurora_content.ts has_image guard
   t: CanvasTokens,
   objects: fabric.FabricObject[],
+  opts: SideBySideOpts = {},
 ): Promise<void> {
+  const TITLE_FS = opts.titleFontSize ?? 44;
+  const BODY_FS  = opts.bodyFontSize  ?? 22;
   const CONTENT_H = CS - t.brandBarH;
   const TEXT_W    = Math.floor((CS - PAD_X * 2) * 0.57);
   const IMAGE_W   = (CS - PAD_X * 2) - TEXT_W - GAP;
@@ -35,11 +43,11 @@ export async function buildSideBySideLayout(
 
   // ── Pass 1: create text objects and measure heights ───────────────────────
   const titleObj = makeTitleText(slide.title || "", {
-    t, role: "slide_title", fontSize: 44, lineHeight: 1.15, width: TEXT_W, left: 0, top: 0,
+    t, role: "slide_title", fontSize: TITLE_FS, lineHeight: 1.15, width: TEXT_W, left: 0, top: 0,
   });
   const bodyObj = slide.body
     ? makeText(slide.body, {
-        role: "slide_body", fontSize: 22, fill: t.muted, lineHeight: 1.6,
+        role: "slide_body", fontSize: BODY_FS, fill: t.muted, lineHeight: 1.6,
         width: TEXT_W, left: 0, top: 0,
         originX: "left" as const, originY: "top" as const,
       })

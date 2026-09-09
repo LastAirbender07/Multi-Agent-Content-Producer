@@ -6,6 +6,11 @@ import { loadPanelImage } from "./panelImage";
 
 const CS = 1080;
 
+export interface TextTopOpts {
+  titleFontSize?: number;   // default 38; aurora-lite uses 52
+  bodyFontSize?:  number;   // default 19; aurora-lite uses 26
+}
+
 // layout === 1: text top, image bottom
 export async function buildLayoutTextTop(
   slide: SlideData,
@@ -13,17 +18,20 @@ export async function buildLayoutTextTop(
   t: CanvasTokens,
   _meta: unknown,
   objects: fabric.FabricObject[],
+  opts: TextTopOpts = {},
 ): Promise<void> {
+  const TITLE_FS = opts.titleFontSize ?? 38;
+  const BODY_FS  = opts.bodyFontSize  ?? 19;
   const CONTENT_H = CS - t.brandBarH;
   const TX = 56, TW = CS - TX * 2;
   const BULLET_FS = 17, BULLET_GAP = 10;
 
   // ── Two-pass layout ───────────────────────────────────────────────────────
   const titleObj = makeTitleText(slide.title || "", {
-    t, role: "slide_title", fontSize: 38, lineHeight: 1.18, width: TW, left: 0, top: 0,
+    t, role: "slide_title", fontSize: TITLE_FS, lineHeight: 1.18, width: TW, left: 0, top: 0,
   });
   const bodyObj = slide.body
-    ? makeText(slide.body, { role: "slide_body", fontSize: 19, fill: t.muted, lineHeight: 1.6, width: TW, left: 0, top: 0, originX: "left" as const, originY: "top" as const })
+    ? makeText(slide.body, { role: "slide_body", fontSize: BODY_FS, fill: t.muted, lineHeight: 1.6, width: TW, left: 0, top: 0, originX: "left" as const, originY: "top" as const })
     : null;
   const bulletObjs = (slide.bullets ?? []).map((b, i) =>
     createBulletItem(b, i, t, BULLET_FS, 0, 0, TW),

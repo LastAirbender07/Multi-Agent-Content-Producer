@@ -29,9 +29,12 @@ import { buildAuroraCompactContent }          from "./aurora_compact_content";
 // Phase 2.5 — editorial family gap-fills
 import { buildAuroraEditorialHook }           from "./aurora_editorial_hook";
 import { buildAuroraEditorialCta }            from "./aurora_editorial_cta";
-// Phase 3.5 — aurora-lite family (dark aurora + Instagram-readable density)
-import { buildAuroraLiteContent } from "./aurora_lite_content";
-import { buildAuroraLiteQuote }   from "./aurora_lite_quote";
+// Phase 3.5 / 3.6 — aurora-lite family
+import { buildAuroraLiteContent }  from "./aurora_lite_content";   // 56pt/28pt content layouts
+import { buildAuroraLiteQuote }    from "./aurora_lite_quote";
+import { buildAuroraLiteHook }     from "./aurora_lite_hook";      // full-canvas bottom-anchor
+import { buildAuroraLiteStat }     from "./aurora_lite_stat";      // 24pt body, 18pt meta
+import { buildAuroraLiteTextOnly } from "./aurora_lite_text_only"; // 96pt no-image
 // Phase 2.5 — nextwork-dark family gap-fills
 import { buildAuroraNxtworkDarkCta }          from "./aurora_nextwork_dark_cta";
 import { buildAuroraNxtworkDarkEngage }       from "./aurora_nextwork_dark_engage";
@@ -94,18 +97,19 @@ export const REGISTRY: Record<string, TemplateBuilder> = {
   // Phase 3.5 — aurora-lite family
   // Content: reuse aurora-extended layout engine (imgRight/imgLeft/imgTop/textOnly).
   // Density rules (≤15w body, no bullets) enforced by slide_validator.py, NOT the builder.
-  // aurora-lite-content (legacy alias) → layout-0 for backward compat with existing slides.
-  "aurora-lite-content":      (s,i,t,m) => buildAuroraContent(s,i,t,m, 0),
-  "aurora-lite-content-0":    (s,i,t,m) => buildAuroraContent(s,i,t,m, 0),  // imgRight
-  "aurora-lite-content-1":    (s,i,t,m) => buildAuroraContent(s,i,t,m, 1),  // textTop
-  "aurora-lite-content-2":    (s,i,t,m) => buildAuroraContent(s,i,t,m, 2),  // imgTop
-  "aurora-lite-content-3":    (s,i,t,m) => buildAuroraContent(s,i,t,m, 3),  // imgLeft
-  "aurora-lite-content-text": (s,i,t,m) => buildAuroraContent(s,i,t,m,-1),  // textOnly
+  // aurora-lite content variants — 56pt/28pt (sideBySide) or 52pt/26pt (textTop/imgTop)
+  // Aurora-lite uses its own builder so font sizes are larger than aurora-extended.
+  "aurora-lite-content":      (s,i,t,m) => buildAuroraLiteContent(s,i,t,m, 0),
+  "aurora-lite-content-0":    (s,i,t,m) => buildAuroraLiteContent(s,i,t,m, 0),  // imgRight 56/28
+  "aurora-lite-content-1":    (s,i,t,m) => buildAuroraLiteContent(s,i,t,m, 1),  // textTop  52/26
+  "aurora-lite-content-2":    (s,i,t,m) => buildAuroraLiteContent(s,i,t,m, 2),  // imgTop   52/26
+  "aurora-lite-content-3":    (s,i,t,m) => buildAuroraLiteContent(s,i,t,m, 3),  // imgLeft  56/28
+  "aurora-lite-content-text": buildAuroraLiteTextOnly,  // Phase 3.6: 68pt/28pt (was 48pt/23pt)
   "aurora-lite-quote":   buildAuroraLiteQuote,
-  "aurora-lite-hook":    buildAuroraHook,     // reuse: already Instagram-readable
-  "aurora-lite-stat":    buildAuroraStat,     // reuse: single big number, no density issue
-  "aurora-lite-cta":     buildAuroraCta,      // reuse: short punchy CTA
-  "aurora-lite-engage":  buildAuroraEngage,   // reuse: single ask, no density issue
+  "aurora-lite-hook":    buildAuroraLiteHook,    // Phase 3.6: 940px card, 30pt body (was buildAuroraHook)
+  "aurora-lite-stat":    buildAuroraLiteStat,    // Phase 3.6: 24pt body, 18pt meta (was buildAuroraStat)
+  "aurora-lite-cta":     buildAuroraCta,         // reuse: 64pt headline, 26pt body — already correct
+  "aurora-lite-engage":  buildAuroraEngage,      // reuse: gradient bg, correct for aurora-lite
   // Lumina (thin wrappers — same layout, different tokens)
   "lumina-hook":          lw(buildAuroraHook),
   "lumina-content-0":     lw((s,i,t,m) => buildAuroraContent(s,i,t,m, 0)),
