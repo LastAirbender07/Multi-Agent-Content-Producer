@@ -52,7 +52,11 @@ export async function buildAuroraCompactCleanEngage(
   const m: Required<CompactCleanEngageMeta> = { ...DEFAULTS, ...(slide.compact_meta ?? {}) };
 
   if (slide.title && !slide.compact_meta?.verb_runs) {
-    m.verb_runs = [{ text: slide.title, weight: 900 }];
+    // Clamp the verb to a short punchy phrase — max first 6 words so it stays readable at 118pt.
+    // Long pipeline-generated titles blow out the layout at that font size.
+    const titleWords = slide.title.split(/\s+/);
+    const verbText   = titleWords.slice(0, 6).join(" ");
+    m.verb_runs = [{ text: verbText, weight: 900 }];
   }
   if (slide.body && !slide.compact_meta?.support_text) {
     m.support_text = slide.body;
@@ -72,10 +76,13 @@ export async function buildAuroraCompactCleanEngage(
   objects.push(bg);
 
   // ── 2. Bold action verb — Inter Black, left-aligned, high on the slide ────────
-  const padX   = tokens.padX;  // 88
-  const verbW  = CANVAS_SIZE - padX * 2;
-  const verbY  = 300;
-  const verb   = makeMixedWeightText({
+  // Two-pass: measure verb height first so pill + support don't overlap it.
+  const padX  = tokens.padX;  // 88
+  const verbW = CANVAS_SIZE - padX * 2;
+  const verbY = 280;
+
+  // Pass 1: measure — create verb object, measure height via calcTextHeight
+  const verb = makeMixedWeightText({
     runs:      m.verb_runs,
     x:         padX,
     y:         verbY,
@@ -89,9 +96,15 @@ export async function buildAuroraCompactCleanEngage(
   setData(verb, { role: "compact_headline" });
   objects.push(verb);
 
+  // Measure real height (works after object creation)
+  const verbH = (verb.calcTextHeight?.() ?? m.verb_size * 1.2) + 8;
+
+  // Pass 2: positions flow from verbY + verbH
+  const pillY    = Math.max(verbY + verbH + 24, 520);
+  const supportY = pillY + 72;  // pill height 52 + 20 gap
+
   // ── 3. Peach action pill — left-aligned under the verb ────────────────────────
-  const pillY = 510;
-  const pill  = makeOutlinedPill({
+  const pill = makeOutlinedPill({
     text:          m.pill_text,
     x:             padX,
     y:             pillY,
@@ -104,15 +117,14 @@ export async function buildAuroraCompactCleanEngage(
   setData(pill, { role: "compact_engage_pill" });
   objects.push(pill);
 
-  // ── 4. Muted supporting copy — left-aligned, 30pt ────────────────────────────
-  const supportY = 610;
-  const support  = new fabric.Textbox(m.support_text, {
+  // ── 4. Muted supporting copy — left-aligned, 28pt ────────────────────────────
+  const support = new fabric.Textbox(m.support_text, {
     left:       padX,
     top:        supportY,
     width:      verbW,
     fontFamily: tokens.fontBody,
     fontWeight: "400",
-    fontSize:   30,
+    fontSize:   28,
     fill:       tokens.textMuted,
     lineHeight: 1.45,
     textAlign:  "left",

@@ -38,7 +38,10 @@ const DEFAULTS: Required<CompactStatHeroMeta> = {
 };
 
 const PAD_X       = 64;
-const DIVIDER_Y   = 560;   // horizontal split between headline zone and stat zone
+const HEADLINE_TOP = 72;
+const HEADLINE_FS  = 56;   // reduced from 80 — prevents wrapping past midpoint on long titles
+const MIN_DIVIDER  = 520;  // never push stat zone below this even on short headlines
+const MAX_DIVIDER  = 620;  // never let body_intro push stat zone off-canvas
 
 export async function buildAuroraCompactStatHero(
   slide: SlideData & { image_url?: string; compact_meta?: CompactStatHeroMeta },
@@ -109,53 +112,71 @@ export async function buildAuroraCompactStatHero(
     originX: "left", originY: "top", selectable: false,
   }));
 
-  // 3. ── TOP ZONE: headline + body intro ──────────────────────────────────────
+  // 3. ── TOP ZONE: headline + body intro (two-pass — measure before positioning) ─
 
+  const TEXT_W = CANVAS_SIZE - PAD_X * 2;
+
+  // Pass 1: measure headline height at the reduced font size
+  const hlProbe = new fabric.Textbox(m.headline, {
+    width: TEXT_W,
+    fontFamily: tokens.fontBody, fontSize: HEADLINE_FS, fontWeight: 700, lineHeight: 1.12,
+  });
+  const hlH = (hlProbe.height ?? HEADLINE_FS) + 8;
+
+  // Pass 1: measure body_intro height
+  const biProbe = new fabric.Textbox(m.body_intro, {
+    width: TEXT_W,
+    fontFamily: tokens.fontBody, fontSize: 20, fontWeight: 400, lineHeight: 1.5,
+  });
+  const biH = (biProbe.height ?? 20) + 8;
+
+  // Compute dynamic divider — clamp so stat zone always fits
+  const DIVIDER_Y = Math.min(
+    Math.max(HEADLINE_TOP + hlH + 24 + biH + 24, MIN_DIVIDER),
+    MAX_DIVIDER,
+  );
+
+  // Pass 2: position headline
   const headline = new fabric.Textbox(m.headline, {
-    left: PAD_X, top: 72,
-    width: CANVAS_SIZE - PAD_X * 2,
+    left: PAD_X, top: HEADLINE_TOP,
+    width: TEXT_W,
     fontFamily: tokens.fontBody,
-    fontSize: 80, fontWeight: 700,
+    fontSize: HEADLINE_FS, fontWeight: 700,
     fill: "#FFFFFF", lineHeight: 1.12,
     originX: "left", originY: "top",
   });
   setData(headline, { role: "stat_headline" });
   objects.push(headline);
 
-  // Probe headline height to place body_intro
-  const hlProbe = new fabric.Textbox(m.headline, {
-    width: CANVAS_SIZE - PAD_X * 2,
-    fontFamily: tokens.fontBody, fontSize: 80, fontWeight: 700, lineHeight: 1.12,
-  });
-  const hlH = hlProbe.height ?? 80;
-
+  // Pass 2: position body_intro below headline
+  const bodyIntroTop = HEADLINE_TOP + hlH + 24;
   const bodyIntro = new fabric.Textbox(m.body_intro, {
-    left: PAD_X, top: 72 + hlH + 24,
-    width: CANVAS_SIZE - PAD_X * 2,
+    left: PAD_X, top: bodyIntroTop,
+    width: TEXT_W,
     fontFamily: tokens.fontBody,
-    fontSize: 22, fontWeight: 400,
-    fill: "rgba(255,255,255,0.88)", lineHeight: 1.55,
+    fontSize: 20, fontWeight: 400,
+    fill: "rgba(255,255,255,0.82)", lineHeight: 1.5,
     originX: "left", originY: "top",
   });
   setData(bodyIntro, { role: "stat_body_intro" });
   objects.push(bodyIntro);
 
-  // 4. Horizontal divider between zones
+  // 4. Horizontal divider — always below both text blocks
   objects.push(new fabric.Rect({
     left: PAD_X, top: DIVIDER_Y,
-    width: CANVAS_SIZE - PAD_X * 2, height: 1,
+    width: TEXT_W, height: 1,
     fill: "rgba(255,255,255,0.25)",
     originX: "left", originY: "top", selectable: false,
   }));
 
   // 5. ── BOTTOM ZONE: stat + explanation + attribution ────────────────────────
 
-  const STAT_Y = DIVIDER_Y + 36;
+  const STAT_Y = DIVIDER_Y + 28;
 
   const statValue = new fabric.Text(m.stat_value, {
     left: PAD_X, top: STAT_Y,
     fontFamily: tokens.fontBody,
-    fontSize: 96, fontWeight: 700,
+    fontSize: 88, fontWeight: 700,
     fill: accentColor,
     originX: "left", originY: "top",
   });
@@ -163,16 +184,16 @@ export async function buildAuroraCompactStatHero(
   objects.push(statValue);
 
   const statValProbe = new fabric.Text(m.stat_value, {
-    fontFamily: tokens.fontBody, fontSize: 96, fontWeight: 700,
+    fontFamily: tokens.fontBody, fontSize: 88, fontWeight: 700,
   });
-  const statH = statValProbe.height ?? 96;
+  const statH = (statValProbe.height ?? 88) + 4;
 
   const statExpl = new fabric.Textbox(m.stat_explanation, {
-    left: PAD_X, top: STAT_Y + statH + 16,
+    left: PAD_X, top: STAT_Y + statH + 12,
     width: CANVAS_SIZE - PAD_X * 2,
     fontFamily: tokens.fontBody,
-    fontSize: 26, fontWeight: 700,
-    fill: "#FFFFFF", lineHeight: 1.4,
+    fontSize: 22, fontWeight: 700,
+    fill: "#FFFFFF", lineHeight: 1.35,
     originX: "left", originY: "top",
   });
   setData(statExpl, { role: "stat_explanation" });
@@ -180,14 +201,14 @@ export async function buildAuroraCompactStatHero(
 
   const statExplProbe = new fabric.Textbox(m.stat_explanation, {
     width: CANVAS_SIZE - PAD_X * 2,
-    fontFamily: tokens.fontBody, fontSize: 26, fontWeight: 700, lineHeight: 1.4,
+    fontFamily: tokens.fontBody, fontSize: 22, fontWeight: 700, lineHeight: 1.35,
   });
-  const explH = statExplProbe.height ?? 26;
+  const explH = (statExplProbe.height ?? 22) + 4;
 
   const attribution = new fabric.Text(m.attribution, {
-    left: PAD_X, top: STAT_Y + statH + 16 + explH + 16,
+    left: PAD_X, top: STAT_Y + statH + 12 + explH + 12,
     fontFamily: tokens.fontBody,
-    fontSize: 16, fontWeight: 400,
+    fontSize: 15, fontWeight: 400,
     fill: "rgba(255,255,255,0.52)",
     originX: "left", originY: "top",
   });
