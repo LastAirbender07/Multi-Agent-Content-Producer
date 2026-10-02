@@ -346,6 +346,63 @@ REMAINING: user must open and visually confirm before committing.
 
 ---
 
+---
+
+## The Family Audit Workflow (how to use this tool systematically)
+
+For any new template family or after bulk changes, run this command to audit all families at once:
+
+```bash
+cd backend
+
+# 1. Build the family × type → PNG map
+python3 -c "
+import json
+from pathlib import Path
+from collections import defaultdict
+
+families = {}
+for run_dir in sorted(Path('outputs/runs').iterdir(), reverse=True):
+    if not run_dir.is_dir(): continue
+    for sj in run_dir.glob('content/angle_*/slides.json'):
+        try:
+            data = json.loads(sj.read_text())
+            for s in data.get('slides', []):
+                t, typ, num = s.get('canvas_template',''), s.get('type',''), s.get('slide_number',0)
+                png = sj.parent/'png'/f'slide_{num:02d}.png'
+                if not t or not png.exists(): continue
+                if t.startswith('aurora-lite'):       fam='aurora-lite'
+                elif t.startswith('aurora-compact'):  fam='compact-clean'
+                elif t.startswith('lumina'):          fam='lumina'
+                else:                                 fam='aurora-extended'
+                key=(fam,typ)
+                if key not in families: families[key]=(t,str(png))
+        except: pass
+for (fam,typ),(tmpl,png) in sorted(families.items()):
+    print(f'{fam}|{typ}|{tmpl}|{png}')
+"
+
+# 2. For each PNG, run see_slide.py
+.venv/bin/python ../scripts/see_slide.py PATH_FROM_MAP \
+  --question "1) Quote headline+body. 2) Headline size (massive/large/medium/small)? 3) Body pt readable on phone? 4) Dead space? 5) Rendering bugs? 6) Rating 1-5."
+```
+
+**Fix prioritisation from ratings:**
+- 4-5/5: ship as-is
+- 3/5: note issues, fix before next release
+- 1-2/5: block on fix before any pipeline use
+
+**The 30-second fix-verify loop:**
+```bash
+# 1. Edit template file
+# 2. node backend/renderer/build.mjs
+# 3. Re-render one test slide (SlideRenderTask)
+# 4. .venv/bin/python scripts/see_slide.py /tmp/test.png
+# 5. If rating ≥ 4/5 → show user → commit on approval
+```
+
+---
+
 ## What Claude Still Cannot Do Alone
 
 | What | Why |

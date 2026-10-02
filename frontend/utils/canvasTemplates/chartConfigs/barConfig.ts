@@ -12,6 +12,7 @@ export function barConfig(data: ChartData, palette: ChartPalette, base: object) 
       borderSkipped: false,
       borderColor: "transparent",
       borderWidth: 0,
+      minBarLength: 6,   // prevent hairline bars when one value is tiny vs. others
     }] },
     options: { ...base, indexAxis: "y" as const,
       plugins: { legend: { display: false } },

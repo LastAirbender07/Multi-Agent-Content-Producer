@@ -83,14 +83,20 @@ export async function buildAuroraNxtworkDarkCta(
   setData(bg, { role: "dark_bg" });
   objects.push(bg);
 
+  // ── Two-pass layout — pill → headline → sub-copy, each anchored below previous ─
+  const padX      = tokens.padX;  // 88
+  const headlineW = CANVAS_SIZE - padX * 2;
+  const PILL_Y    = 280;
+  const PILL_H    = 52;
+  const PILL_GAP  = 28;
+
   // ── 2. White outlined pill — top, left-aligned ────────────────────────────────
-  const padX  = tokens.padX;  // 88
   const pill  = makeOutlinedPill({
     text:          m.pill_text,
     x:             padX,
-    y:             300,
+    y:             PILL_Y,
     tokens,
-    height:        52,
+    height:        PILL_H,
     padding:       28,
     fontSize:      20,
     letterSpacing: 180,
@@ -102,12 +108,12 @@ export async function buildAuroraNxtworkDarkCta(
   setData(pill, { role: "dark_cta_pill" });
   objects.push(pill);
 
-  // ── 3. Inter Black white headline ─────────────────────────────────────────────
-  const headlineW = CANVAS_SIZE - padX * 2;
+  // ── 3. Inter Black white headline (two-pass: measure height first) ────────────
+  const headlineY = PILL_Y + PILL_H + PILL_GAP;
   const headline  = makeMixedWeightText({
     runs:      m.headline_runs,
     x:         padX,
-    y:         440,
+    y:         headlineY,
     size:      m.headline_size,
     maxWidth:  headlineW,
     tokens,
@@ -119,10 +125,14 @@ export async function buildAuroraNxtworkDarkCta(
   setData(headline, { role: "dark_headline" });
   objects.push(headline);
 
-  // ── 4. Off-white sub-copy ─────────────────────────────────────────────────────
+  // Measure real headline height after creation
+  const headlineH = (headline.calcTextHeight?.() ?? m.headline_size * 1.05) + 8;
+
+  // ── 4. Off-white sub-copy — anchored below headline ───────────────────────────
+  const subY = headlineY + headlineH + 32;
   const sub = new fabric.Textbox(m.sub_text, {
     left:       padX,
-    top:        680,
+    top:        subY,
     width:      headlineW,
     fontFamily: tokens.fontBody,
     fontWeight: "400",

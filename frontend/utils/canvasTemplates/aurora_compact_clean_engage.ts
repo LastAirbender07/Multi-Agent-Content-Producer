@@ -50,12 +50,13 @@ export async function buildAuroraCompactCleanEngage(
 ): Promise<fabric.FabricObject[]> {
   const tokens = COMPACT_TOKENS;
   const m: Required<CompactCleanEngageMeta> = { ...DEFAULTS, ...(slide.compact_meta ?? {}) };
+  if (_meta.brandName) m.brand_wordmark = `@${_meta.brandName.replace(/^@/, "")}`;
 
   if (slide.title && !slide.compact_meta?.verb_runs) {
-    // Clamp the verb to a short punchy phrase — max first 6 words so it stays readable at 118pt.
+    // Clamp the verb to a short punchy phrase — max first 9 words so it stays readable at 118pt.
     // Long pipeline-generated titles blow out the layout at that font size.
     const titleWords = slide.title.split(/\s+/);
-    const verbText   = titleWords.slice(0, 6).join(" ");
+    const verbText   = titleWords.slice(0, 9).join(" ");
     m.verb_runs = [{ text: verbText, weight: 900 }];
   }
   if (slide.body && !slide.compact_meta?.support_text) {

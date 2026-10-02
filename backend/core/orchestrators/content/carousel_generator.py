@@ -224,6 +224,14 @@ async def screenshot_slides_fabric_node(state: ContentGraphState) -> dict:
             canvas_template = stored_template
         slide_dict = {**slide_dict, "canvas_template": canvas_template, "_theme": theme}
 
+        # SRP routing override: stat slide with chart_data but no stat_value → pure chart template
+        if (template_family == "compact-clean"
+                and slide_type == "stat"
+                and slide_dict.get("chart_data")
+                and not slide_dict.get("stat_value")):
+            canvas_template = "aurora-compact-chart"
+            slide_dict = {**slide_dict, "canvas_template": canvas_template}
+
         # Phase 3 / RCA fix — compact_meta adapter
         # Templates that fall back natively from slide.title/body (NO adapter needed):
         #   aurora-compact-hook, aurora-compact-clean-cta/engage, aurora-compact-content
@@ -238,14 +246,14 @@ async def screenshot_slides_fabric_node(state: ContentGraphState) -> dict:
                 _re.sub(r"^\d+[\.\)]\s*", "", str(b)).strip()
                 for b in bullets_raw if str(b).strip()
             ]
-            stat_v = slide_dict.get("stat_value")
-            stat_l = slide_dict.get("stat_label") or ""
-            title  = slide_dict.get("title", "")
-            body   = slide_dict.get("body",  "")
+            stat_v  = slide_dict.get("stat_value")
+            stat_l  = slide_dict.get("stat_label") or ""
+            title   = slide_dict.get("title", "")
+            body    = slide_dict.get("body",  "")
+            # Use configured brand name so compact templates never show "@yourbrand" default
+            brand   = f"@{_settings.brand_name.lstrip('@')}"
 
             if canvas_template == "aurora-compact-fact":
-                # aurora-compact-fact is ONLY used for stat slides now.
-                # It always has a stat value at this point.
                 slide_dict = {**slide_dict, "compact_meta": {
                     "variant":       "single",
                     "stat":          {"value": str(stat_v) if stat_v else "—", "caption": stat_l},
@@ -253,23 +261,27 @@ async def screenshot_slides_fabric_node(state: ContentGraphState) -> dict:
                     "body_copy":     body,
                     "attribution":   bullets_clean[0] if bullets_clean else "",
                     "category_pill": "STAT",
-                    "brand_wordmark": "",
+                    "brand_wordmark": brand,
                 }}
 
             elif canvas_template == "aurora-compact-stat-hero":
-                # aurora-compact-stat-hero — photo bg + headline + stat value overlay.
-                # CompactStatHeroMeta fields: headline, body_intro, stat_value, stat_explanation
                 slide_dict = {**slide_dict, "compact_meta": {
-                    "headline":        title,
-                    "body_intro":      body,
-                    "stat_value":      str(stat_v) if stat_v else "",
+                    "headline":         title,
+                    "body_intro":       body,
+                    "stat_value":       str(stat_v) if stat_v else "",
                     "stat_explanation": stat_l,
-                    "attribution":     bullets_clean[0] if bullets_clean else "",
-                    "brand_wordmark":  "",
+                    "attribution":      bullets_clean[0] if bullets_clean else "",
+                    "brand_wordmark":   brand,
+                }}
+
+            elif canvas_template == "aurora-compact-chart":
+                # chart_data + chart_type read directly from slide root by the template builder
+                slide_dict = {**slide_dict, "compact_meta": {
+                    "headline":      title,
+                    "brand_wordmark": brand,
                 }}
 
             elif canvas_template in ("aurora-compact-step",):
-                # Tutorial step: heading = title, explanation = body, steps from bullets
                 slide_dict = {**slide_dict, "compact_meta": {
                     "layout":      "detail",
                     "heading":     title,

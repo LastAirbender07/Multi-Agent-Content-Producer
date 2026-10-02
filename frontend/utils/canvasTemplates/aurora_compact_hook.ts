@@ -39,6 +39,7 @@ export async function buildAuroraCompactHook(
 ): Promise<fabric.FabricObject[]> {
   const tokens = COMPACT_TOKENS;
   const m: Required<CompactMeta> = { ...DEFAULTS, ...(slide.compact_meta ?? {}) };
+  if (_meta.brandName) m.brand_wordmark = `@${_meta.brandName.replace(/^@/, "")}`;
 
   // If slide.title is set and compact_meta.headline_runs is default, use title as single run
   if (slide.title && !slide.compact_meta?.headline_runs) {

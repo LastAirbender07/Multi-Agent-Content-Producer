@@ -118,6 +118,9 @@ export function createBulletItem(
   top  = 0,
   width = 940,
 ): fabric.Group {
+  // Strip leading numbering ("1. ", "2) ", "• ") — the circle badge already shows the number.
+  // LLM-generated bullets often include "1. text" which would double-number as "① 1. text".
+  const cleanText = text.replace(/^\s*(\d+[\.\)]\s*|[-•]\s*)/, "");
   const C = 28;  // circle diameter
   const circle = new fabric.Circle({
     radius: C / 2, left: 0, top: 2,
@@ -131,7 +134,7 @@ export function createBulletItem(
     left: C / 2, top: 7, fontSize: 12, fontWeight: "700", fill: "#fff",
     fontFamily: t.fontBody, originX: "center" as const, originY: "top" as const,
   });
-  const label = new fabric.Textbox(text, {
+  const label = new fabric.Textbox(cleanText, {
     left: C + 12, top: 0, width: width - C - 12,
     fontSize, fontWeight: "400", fill: t.muted,
     fontFamily: t.fontBody, lineHeight: 1.55,  // matches Jinja2 .bullet-text { line-height: 1.55 }

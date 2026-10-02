@@ -115,9 +115,14 @@ const TEMPLATE_METADATA: Record<string, TemplateMeta> = {
     starter: { title: "", body: "", compact_meta: { image_url: "/assets/images/step-bg-terrain.jpg" } },
   },
   "aurora-compact-stat-hero": {
-    type: "stat", label: "Stat Hero", desc: "Photo background + stat",
+    type: "stat", label: "Stat Hero", desc: "Big number, no chart",
     color: "#F08A3D", emoji: "📸",
     starter: { title: "", body: "", compact_meta: { image_url: "/assets/images/step-bg-terrain.jpg" } },
+  },
+  "aurora-compact-chart": {
+    type: "stat", label: "Chart", desc: "Data visualisation — chart fills the canvas",
+    color: "#E8B045", emoji: "📊",
+    starter: { title: "REM sleep collapses after 6 hours", body: "", compact_meta: {} },
   },
   "aurora-compact-list-item": {
     type: "content", label: "List", desc: "Ranked list (SahilBloom)",

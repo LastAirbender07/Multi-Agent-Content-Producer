@@ -65,6 +65,11 @@ export async function buildAuroraCompactContent(
     if (slide.title) m.heading   = slide.title;
     if (slide.body)  m.body_copy = slide.body;
   }
+  // Always use meta.brandName so pipeline slides never show "@yourbrand" default.
+  // meta.brandName is set from settings.brand_name by the renderer for every slide.
+  if (meta.brandName) {
+    m.brand_wordmark = `@${meta.brandName.replace(/^@/, "")}`;
+  }
 
   const objects: fabric.FabricObject[] = [];
   const resolvedImageUrl = resolveAssetUrl(imageUrl ?? (slide.image_url ?? m.image_url ?? null) ?? null);

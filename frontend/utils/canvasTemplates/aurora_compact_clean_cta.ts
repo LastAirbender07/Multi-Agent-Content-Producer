@@ -49,6 +49,7 @@ export async function buildAuroraCompactCleanCta(
 ): Promise<fabric.FabricObject[]> {
   const tokens = COMPACT_TOKENS;
   const m: Required<CompactCleanCtaMeta> = { ...DEFAULTS, ...(slide.compact_meta ?? {}) };
+  if (_meta.brandName) m.brand_wordmark = `@${_meta.brandName.replace(/^@/, "")}`;
 
   // Prefer slide.title for the headline when no explicit compact_meta.headline_runs
   if (slide.title && !slide.compact_meta?.headline_runs) {

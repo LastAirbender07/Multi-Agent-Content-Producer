@@ -133,13 +133,15 @@ export async function buildAuroraEditorialHook(
   });
 
   // Measure real rendered height — includes all wrapped lines
-  const realHeadlineH = headline.calcTextHeight();
+  // Add extra buffer (×1.15) because Playfair Display has tall ascenders/descenders
+  // that calcTextHeight() can undercount, causing body to overlap the last headline line.
+  const realHeadlineH = Math.ceil(headline.calcTextHeight() * 1.15);
   headline.set({ top: headlineY });
   setData(headline, { role: "editorial_headline" });
   objects.push(headline);
 
   // ── 5. Body line — Inter 400, muted, placed below real headline bottom ────────
-  const bodyY = headlineY + realHeadlineH + 44;
+  const bodyY = headlineY + realHeadlineH + 56;  // increased gap: 44→56
 
   const body = new fabric.Textbox(m.body, {
     left:       PAD_X,

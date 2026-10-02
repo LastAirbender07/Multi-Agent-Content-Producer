@@ -16,6 +16,7 @@ import { buildAuroraCompactStep }        from "./aurora_compact_step";
 import { buildAuroraCompactStepIndex }   from "./aurora_compact_step_index";
 import { buildAuroraCompactStepDetail }  from "./aurora_compact_step_detail";
 import { buildAuroraCompactStatHero }    from "./aurora_compact_stat_hero";
+import { buildAuroraCompactChart }       from "./aurora_compact_chart";
 import { buildAuroraCompactListItem }    from "./aurora_compact_list_item";
 import { buildAuroraCompactQuote }       from "./aurora_compact_quote";
 import { buildAuroraCarouselCoverHeroPhone }  from "./aurora_carousel_cover_hero_phone";
@@ -77,6 +78,7 @@ export const REGISTRY: Record<string, TemplateBuilder> = {
   "aurora-compact-step-index":   buildAuroraCompactStepIndex,     // scannable 6-item list + pipeline
   "aurora-compact-step-detail":  buildAuroraCompactStepDetail,    // single-step deep-dive
   "aurora-compact-stat-hero":    buildAuroraCompactStatHero,      // photo bg + headline + accent stat
+  "aurora-compact-chart":        buildAuroraCompactChart,          // pure chart card — chart fills canvas
   "aurora-compact-list-item":    buildAuroraCompactListItem,
   "aurora-compact-quote":        buildAuroraCompactQuote,
   // Phase 5 cover-hero family

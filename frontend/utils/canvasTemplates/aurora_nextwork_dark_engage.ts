@@ -79,13 +79,16 @@ export async function buildAuroraNxtworkDarkEngage(
   setData(bg, { role: "dark_bg" });
   objects.push(bg);
 
-  // ── 2. Inter Black white verb ─────────────────────────────────────────────────
-  const padX   = tokens.padX;  // 88
-  const verbW  = CANVAS_SIZE - padX * 2;
-  const verb   = makeMixedWeightText({
+  // ── Two-pass layout — verb → pill → support, each anchored below previous ─────
+  const padX  = tokens.padX;  // 88
+  const verbW = CANVAS_SIZE - padX * 2;
+  const VERB_Y = 260;
+
+  // ── 2. Inter Black white verb (two-pass: create, measure, then anchor pill) ───
+  const verb = makeMixedWeightText({
     runs:      m.verb_runs,
     x:         padX,
-    y:         300,
+    y:         VERB_Y,
     size:      m.verb_size,
     maxWidth:  verbW,
     tokens,
@@ -97,13 +100,18 @@ export async function buildAuroraNxtworkDarkEngage(
   setData(verb, { role: "dark_headline" });
   objects.push(verb);
 
-  // ── 3. White outlined action pill ─────────────────────────────────────────────
+  // Measure actual rendered height after creation
+  const verbH  = (verb.calcTextHeight?.() ?? m.verb_size * 1.0) + 8;
+  const pillY  = VERB_Y + verbH + 28;
+  const PILL_H = 52;
+
+  // ── 3. White outlined action pill — anchored below verb ───────────────────────
   const pill = makeOutlinedPill({
     text:          m.pill_text,
     x:             padX,
-    y:             530,
+    y:             pillY,
     tokens,
-    height:        52,
+    height:        PILL_H,
     padding:       28,
     fontSize:      22,
     letterSpacing: 180,
@@ -115,10 +123,11 @@ export async function buildAuroraNxtworkDarkEngage(
   setData(pill, { role: "dark_engage_pill" });
   objects.push(pill);
 
-  // ── 4. Off-white muted supporting copy ───────────────────────────────────────
+  // ── 4. Off-white muted supporting copy — anchored below pill ─────────────────
+  const supportY = pillY + PILL_H + 24;
   const support = new fabric.Textbox(m.support_text, {
     left:       padX,
-    top:        630,
+    top:        supportY,
     width:      verbW,
     fontFamily: tokens.fontBody,
     fontWeight: "400",

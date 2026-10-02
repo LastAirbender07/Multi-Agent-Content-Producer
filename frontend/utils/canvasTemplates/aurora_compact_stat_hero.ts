@@ -6,42 +6,43 @@ import { makeBrandPill } from "./shared/compact";
 import { COMPACT_TOKENS } from "./shared/design_tokens";
 import { setData, resolveAssetUrl } from "./shared";
 
-const CANVAS_SIZE = 1080;
+// SRP: one job — make the number land hard.
+// Headline sets up why. 152px number IS the slide. Label says what. Space says importance.
+// No body text. No chart. This template does nothing else.
 
-// Accent colours for the stat callout (one per variant)
+const CANVAS_SIZE  = 1080;
+const PAD_X        = 64;
+const TEXT_W       = CANVAS_SIZE - PAD_X * 2;  // 952px
+const HEADLINE_FS  = 64;
+const STAT_FS      = 152;
+const LABEL_FS     = 42;
+const ATTR_FS      = 14;
+const BRAND_PILL_Y = CANVAS_SIZE - 80;
+
 const ACCENT_YELLOW = "#F5C518";
 const ACCENT_CORAL  = "#D46A5E";
 
 type StatHeroAccent = "yellow" | "coral";
 
 interface CompactStatHeroMeta {
-  accent?: StatHeroAccent;
-  headline?: string;
-  body_intro?: string;
-  stat_value?: string;
+  accent?:          StatHeroAccent;
+  headline?:        string;
+  stat_value?:      string;
   stat_explanation?: string;
-  attribution?: string;
-  brand_wordmark?: string;
-  image_url?: string;
+  attribution?:     string;
+  brand_wordmark?:  string;
+  image_url?:       string;
 }
 
 const DEFAULTS: Required<CompactStatHeroMeta> = {
-  accent: "yellow",
-  headline: "Security is not a separate career",
-  body_intro:
-    "Most security roles are built on skills you already use, like networking, identity, automation and access control. The 7 that follow all pay above the average US tech salary.",
-  stat_value: "$112,521",
-  stat_explanation: "is what the average US tech professional earns, and every role ahead beats it.",
-  attribution: "Dice 2025 Tech Salary Report",
-  brand_wordmark: "@nextwork",
-  image_url: "",
+  accent:           "yellow",
+  headline:         "Security is not a separate career",
+  stat_value:       "$112,521",
+  stat_explanation: "average US tech salary — every role ahead beats it",
+  attribution:      "Dice 2025 Tech Salary Report",
+  brand_wordmark:   "@nextwork",
+  image_url:        "",
 };
-
-const PAD_X       = 64;
-const HEADLINE_TOP = 72;
-const HEADLINE_FS  = 56;   // reduced from 80 — prevents wrapping past midpoint on long titles
-const MIN_DIVIDER  = 520;  // never push stat zone below this even on short headlines
-const MAX_DIVIDER  = 620;  // never let body_intro push stat zone off-canvas
 
 export async function buildAuroraCompactStatHero(
   slide: SlideData & { image_url?: string; compact_meta?: CompactStatHeroMeta },
@@ -49,32 +50,27 @@ export async function buildAuroraCompactStatHero(
   _t: CanvasTokens,
   _meta: SlideMeta,
 ): Promise<fabric.FabricObject[]> {
-  const tokens = COMPACT_TOKENS;
+  const tokens      = COMPACT_TOKENS;
   const m: Required<CompactStatHeroMeta> = { ...DEFAULTS, ...(slide.compact_meta ?? {}) };
+  if (_meta.brandName) m.brand_wordmark = `@${_meta.brandName.replace(/^@/, "")}`;
   const accentColor = m.accent === "coral" ? ACCENT_CORAL : ACCENT_YELLOW;
 
   const objects: fabric.FabricObject[] = [];
   const resolvedImageUrl = resolveAssetUrl(imageUrl ?? (slide.image_url ?? m.image_url ?? null) ?? null);
 
-  // 1. Photo background or dark gradient fallback
+  // ── Background ────────────────────────────────────────────────────────────────
   if (resolvedImageUrl) {
     try {
       const img = await fabric.FabricImage.fromURL(resolvedImageUrl, { crossOrigin: "anonymous" });
       const scaleX = CANVAS_SIZE / (img.width ?? CANVAS_SIZE);
       const scaleY = CANVAS_SIZE / (img.height ?? CANVAS_SIZE);
-      img.set({
-        left: 0, top: 0,
-        originX: "left", originY: "top",
-        scaleX: Math.max(scaleX, scaleY),
-        scaleY: Math.max(scaleX, scaleY),
-        selectable: false,
-      });
+      img.set({ left: 0, top: 0, originX: "left", originY: "top",
+        scaleX: Math.max(scaleX, scaleY), scaleY: Math.max(scaleX, scaleY), selectable: false });
       setData(img, { role: "stat_bg_photo" });
       objects.push(img);
-    } catch { /* fallback below */ }
+    } catch { /* fallback */ }
   }
   if (objects.length === 0) {
-    // Dark glass-panel fallback — subtle depth gradient instead of flat color
     objects.push(new fabric.Rect({
       left: 0, top: 0, width: CANVAS_SIZE, height: CANVAS_SIZE,
       fill: new fabric.Gradient({
@@ -82,15 +78,14 @@ export async function buildAuroraCompactStatHero(
         coords: { x1: 0, y1: 0, x2: 0, y2: 1 },
         colorStops: [
           { offset: 0,   color: "#0D1520" },
-          { offset: 0.5, color: "#111A28" },
+          { offset: 0.5, color: "#0F1825" },
           { offset: 1,   color: "#0A1018" },
         ],
       }),
       originX: "left", originY: "top", selectable: false,
     }));
   }
-
-  // 2. Heavy glassmorphism overlay — photo barely visible as subtle texture
+  // Glassmorphism overlay
   objects.push(new fabric.Rect({
     left: 0, top: 0, width: CANVAS_SIZE, height: CANVAS_SIZE,
     fill: new fabric.Gradient({
@@ -104,122 +99,92 @@ export async function buildAuroraCompactStatHero(
     }),
     originX: "left", originY: "top", selectable: false,
   }));
-
-  // Subtle glass-surface highlight — faint white band at top edge (reflection)
+  // Subtle top highlight
   objects.push(new fabric.Rect({
     left: 0, top: 0, width: CANVAS_SIZE, height: 4,
     fill: "rgba(255,255,255,0.06)",
     originX: "left", originY: "top", selectable: false,
   }));
 
-  // 3. ── TOP ZONE: headline + body intro (two-pass — measure before positioning) ─
+  // ── Anchor-based layout: pin stat at canvas 40% → number center lands near y=540 ──
+  // Flow headline UP from stat anchor, label DOWN below it.
+  // This is more reliable than totalH centering since Fabric probes can undercount.
 
-  const TEXT_W = CANVAS_SIZE - PAD_X * 2;
-
-  // Pass 1: measure headline height at the reduced font size
-  const hlProbe = new fabric.Textbox(m.headline, {
-    width: TEXT_W,
-    fontFamily: tokens.fontBody, fontSize: HEADLINE_FS, fontWeight: 700, lineHeight: 1.12,
+  const statProbe = new fabric.Text(m.stat_value, {
+    fontFamily: tokens.fontBody, fontSize: STAT_FS, fontWeight: 700,
   });
-  const hlH = (hlProbe.height ?? HEADLINE_FS) + 8;
+  const statH = (statProbe.height ?? STAT_FS) + 4;
 
-  // Pass 1: measure body_intro height
-  const biProbe = new fabric.Textbox(m.body_intro, {
-    width: TEXT_W,
-    fontFamily: tokens.fontBody, fontSize: 20, fontWeight: 400, lineHeight: 1.5,
+  // Stat starts at 40% of canvas — its center ~= visual midpoint
+  const statY = Math.round(CANVAS_SIZE * 0.40);
+
+  // Headline and divider flow up from stat
+  const dividerY  = statY - 46;
+  const hlProbe   = new fabric.Textbox(m.headline, {
+    width: TEXT_W, fontFamily: tokens.fontBody,
+    fontSize: HEADLINE_FS, fontWeight: 700, lineHeight: 1.1,
   });
-  const biH = (biProbe.height ?? 20) + 8;
+  const hlH        = (hlProbe.height ?? HEADLINE_FS) + 8;
+  const headlineY  = Math.max(48, dividerY - 32 - hlH);
 
-  // Compute dynamic divider — clamp so stat zone always fits
-  const DIVIDER_Y = Math.min(
-    Math.max(HEADLINE_TOP + hlH + 24 + biH + 24, MIN_DIVIDER),
-    MAX_DIVIDER,
-  );
+  const labelProbe = new fabric.Textbox(m.stat_explanation, {
+    width: TEXT_W, fontFamily: tokens.fontBody, fontSize: LABEL_FS, fontWeight: 600, lineHeight: 1.3,
+  });
+  const labelH = (labelProbe.height ?? LABEL_FS) + 4;
 
-  // Pass 2: position headline
+  // ── Headline (context: why this number matters) ───────────────────────────────
   const headline = new fabric.Textbox(m.headline, {
-    left: PAD_X, top: HEADLINE_TOP,
-    width: TEXT_W,
-    fontFamily: tokens.fontBody,
-    fontSize: HEADLINE_FS, fontWeight: 700,
-    fill: "#FFFFFF", lineHeight: 1.12,
+    left: PAD_X, top: headlineY, width: TEXT_W,
+    fontFamily: tokens.fontBody, fontSize: HEADLINE_FS, fontWeight: 700,
+    fill: "#FFFFFF", lineHeight: 1.1,
     originX: "left", originY: "top",
   });
   setData(headline, { role: "stat_headline" });
   objects.push(headline);
 
-  // Pass 2: position body_intro below headline
-  const bodyIntroTop = HEADLINE_TOP + hlH + 24;
-  const bodyIntro = new fabric.Textbox(m.body_intro, {
-    left: PAD_X, top: bodyIntroTop,
-    width: TEXT_W,
-    fontFamily: tokens.fontBody,
-    fontSize: 20, fontWeight: 400,
-    fill: "rgba(255,255,255,0.82)", lineHeight: 1.5,
-    originX: "left", originY: "top",
-  });
-  setData(bodyIntro, { role: "stat_body_intro" });
-  objects.push(bodyIntro);
-
-  // 4. Horizontal divider — always below both text blocks
+  // ── Accent divider ────────────────────────────────────────────────────────────
   objects.push(new fabric.Rect({
-    left: PAD_X, top: DIVIDER_Y,
-    width: TEXT_W, height: 1,
-    fill: "rgba(255,255,255,0.25)",
+    left: PAD_X, top: dividerY, width: TEXT_W, height: 2,
+    fill: accentColor + "59",  // 35% opacity
     originX: "left", originY: "top", selectable: false,
   }));
 
-  // 5. ── BOTTOM ZONE: stat + explanation + attribution ────────────────────────
-
-  const STAT_Y = DIVIDER_Y + 28;
-
+  // ── THE NUMBER (the entire reason this slide exists) ─────────────────────────
   const statValue = new fabric.Text(m.stat_value, {
-    left: PAD_X, top: STAT_Y,
-    fontFamily: tokens.fontBody,
-    fontSize: 88, fontWeight: 700,
+    left: PAD_X, top: statY,
+    fontFamily: tokens.fontBody, fontSize: STAT_FS, fontWeight: 700,
     fill: accentColor,
     originX: "left", originY: "top",
   });
   setData(statValue, { role: "stat_value" });
   objects.push(statValue);
 
-  const statValProbe = new fabric.Text(m.stat_value, {
-    fontFamily: tokens.fontBody, fontSize: 88, fontWeight: 700,
-  });
-  const statH = (statValProbe.height ?? 88) + 4;
-
-  const statExpl = new fabric.Textbox(m.stat_explanation, {
-    left: PAD_X, top: STAT_Y + statH + 12,
-    width: CANVAS_SIZE - PAD_X * 2,
-    fontFamily: tokens.fontBody,
-    fontSize: 22, fontWeight: 700,
-    fill: "#FFFFFF", lineHeight: 1.35,
+  // ── Stat label (what the number IS — 2-3 lines OK) ──────────────────────────
+  const labelY = statY + statH + 12;
+  const statLabel = new fabric.Textbox(m.stat_explanation, {
+    left: PAD_X, top: labelY, width: TEXT_W,
+    fontFamily: tokens.fontBody, fontSize: LABEL_FS, fontWeight: 600,
+    fill: "rgba(255,255,255,0.85)", lineHeight: 1.3,
     originX: "left", originY: "top",
   });
-  setData(statExpl, { role: "stat_explanation" });
-  objects.push(statExpl);
+  setData(statLabel, { role: "stat_explanation" });
+  objects.push(statLabel);
 
-  const statExplProbe = new fabric.Textbox(m.stat_explanation, {
-    width: CANVAS_SIZE - PAD_X * 2,
-    fontFamily: tokens.fontBody, fontSize: 22, fontWeight: 700, lineHeight: 1.35,
-  });
-  const explH = (statExplProbe.height ?? 22) + 4;
+  // ── Attribution (barely-there sourcing) ──────────────────────────────────────
+  if (m.attribution) {
+    objects.push(new fabric.Text(m.attribution, {
+      left: PAD_X, top: labelY + labelH + 14,
+      fontFamily: tokens.fontBody, fontSize: ATTR_FS, fontWeight: 400,
+      fill: "rgba(255,255,255,0.45)",
+      originX: "left", originY: "top",
+    }));
+  }
 
-  const attribution = new fabric.Text(m.attribution, {
-    left: PAD_X, top: STAT_Y + statH + 12 + explH + 12,
-    fontFamily: tokens.fontBody,
-    fontSize: 15, fontWeight: 400,
-    fill: "rgba(255,255,255,0.52)",
-    originX: "left", originY: "top",
-  });
-  setData(attribution, { role: "stat_attribution" });
-  objects.push(attribution);
-
-  // 6. Brand pill (bottom-left, above bottom edge)
+  // ── Brand pill ────────────────────────────────────────────────────────────────
   if (m.brand_wordmark) {
     const brandPill = makeBrandPill({
       wordmark: m.brand_wordmark,
-      x: PAD_X, y: CANVAS_SIZE - 72,
+      x: PAD_X, y: BRAND_PILL_Y,
       tokens, height: 48, fontSize: 17,
     });
     setData(brandPill, { role: "stat_brand_pill" });
