@@ -16,15 +16,58 @@ from infra.logging import get_logger
 logger = get_logger(__name__)
 
 # Category keyword → display label mapping
+# Broad global queries — India represented but not exclusively.
 DISCOVER_CATEGORIES: list[tuple[str, str]] = [
-    ("technology AI", "technology"),
-    ("India business economy", "business"),
-    ("Indian politics", "politics"),
-    ("cricket sports India", "sports"),
-    ("science environment", "science"),
-    ("Bollywood entertainment", "entertainment"),
-    ("startup funding India", "startups"),
-    ("world news today", "world"),
+    # ── Tech & AI ─────────────────────────────────────────────────────────────
+    ("artificial intelligence machine learning",       "AI"),
+    ("technology product launch software",             "tech"),
+    ("cybersecurity data privacy hack",                "cybersecurity"),
+    # ── Finance & Markets ─────────────────────────────────────────────────────
+    ("stock market investing Wall Street",             "stocks"),
+    ("personal finance money tips",                    "personal-finance"),
+    ("cryptocurrency bitcoin blockchain",              "crypto"),
+    ("India stock market NSE BSE Sensex Nifty",       "india-stocks"),
+    # ── Business & Startups ───────────────────────────────────────────────────
+    ("global business economy",                        "business"),
+    ("India startup funding VC",                       "india-startups"),
+    ("startup founder entrepreneur",                   "startups"),
+    # ── Science & Health ──────────────────────────────────────────────────────
+    ("science research discovery breakthrough",        "science"),
+    ("health medicine nutrition fitness",              "health"),
+    ("mental health psychology wellbeing",             "mental-health"),
+    ("space exploration NASA SpaceX astronomy",        "space"),
+    # ── Education & Learning ──────────────────────────────────────────────────
+    ("education learning schools universities",        "education"),
+    ("online learning edtech skills",                  "edtech"),
+    # ── World & Politics ──────────────────────────────────────────────────────
+    ("world news geopolitics international",           "world"),
+    ("US politics White House policy",                 "us-politics"),
+    ("Europe news EU policy",                          "europe"),
+    ("India politics government",                      "india-politics"),
+    # ── Sports ────────────────────────────────────────────────────────────────
+    ("cricket IPL India sports",                       "cricket"),
+    ("football soccer Premier League FIFA",            "football"),
+    ("sports highlights results",                      "sports"),
+    # ── Entertainment & Pop Culture ───────────────────────────────────────────
+    ("Hollywood movies film reviews",                  "movies"),
+    ("Bollywood India film music",                     "bollywood"),
+    ("Netflix Amazon Prime streaming series",          "streaming"),
+    ("music album artist tour",                        "music"),
+    # ── Comics, Anime & Geek Culture ─────────────────────────────────────────
+    ("Marvel DC comics superhero movie",               "marvel-dc"),
+    ("anime manga Japan animation",                    "anime"),
+    ("cartoon animation studio Pixar Disney",          "cartoons"),
+    ("video games gaming console release",             "gaming"),
+    # ── Mythology, History & Ancient Worlds ──────────────────────────────────
+    ("mythology myths legends ancient gods",           "mythology"),
+    ("Hindu mythology Ramayana Mahabharata",           "hindu-mythology"),
+    ("Greek Roman Norse mythology stories",            "world-mythology"),
+    ("ancient history civilizations archaeology",      "ancient-history"),
+    ("folklore legends supernatural stories",          "folklore"),
+    # ── Environment & Society ─────────────────────────────────────────────────
+    ("climate change environment sustainability",      "climate"),
+    ("social media trends viral",                      "social"),
+    ("food culture travel lifestyle",                  "lifestyle"),
 ]
 
 # Simple in-memory cache: {data, expires_at}
@@ -38,7 +81,7 @@ async def fetch_category(keyword: str, category: str) -> list[DiscoverArticle]:
     try:
         tool = GoogleNewsAPI()
         result = await asyncio.wait_for(
-            tool.execute(query=keyword, max_results=8, when="3d"),
+            tool.execute(query=keyword, max_results=6, when="2d"),
             timeout=8.0,
         )
         for a in result.articles:
@@ -106,7 +149,7 @@ async def discover_topics(bust: bool = False, ttl_seconds: int = 1800) -> Discov
                 articles.append(a)
 
     articles.sort(key=lambda a: a.published_at or "", reverse=True)
-    articles = articles[:60]
+    articles = articles[:150]
     _cache["data"] = articles
     _cache["expires_at"] = now + ttl_seconds
 
