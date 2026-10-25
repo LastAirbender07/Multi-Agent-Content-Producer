@@ -6,6 +6,41 @@
 
 ---
 
+## 2026-10-25 — News Discover: global categories
+
+### News Discovery — `backend/core/tools/News/discovery.py`
+
+**Root cause found:** `DISCOVER_CATEGORIES` was hardcoded with India-only search keywords
+(`"India business economy"`, `"Bollywood entertainment"`, `"cricket sports India"` etc.) causing
+the Discover drawer to show only India/Bollywood/stocks regardless of topic. No config —
+just static strings baked in at build time.
+
+**Fix:** Expanded from 8 → 40 categories covering global + India:
+
+| Section | New categories |
+|---------|---------------|
+| Tech & AI | AI, tech, cybersecurity |
+| Finance & Markets | stocks, personal-finance, crypto, india-stocks |
+| Business | global business, india-startups, startups |
+| Science & Health | science, health, mental-health, space |
+| Education | education, edtech |
+| World & Politics | world, us-politics, europe, india-politics |
+| Sports | cricket, football, sports |
+| Entertainment | movies, bollywood, streaming, music |
+| Comics / Anime / Gaming | marvel-dc, anime, cartoons, gaming |
+| Mythology & History | mythology, hindu-mythology, world-mythology, ancient-history, folklore |
+| Society | climate, social, lifestyle |
+
+India retains 4 dedicated slots (india-stocks, india-startups, bollywood, india-politics + cricket).
+Mythology section added separately for Hindu, Greek/Norse/Roman, and general folklore.
+
+**Other changes:**
+- Per-category fetch: `max_results=8, when="3d"` → `max_results=6, when="2d"` (fresher articles)
+- Total article cap: 60 → 150 (matches 40-category scale)
+
+
+---
+
 ## 2026-08-30 — Phase 2 COMPLETE: regression confirmed, 0 new failures
 
 **Playwright regression result:**
