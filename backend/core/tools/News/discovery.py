@@ -31,6 +31,12 @@ DISCOVER_CATEGORIES: list[tuple[str, str]] = [
     ("global business economy",                        "business"),
     ("India startup funding VC",                       "india-startups"),
     ("startup founder entrepreneur",                   "startups"),
+    # ── Corporate World ───────────────────────────────────────────────────────
+    ("company layoffs job cuts workforce reduction",   "layoffs"),
+    ("mergers acquisitions corporate deal buyout",     "mergers"),
+    ("CEO earnings call quarterly results revenue",    "earnings"),
+    ("corporate conference summit event keynote",      "corp-events"),
+    ("company IPO listing valuation",                  "ipo"),
     # ── Science & Health ──────────────────────────────────────────────────────
     ("science research discovery breakthrough",        "science"),
     ("health medicine nutrition fitness",              "health"),
@@ -149,7 +155,7 @@ async def discover_topics(bust: bool = False, ttl_seconds: int = 1800) -> Discov
                 articles.append(a)
 
     articles.sort(key=lambda a: a.published_at or "", reverse=True)
-    articles = articles[:150]
+    articles = articles[:180]
     _cache["data"] = articles
     _cache["expires_at"] = now + ttl_seconds
 
